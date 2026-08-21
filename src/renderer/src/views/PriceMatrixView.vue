@@ -50,6 +50,16 @@
             <span>{{ onlyFavorites ? '⭐ 已开启仅看收藏' : '☆ 仅看已收藏渠道' }}</span>
             <span v-if="store.favoriteSiteIds.length > 0" class="text-[10px] font-mono opacity-80">({{ store.favoriteSiteIds.length }})</span>
           </button>
+
+          <!-- 6. 隐藏 0 元 / 未标价条目快捷切换胶囊 -->
+          <button
+            @click="toggleExcludeZero"
+            class="px-3 py-1.5 rounded-xl border text-xs font-medium transition-all flex items-center space-x-1"
+            :class="excludeZeroPrice ? 'bg-[#EBF5FF] border-[#B9E1FF] text-[#0071E3] font-bold shadow-xs' : 'bg-[#F2F2F7] border-[#E5E5EA] text-[#6E6E73] hover:text-[#1D1D1F]'"
+            title="点击切换是否过滤输入与输出单价均为 0 的免费/占位/未标价条目"
+          >
+            <span>{{ excludeZeroPrice ? '🚫 隐藏 0 元/未标价' : '👁️ 显示 0 元/未标价' }}</span>
+          </button>
         </div>
 
         <!-- 右侧：快捷操作与匹配统计 -->
@@ -457,6 +467,9 @@ const buildSearchParams = (paramsObj: Record<string, any>): URLSearchParams => {
   return sp
 }
 
+// 0 价格/未标价条目过滤状态 (默认开启隐藏)
+const excludeZeroPrice = ref(true)
+
 // 异步获取筛选器候选选项 (根据已选维度进行四级级联联动收敛)
 const fetchFilterOptions = async (
   customProviders?: string[],
@@ -468,7 +481,9 @@ const fetchFilterOptions = async (
     const seriesToUse = customSeries !== undefined ? customSeries : selectedSeries.value
     const modelsToUse = customModels !== undefined ? customModels : selectedModels.value
 
-    const params: Record<string, any> = {}
+    const params: Record<string, any> = {
+      exclude_zero: excludeZeroPrice.value
+    }
     if (providersToUse.length > 0) params.provider = providersToUse
     if (seriesToUse.length > 0) params.series = seriesToUse
     if (modelsToUse.length > 0) params.model = modelsToUse
@@ -524,7 +539,8 @@ const fetchPaginatedMatrix = async () => {
       page: currentPage.value,
       page_size: pageSize.value,
       sort_by: sortField.value,
-      sort_order: sortOrder.value
+      sort_order: sortOrder.value,
+      exclude_zero: excludeZeroPrice.value
     }
     if (selectedProviders.value.length > 0) params.provider = selectedProviders.value
     if (selectedSeries.value.length > 0) params.series = selectedSeries.value
@@ -614,6 +630,13 @@ const toggleOnlyFavorites = () => {
   fetchPaginatedMatrix()
 }
 
+const toggleExcludeZero = () => {
+  excludeZeroPrice.value = !excludeZeroPrice.value
+  currentPage.value = 1
+  fetchFilterOptions()
+  fetchPaginatedMatrix()
+}
+
 const isSiteNameFavorite = (siteName: string): boolean => {
   const site = store.relaySites.find((s) => s.name === siteName)
   return site ? store.isSiteFavorite(site.id) : false
@@ -656,7 +679,8 @@ const hasAnyFilter = computed(() => {
     selectedProviders.value.length > 0 ||
     selectedSeries.value.length > 0 ||
     selectedModels.value.length > 0 ||
-    selectedSites.value.length > 0
+    selectedSites.value.length > 0 ||
+    !excludeZeroPrice.value
   )
 })
 
@@ -666,6 +690,7 @@ const resetAllFilters = () => {
   selectedModels.value = []
   selectedSites.value = []
   onlyFavorites.value = false
+  excludeZeroPrice.value = true
   currentPage.value = 1
   fetchFilterOptions()
   fetchPaginatedMatrix()

@@ -143,15 +143,25 @@ class DashboardService:
         models: Optional[List[str]] = None,
         sites: Optional[List[str]] = None,
         search_query: Optional[str] = None,
+        exclude_zero_price: bool = True,
         sort_field: str = "calculated_input_usd",
         sort_order: str = "asc",
         page: int = 1,
         page_size: int = 50
     ) -> PaginatedComparisonResponse:
-        """高性能分页查询全网 Token 比价矩阵 (支持多列升降序排序)"""
+        """高性能分页查询全网 Token 比价矩阵 (支持多列升降序排序与 0 元过滤)"""
         async with AsyncSessionLocal() as session:
             # 基础条件构建
             base_conditions = [RelaySite.is_active == True]
+
+            # 0. 过滤输入输出均为 0 的条目
+            if exclude_zero_price:
+                base_conditions.append(
+                    or_(
+                        SiteModelPricing.calculated_input_usd > 0,
+                        SiteModelPricing.calculated_output_usd > 0
+                    )
+                )
 
             # 1. 模型厂商过滤 (支持 30 大权威 Lab 与 other)
             if providers and len(providers) > 0 and "all" not in providers:
@@ -297,9 +307,10 @@ class DashboardService:
         selected_providers: Optional[List[str]] = None,
         selected_series: Optional[List[str]] = None,
         selected_models: Optional[List[str]] = None,
-        selected_sites: Optional[List[str]] = None
+        selected_sites: Optional[List[str]] = None,
+        exclude_zero_price: bool = True
     ) -> ComparisonFilterOptionsResponse:
-        """轻量级快速获取各筛选维度的去重候选列表与计数 (四级完全级联联动)"""
+        """轻量级快速获取各筛选维度的去重候选列表与计数 (四级完全级联联动与 0 价格过滤)"""
         async with AsyncSessionLocal() as session:
             # 1. 厂商列表与计数 (严格与「厂商与模型系列」30 大权威 Lab 对齐)
             official_labs_order = [
@@ -315,7 +326,15 @@ class DashboardService:
                 func.count(SiteModelPricing.id)
             ).join(
                 SiteModelPricing, ModelMetadata.model_id == SiteModelPricing.model_id
-            ).group_by(ModelMetadata.provider)
+            )
+            if exclude_zero_price:
+                p_stmt = p_stmt.where(
+                    or_(
+                        SiteModelPricing.calculated_input_usd > 0,
+                        SiteModelPricing.calculated_output_usd > 0
+                    )
+                )
+            p_stmt = p_stmt.group_by(ModelMetadata.provider)
             p_res = await session.execute(p_stmt)
             raw_counts = {p.lower(): cnt for p, cnt in p_res.all() if p}
 
@@ -346,6 +365,13 @@ class DashboardService:
             ).join(
                 SiteModelPricing, ModelMetadata.model_id == SiteModelPricing.model_id
             )
+            if exclude_zero_price:
+                s_stmt = s_stmt.where(
+                    or_(
+                        SiteModelPricing.calculated_input_usd > 0,
+                        SiteModelPricing.calculated_output_usd > 0
+                    )
+                )
             if selected_providers and len(selected_providers) > 0 and "all" not in selected_providers:
                 has_other = "other" in [p.lower() for p in selected_providers]
                 normal_p = [p.lower() for p in selected_providers if p.lower() != "other"]
@@ -385,6 +411,13 @@ class DashboardService:
             ).join(
                 SiteModelPricing, ModelMetadata.model_id == SiteModelPricing.model_id
             )
+            if exclude_zero_price:
+                m_stmt = m_stmt.where(
+                    or_(
+                        SiteModelPricing.calculated_input_usd > 0,
+                        SiteModelPricing.calculated_output_usd > 0
+                    )
+                )
             if selected_providers and len(selected_providers) > 0 and "all" not in selected_providers:
                 has_other = "other" in [p.lower() for p in selected_providers]
                 normal_p = [p.lower() for p in selected_providers if p.lower() != "other"]
@@ -428,6 +461,13 @@ class DashboardService:
             ).join(
                 ModelMetadata, SiteModelPricing.model_id == ModelMetadata.model_id
             )
+            if exclude_zero_price:
+                st_stmt = st_stmt.where(
+                    or_(
+                        SiteModelPricing.calculated_input_usd > 0,
+                        SiteModelPricing.calculated_output_usd > 0
+                    )
+                )
             if selected_providers and len(selected_providers) > 0 and "all" not in selected_providers:
                 has_other = "other" in [p.lower() for p in selected_providers]
                 normal_p = [p.lower() for p in selected_providers if p.lower() != "other"]
