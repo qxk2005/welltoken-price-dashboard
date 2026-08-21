@@ -5,7 +5,7 @@ import httpx
 from sqlalchemy import select, func, or_, and_, distinct
 from sqlalchemy.orm import selectinload
 from backend.app.database import AsyncSessionLocal
-from backend.app.models.token_price import RelaySite, SiteModelPricing, ModelMetadata
+from backend.app.models.token_price import RelaySite, SiteModelPricing, ModelMetadata, SystemSetting
 from backend.app.schemas.token_schema import (
     ComparisonItemSchema,
     PaginatedComparisonResponse,
@@ -29,6 +29,77 @@ class DashboardService:
         self.exchange_rate_source = "https://open.er-api.com/v6/latest/USD"
         self.exchange_rate_updated_at = datetime.utcnow()
         self.active_websockets: set = set()
+        self._is_settings_loaded = False
+
+    async def ensure_settings_loaded(self):
+        """确保系统配置已从数据库加载"""
+        if not self._is_settings_loaded:
+            await self.load_persisted_settings()
+            self._is_settings_loaded = True
+
+    async def load_persisted_settings(self):
+        """从数据库加载持久化的系统配置 (汇率、源端网址、更新时间戳等)"""
+        async with AsyncSessionLocal() as session:
+            try:
+                res = await session.execute(select(SystemSetting))
+                settings_map = {s.key: s.value for s in res.scalars().all()}
+                
+                if "usd_to_cny_rate" in settings_map:
+                    self.usd_to_cny_rate = float(settings_map["usd_to_cny_rate"])
+                if "exchange_rate_source" in settings_map:
+                    self.exchange_rate_source = settings_map["exchange_rate_source"]
+                if "exchange_rate_updated_at" in settings_map:
+                    try:
+                        self.exchange_rate_updated_at = datetime.fromisoformat(settings_map["exchange_rate_updated_at"])
+                    except Exception:
+                        pass
+                self._is_settings_loaded = True
+            except Exception as e:
+                print(f"[DashboardService] 加载持久化系统配置失败: {e}")
+
+    async def save_persisted_settings(
+        self,
+        rate: Optional[float] = None,
+        source: Optional[str] = None,
+        updated_at: Optional[datetime] = None
+    ):
+        """将系统配置持久化写入数据库"""
+        async with AsyncSessionLocal() as session:
+            try:
+                if rate is not None:
+                    self.usd_to_cny_rate = float(rate)
+                    s_obj = await session.get(SystemSetting, "usd_to_cny_rate")
+                    if not s_obj:
+                        s_obj = SystemSetting(key="usd_to_cny_rate", value=str(self.usd_to_cny_rate), description="USD对CNY基础换算汇率")
+                        session.add(s_obj)
+                    else:
+                        s_obj.value = str(self.usd_to_cny_rate)
+
+                if source is not None:
+                    self.exchange_rate_source = source
+                    s_obj = await session.get(SystemSetting, "exchange_rate_source")
+                    if not s_obj:
+                        s_obj = SystemSetting(key="exchange_rate_source", value=self.exchange_rate_source, description="外汇汇率权威获取源网址")
+                        session.add(s_obj)
+                    else:
+                        s_obj.value = self.exchange_rate_source
+
+                if updated_at is not None:
+                    self.exchange_rate_updated_at = updated_at
+                else:
+                    self.exchange_rate_updated_at = datetime.utcnow()
+
+                s_obj = await session.get(SystemSetting, "exchange_rate_updated_at")
+                if not s_obj:
+                    s_obj = SystemSetting(key="exchange_rate_updated_at", value=self.exchange_rate_updated_at.isoformat(), description="外汇汇率最后一次更新时间")
+                    session.add(s_obj)
+                else:
+                    s_obj.value = self.exchange_rate_updated_at.isoformat()
+
+                await session.commit()
+                self._is_settings_loaded = True
+            except Exception as e:
+                print(f"[DashboardService] 持久化保存系统配置失败: {e}")
 
     async def connect_ws(self, websocket: WebSocket):
         await websocket.accept()
@@ -62,7 +133,8 @@ class DashboardService:
         })
 
     async def fetch_online_exchange_rate(self, source_url: Optional[str] = None) -> Dict[str, Any]:
-        """从在线权威外汇源抓取最新 USD/CNY 实时汇率"""
+        """从在线权威外汇源抓取最新 USD/CNY 实时汇率并持久化到数据库"""
+        await self.ensure_settings_loaded()
         target_url = source_url.strip() if source_url and source_url.strip() else self.exchange_rate_source
         
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -77,9 +149,15 @@ class DashboardService:
             if not cny_rate or not isinstance(cny_rate, (int, float)):
                 raise Exception("未能从返回数据中解析到有效的 CNY 人民币汇率字段")
             
-            self.usd_to_cny_rate = round(float(cny_rate), 4)
-            self.exchange_rate_source = target_url
-            self.exchange_rate_updated_at = datetime.utcnow()
+            new_rate = round(float(cny_rate), 4)
+            new_updated_at = datetime.utcnow()
+            
+            # 持久化保存到数据库
+            await self.save_persisted_settings(
+                rate=new_rate,
+                source=target_url,
+                updated_at=new_updated_at
+            )
             
             await self.broadcast({
                 "type": "EXCHANGE_RATE_UPDATE",
@@ -97,6 +175,7 @@ class DashboardService:
 
     async def get_overview_statistics(self) -> Dict[str, Any]:
         """获取仪表盘概览统计指标"""
+        await self.ensure_settings_loaded()
         async with AsyncSessionLocal() as session:
             # 渠道总数与活跃数
             site_count_res = await session.execute(
@@ -150,6 +229,7 @@ class DashboardService:
         page_size: int = 50
     ) -> PaginatedComparisonResponse:
         """高性能分页查询全网 Token 比价矩阵 (支持多列升降序排序与 0 元过滤)"""
+        await self.ensure_settings_loaded()
         async with AsyncSessionLocal() as session:
             # 基础条件构建
             base_conditions = [RelaySite.is_active == True]
@@ -311,6 +391,7 @@ class DashboardService:
         exclude_zero_price: bool = True
     ) -> ComparisonFilterOptionsResponse:
         """轻量级快速获取各筛选维度的去重候选列表与计数 (四级完全级联联动与 0 价格过滤)"""
+        await self.ensure_settings_loaded()
         async with AsyncSessionLocal() as session:
             # 1. 厂商列表与计数 (严格与「厂商与模型系列」30 大权威 Lab 对齐)
             official_labs_order = [

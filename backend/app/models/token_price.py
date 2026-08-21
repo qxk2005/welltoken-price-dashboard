@@ -150,3 +150,13 @@ class ChannelModelMapping(Base):
     # 关系
     site = relationship("RelaySite", back_populates="mappings")
 
+class SystemSetting(Base):
+    """系统全局持久化配置表 (存储汇率、汇率源网址、最后更新时间等)"""
+    __tablename__ = "system_settings"
+
+    key = Column(String(100), primary_key=True, index=True)
+    value = Column(Text, nullable=False)
+    description = Column(String(255), default="")
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
