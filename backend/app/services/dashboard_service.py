@@ -175,18 +175,43 @@ class DashboardService:
     ) -> ComparisonFilterOptionsResponse:
         """轻量级快速获取各筛选维度的去重候选列表与计数 (四级完全级联联动)"""
         async with AsyncSessionLocal() as session:
-            # 1. 厂商列表与计数
+            # 1. 厂商列表与计数 (严格与「厂商与模型系列」30 大权威 Lab 对齐)
+            official_labs_order = [
+                "alibaba", "openai", "google", "anthropic", "deepseek", "zhipuai",
+                "moonshotai", "meta", "mistral", "nvidia", "bytedance", "xai",
+                "minimax", "xiaomi", "cohere", "stepfun", "tencent", "perplexity",
+                "microsoft", "baichuan", "upstage", "aisingapore", "arcee-ai", "ibm",
+                "meituan", "poolside", "sakana", "sarvam", "thinkingmachines", "other"
+            ]
+
             p_stmt = select(
                 ModelMetadata.provider,
                 func.count(SiteModelPricing.id)
             ).join(
                 SiteModelPricing, ModelMetadata.model_id == SiteModelPricing.model_id
-            ).group_by(ModelMetadata.provider).order_by(func.count(SiteModelPricing.id).desc())
+            ).group_by(ModelMetadata.provider)
             p_res = await session.execute(p_stmt)
-            providers_opt = [
-                FilterItemOption(value=p, label=p.title(), count=cnt)
-                for p, cnt in p_res.all() if p
-            ]
+            raw_counts = {p.lower(): cnt for p, cnt in p_res.all() if p}
+
+            # 汇总 30 家权威 Lab 计数
+            providers_opt: List[FilterItemOption] = []
+            other_cnt = 0
+            for lab_key in official_labs_order:
+                if lab_key == "other":
+                    continue
+                cnt = raw_counts.get(lab_key, 0)
+                if lab_key == "bytedance":
+                    cnt += raw_counts.get("bytedance-seed", 0)
+                if cnt > 0:
+                    providers_opt.append(FilterItemOption(value=lab_key, label=lab_key.title(), count=cnt))
+
+            # 统计非 30 大厂商的模型条目归入 other
+            for p, cnt in raw_counts.items():
+                if p not in official_labs_order and p != "bytedance-seed":
+                    other_cnt += cnt
+            if other_cnt > 0 or raw_counts.get("other", 0) > 0:
+                other_total = other_cnt + raw_counts.get("other", 0)
+                providers_opt.append(FilterItemOption(value="other", label="其他独立研究机构", count=other_total))
 
             # 2. 系列列表与计数 (根据选中的厂商级联收敛)
             s_stmt = select(
