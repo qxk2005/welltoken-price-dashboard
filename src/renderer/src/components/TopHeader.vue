@@ -56,8 +56,8 @@
         <span>⚡ 一键全网同步</span>
       </button>
 
-      <!-- 窗口控制按钮 -->
-      <div class="flex items-center space-x-1 pl-2 border-l border-[#232936]">
+      <!-- 窗口控制按钮 (仅 Electron 桌面端显示) -->
+      <div v-if="isElectron" class="flex items-center space-x-1 pl-2 border-l border-[#232936]">
         <button
           @click="minimize"
           class="w-7 h-7 rounded hover:bg-[#232936] text-gray-400 hover:text-white flex items-center justify-center text-xs transition-colors"
@@ -77,14 +77,19 @@
           ✕
         </button>
       </div>
+      <div v-else class="pl-2 border-l border-[#232936] text-[10px] text-gray-400 font-mono">
+        <span class="px-2 py-0.5 rounded bg-[#1E2430] border border-[#2D3748]">🌐 Web 实时调试模式</span>
+      </div>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useDashboardStore } from '../stores/dashboardStore'
 
 const store = useDashboardStore()
+const isElectron = computed(() => typeof window !== 'undefined' && !!(window as any).api)
 
 const minimize = () => window.api?.minimizeWindow?.()
 const maximize = () => window.api?.maximizeWindow?.()
