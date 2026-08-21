@@ -1,0 +1,650 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="http://www.evolus.vn/Pencil" xmlns:pencil="http://www.evolus.vn/Pencil" xmlns:html="http://www.w3.org/1999/xhtml" xmlns:svg="http://www.w3.org/2000/svg">
+  <Properties>
+    <Property name="author">WellToken Team</Property>
+    <Property name="description">Token聚合比价与测评工具 (welltoken-price-dashboard) UI 交互设计原型</Property>
+    <Property name="version">1.0.0</Property>
+  </Properties>
+  <Pages>
+    <!-- ========================================== -->
+    <!-- Page 1: 全网大模型聚合比价中心 -->
+    <!-- ========================================== -->
+    <Page id="page-price-matrix" width="1280" height="820">
+      <Properties>
+        <Property name="name">01_全网大模型聚合比价中心</Property>
+      </Properties>
+      <Content>
+        <!-- 背景底色 -->
+        <Shape id="bg-01" type="Desktop:SolidBackground" x="0" y="0" width="1280" height="820">
+          <Properties>
+            <Property name="fillColor">#0B0E14FF</Property>
+          </Properties>
+        </Shape>
+
+        <!-- 顶部主状态与控制栏 -->
+        <Shape id="topbar-01" type="Evolus.Common:Rectangle" x="0" y="0" width="1280" height="56">
+          <Properties>
+            <Property name="fillColor">#11151FFF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="strokeStyle">solid</Property>
+          </Properties>
+        </Shape>
+        <!-- Logo -->
+        <Shape id="logo-icon-01" type="Evolus.Common:Rectangle" x="16" y="12" width="32" height="32">
+          <Properties>
+            <Property name="fillColor">#2563EBFF</Property>
+            <Property name="radius">6</Property>
+          </Properties>
+        </Shape>
+        <Shape id="logo-text-01" type="Evolus.Common:PlainText" x="56" y="14" width="220" height="24">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#ffffff;font-weight:bold;font-size:14px;">WellToken</span> <span style="color:#3B82F6;font-size:11px;font-family:monospace;background-color:#1E293B;padding:2px 4px;border-radius:4px;">比价与测评 Pro</span>]]></Property>
+          </Properties>
+        </Shape>
+        <Shape id="status-badge-01" type="Evolus.Common:PlainText" x="56" y="34" width="300" height="18">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#10B981;font-size:10px;">● models.dev 数据已同步</span> <span style="color:#6B7280;font-size:10px;">| 监控中转站: 18家 | 官方基准模型: 142款</span>]]></Property>
+          </Properties>
+        </Shape>
+        <!-- 全局搜索框 -->
+        <Shape id="search-box-01" type="Evolus.Common:Rectangle" x="420" y="12" width="360" height="32">
+          <Properties>
+            <Property name="fillColor">#1A202CFF</Property>
+            <Property name="strokeColor">#2D3748FF</Property>
+            <Property name="radius">6</Property>
+          </Properties>
+        </Shape>
+        <Shape id="search-text-01" type="Evolus.Common:PlainText" x="432" y="20" width="330" height="20">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#9CA3AF;font-size:11px;">🔍 搜索模型 (如 gpt-4o, claude-3-5, deepseek-v3) 或中转站... [⌘K]</span>]]></Property>
+          </Properties>
+        </Shape>
+        <!-- 汇率切换与同步按钮 -->
+        <Shape id="btn-currency-01" type="Evolus.Common:Rectangle" x="1050" y="12" width="90" height="32">
+          <Properties>
+            <Property name="fillColor">#1E2430FF</Property>
+            <Property name="strokeColor">#374151FF</Property>
+            <Property name="radius">6</Property>
+          </Properties>
+        </Shape>
+        <Shape id="btn-currency-text-01" type="Evolus.Common:PlainText" x="1060" y="20" width="70" height="20">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#F3F4F6;font-size:11px;font-weight:bold;">💵 USD / ￥ CNY</span>]]></Property>
+          </Properties>
+        </Shape>
+        <Shape id="btn-sync-01" type="Evolus.Common:Rectangle" x="1150" y="12" width="110" height="32">
+          <Properties>
+            <Property name="fillColor">#2563EBFF</Property>
+            <Property name="radius">6</Property>
+          </Properties>
+        </Shape>
+        <Shape id="btn-sync-text-01" type="Evolus.Common:PlainText" x="1165" y="20" width="85" height="20">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#ffffff;font-size:11px;font-weight:bold;">⚡ 一键刷新比价</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 左侧主导航菜单 -->
+        <Shape id="sidebar-01" type="Evolus.Common:Rectangle" x="0" y="56" width="200" height="764">
+          <Properties>
+            <Property name="fillColor">#0F121AFF</Property>
+            <Property name="strokeColor">#1F2430FF</Property>
+            <Property name="strokeStyle">solid</Property>
+          </Properties>
+        </Shape>
+        <!-- 导航项：1. 全网比价中心 (Active) -->
+        <Shape id="nav-item-1-01" type="Evolus.Common:Rectangle" x="10" y="70" width="180" height="38">
+          <Properties>
+            <Property name="fillColor">#1E293BFF</Property>
+            <Property name="strokeColor">#3B82F688</Property>
+            <Property name="radius">6</Property>
+          </Properties>
+        </Shape>
+        <Shape id="nav-text-1-01" type="Evolus.Common:PlainText" x="22" y="80" width="160" height="20">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#38BDF8;font-size:12px;font-weight:bold;">📊 全网聚合比价</span>]]></Property>
+          </Properties>
+        </Shape>
+        <!-- 导航项：2. 渠道大全 -->
+        <Shape id="nav-item-2-01" type="Evolus.Common:PlainText" x="22" y="125" width="160" height="20">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#9CA3AF;font-size:12px;">🌐 Token 渠道大全</span>]]></Property>
+          </Properties>
+        </Shape>
+        <!-- 导航项：3. 厂商与模型 -->
+        <Shape id="nav-item-3-01" type="Evolus.Common:PlainText" x="22" y="165" width="160" height="20">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#9CA3AF;font-size:12px;">🤖 模型厂商与标准库</span>]]></Property>
+          </Properties>
+        </Shape>
+        <!-- 导航项：4. 性能实测 -->
+        <Shape id="nav-item-4-01" type="Evolus.Common:PlainText" x="22" y="205" width="160" height="20">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#9CA3AF;font-size:12px;">⏱️ 渠道性能实测</span>]]></Property>
+          </Properties>
+        </Shape>
+        <!-- 导航项：5. 数据同步与设置 -->
+        <Shape id="nav-item-5-01" type="Evolus.Common:PlainText" x="22" y="245" width="160" height="20">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#9CA3AF;font-size:12px;">⚙️ 数据同步与设置</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 主工作区：顶部筛选与卡片 -->
+        <!-- 筛选栏 -->
+        <Shape id="filter-bar-01" type="Evolus.Common:Rectangle" x="215" y="68" width="1050" height="46">
+          <Properties>
+            <Property name="fillColor">#151922FF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <Shape id="filter-text-01" type="Evolus.Common:PlainText" x="230" y="82" width="1020" height="24">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#9CA3AF;font-size:11px;font-weight:bold;">厂商筛选:</span> <span style="background-color:#2563EB;color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;">全部厂商</span> <span style="color:#D1D5DB;font-size:11px;margin-left:8px;">OpenAI</span> <span style="color:#D1D5DB;font-size:11px;margin-left:8px;">Anthropic</span> <span style="color:#D1D5DB;font-size:11px;margin-left:8px;">DeepSeek</span> <span style="color:#D1D5DB;font-size:11px;margin-left:8px;">Google</span> <span style="color:#D1D5DB;font-size:11px;margin-left:8px;">阿里通义</span> <span style="color:#6B7280;margin-left:20px;">|</span> <span style="color:#9CA3AF;font-size:11px;font-weight:bold;margin-left:12px;">热点模型:</span> <span style="color:#60A5FA;font-size:11px;">GPT-4o</span> <span style="color:#D1D5DB;font-size:11px;margin-left:8px;">Claude 3.5 Sonnet</span> <span style="color:#D1D5DB;font-size:11px;margin-left:8px;">DeepSeek-V3</span> <span style="color:#D1D5DB;font-size:11px;margin-left:8px;">DeepSeek-R1</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 价格比对核心数据表格 (Data Matrix) -->
+        <Shape id="table-bg-01" type="Evolus.Common:Rectangle" x="215" y="125" width="1050" height="480">
+          <Properties>
+            <Property name="fillColor">#151922FF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <!-- 表头 -->
+        <Shape id="table-header-01" type="Evolus.Common:Rectangle" x="216" y="126" width="1048" height="36">
+          <Properties>
+            <Property name="fillColor">#1B212DFF</Property>
+          </Properties>
+        </Shape>
+        <Shape id="th-text-01" type="Evolus.Common:PlainText" x="230" y="136" width="1020" height="20">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#9CA3AF;font-size:11px;font-weight:bold;">模型标准名称</span> <span style="color:#9CA3AF;font-size:11px;font-weight:bold;margin-left:140px;">渠道 / 站点名称</span> <span style="color:#9CA3AF;font-size:11px;font-weight:bold;margin-left:90px;">类型</span> <span style="color:#9CA3AF;font-size:11px;font-weight:bold;margin-left:60px;">输入 (Input/1M)</span> <span style="color:#9CA3AF;font-size:11px;font-weight:bold;margin-left:45px;">输出 (Output/1M)</span> <span style="color:#9CA3AF;font-size:11px;font-weight:bold;margin-left:40px;">缓存命中/1M</span> <span style="color:#9CA3AF;font-size:11px;font-weight:bold;margin-left:40px;">折算倍率</span> <span style="color:#9CA3AF;font-size:11px;font-weight:bold;margin-left:40px;">比官方价折扣</span> <span style="color:#9CA3AF;font-size:11px;font-weight:bold;margin-left:40px;">实测 TPS</span> <span style="color:#9CA3AF;font-size:11px;font-weight:bold;margin-left:35px;">操作</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 数据行 1: DeepSeek-V3 (官方基准) -->
+        <Shape id="row-1-01" type="Evolus.Common:PlainText" x="230" y="172" width="1020" height="26">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#60A5FA;font-weight:bold;font-size:12px;">deepseek-v3</span> <span style="color:#F3F4F6;font-size:12px;margin-left:135px;">DeepSeek 官方 API</span> <span style="background-color:#1E293B;color:#94A3B8;padding:1px 6px;border-radius:4px;font-size:10px;margin-left:70px;">官方原厂</span> <span style="color:#10B981;font-family:monospace;font-size:12px;margin-left:55px;">$0.14 / ￥1.00</span> <span style="color:#10B981;font-family:monospace;font-size:12px;margin-left:55px;">$0.28 / ￥2.00</span> <span style="color:#9CA3AF;font-family:monospace;font-size:12px;margin-left:55px;">$0.014 / ￥0.10</span> <span style="color:#E5E7EB;font-size:11px;margin-left:60px;">1.00x 基准</span> <span style="color:#9CA3AF;font-size:11px;margin-left:50px;">基准价 (0%)</span> <span style="color:#38BDF8;font-family:monospace;font-size:11px;margin-left:50px;">62.4 tps</span> <span style="color:#3B82F6;font-size:11px;margin-left:40px;">[测速] [详情]</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 数据行 2: DeepSeek-V3 (中转站 A - NewAPI 架构) -->
+        <Shape id="row-2-01" type="Evolus.Common:PlainText" x="230" y="210" width="1020" height="26">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#60A5FA;font-weight:bold;font-size:12px;">deepseek-v3</span> <span style="color:#F3F4F6;font-size:12px;margin-left:135px;">极速云中转 (NewAPI)</span> <span style="background-color:#064E3B;color:#34D399;padding:1px 6px;border-radius:4px;font-size:10px;margin-left:65px;">NewAPI</span> <span style="color:#10B981;font-family:monospace;font-size:12px;margin-left:60px;">$0.07 / ￥0.50</span> <span style="color:#10B981;font-family:monospace;font-size:12px;margin-left:55px;">$0.14 / ￥1.00</span> <span style="color:#9CA3AF;font-family:monospace;font-size:12px;margin-left:55px;">$0.007 / ￥0.05</span> <span style="color:#E5E7EB;font-size:11px;margin-left:60px;">0.50x 特惠</span> <span style="background-color:#065F46;color:#34D399;padding:1px 4px;border-radius:3px;font-size:10px;margin-left:45px;">▼ -50% 折扣</span> <span style="color:#38BDF8;font-family:monospace;font-size:11px;margin-left:35px;">58.9 tps</span> <span style="color:#3B82F6;font-size:11px;margin-left:40px;">[测速] [详情]</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 数据行 3: Claude 3.5 Sonnet (官方基准) -->
+        <Shape id="row-3-01" type="Evolus.Common:PlainText" x="230" y="248" width="1020" height="26">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#A78BFA;font-weight:bold;font-size:12px;">claude-3-5-sonnet</span> <span style="color:#F3F4F6;font-size:12px;margin-left:90px;">Anthropic 官方直连</span> <span style="background-color:#1E293B;color:#94A3B8;padding:1px 6px;border-radius:4px;font-size:10px;margin-left:65px;">官方原厂</span> <span style="color:#10B981;font-family:monospace;font-size:12px;margin-left:55px;">$3.00 / ￥21.9</span> <span style="color:#10B981;font-family:monospace;font-size:12px;margin-left:50px;">$15.00 / ￥109.5</span> <span style="color:#9CA3AF;font-family:monospace;font-size:12px;margin-left:40px;">$0.30 / ￥2.19</span> <span style="color:#E5E7EB;font-size:11px;margin-left:55px;">1.00x 基准</span> <span style="color:#9CA3AF;font-size:11px;margin-left:50px;">基准价 (0%)</span> <span style="color:#38BDF8;font-family:monospace;font-size:11px;margin-left:50px;">45.2 tps</span> <span style="color:#3B82F6;font-size:11px;margin-left:40px;">[测速] [详情]</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 数据行 4: Claude 3.5 Sonnet (Sub2API 渠道 B) -->
+        <Shape id="row-4-01" type="Evolus.Common:PlainText" x="230" y="286" width="1020" height="26">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#A78BFA;font-weight:bold;font-size:12px;">claude-3-5-sonnet</span> <span style="color:#F3F4F6;font-size:12px;margin-left:90px;">星河中转站 (Sub2API)</span> <span style="background-color:#4C1D95;color:#C4B5FD;padding:1px 6px;border-radius:4px;font-size:10px;margin-left:55px;">Sub2API</span> <span style="color:#10B981;font-family:monospace;font-size:12px;margin-left:55px;">$1.80 / ￥13.1</span> <span style="color:#10B981;font-family:monospace;font-size:12px;margin-left:50px;">$9.00 / ￥65.70</span> <span style="color:#9CA3AF;font-family:monospace;font-size:12px;margin-left:45px;">$0.18 / ￥1.31</span> <span style="color:#E5E7EB;font-size:11px;margin-left:55px;">0.60x 优惠</span> <span style="background-color:#065F46;color:#34D399;padding:1px 4px;border-radius:3px;font-size:10px;margin-left:45px;">▼ -40% 折扣</span> <span style="color:#38BDF8;font-family:monospace;font-size:11px;margin-left:35px;">41.8 tps</span> <span style="color:#3B82F6;font-size:11px;margin-left:40px;">[测速] [详情]</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 数据行 5: GPT-4o (官方基准) -->
+        <Shape id="row-5-01" type="Evolus.Common:PlainText" x="230" y="324" width="1020" height="26">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#34D399;font-weight:bold;font-size:12px;">gpt-4o</span> <span style="color:#F3F4F6;font-size:12px;margin-left:175px;">OpenAI 官方原厂</span> <span style="background-color:#1E293B;color:#94A3B8;padding:1px 6px;border-radius:4px;font-size:10px;margin-left:70px;">官方原厂</span> <span style="color:#10B981;font-family:monospace;font-size:12px;margin-left:55px;">$2.50 / ￥18.2</span> <span style="color:#10B981;font-family:monospace;font-size:12px;margin-left:50px;">$10.00 / ￥73.0</span> <span style="color:#9CA3AF;font-family:monospace;font-size:12px;margin-left:45px;">$1.25 / ￥9.12</span> <span style="color:#E5E7EB;font-size:11px;margin-left:55px;">1.00x 基准</span> <span style="color:#9CA3AF;font-size:11px;margin-left:50px;">基准价 (0%)</span> <span style="color:#38BDF8;font-family:monospace;font-size:11px;margin-left:50px;">88.5 tps</span> <span style="color:#3B82F6;font-size:11px;margin-left:40px;">[测速] [详情]</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 底部走势与性价比分析面板 -->
+        <Shape id="chart-card-01" type="Evolus.Common:Rectangle" x="215" y="618" width="1050" height="185">
+          <Properties>
+            <Property name="fillColor">#151922FF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <Shape id="chart-title-01" type="Evolus.Common:PlainText" x="230" y="628" width="500" height="20">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#ffffff;font-size:12px;font-weight:bold;">📈 全网各渠道价格与性能分布散点图 (当前选中: deepseek-v3)</span>]]></Property>
+          </Properties>
+        </Shape>
+        <Shape id="chart-placeholder-01" type="Evolus.Common:PlainText" x="350" y="680" width="800" height="80">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#6B7280;font-size:12px;font-family:monospace;">[ ECharts 性价比图表区：X轴=输入单价($/1M), Y轴=实测TPS(tokens/s), 气泡大小=稳定性评分, 颜色=渠道类别 ]<br/><br/>★ 最优性价比推荐: 极速云中转 (单价 $0.07 / 58.9 tps) | 官方基准: DeepSeek ($0.14 / 62.4 tps)</span>]]></Property>
+          </Properties>
+        </Shape>
+      </Content>
+    </Page>
+
+    <!-- ========================================== -->
+    <!-- Page 2: Token 渠道大全与配置管理 -->
+    <!-- ========================================== -->
+    <Page id="page-channel-mgmt" width="1280" height="820">
+      <Properties>
+        <Property name="name">02_Token渠道大全与配置管理</Property>
+      </Properties>
+      <Content>
+        <Shape id="bg-02" type="Desktop:SolidBackground" x="0" y="0" width="1280" height="820">
+          <Properties>
+            <Property name="fillColor">#0B0E14FF</Property>
+          </Properties>
+        </Shape>
+        <!-- 侧边栏 -->
+        <Shape id="sidebar-02" type="Evolus.Common:Rectangle" x="0" y="0" width="200" height="820">
+          <Properties>
+            <Property name="fillColor">#0F121AFF</Property>
+            <Property name="strokeColor">#1F2430FF</Property>
+          </Properties>
+        </Shape>
+        <Shape id="nav-item-2-active" type="Evolus.Common:Rectangle" x="10" y="115" width="180" height="38">
+          <Properties>
+            <Property name="fillColor">#1E293BFF</Property>
+            <Property name="strokeColor">#3B82F688</Property>
+            <Property name="radius">6</Property>
+          </Properties>
+        </Shape>
+        <Shape id="nav-text-2-active" type="Evolus.Common:PlainText" x="22" y="125" width="160" height="20">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#38BDF8;font-size:12px;font-weight:bold;">🌐 Token 渠道大全</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 顶部操作栏 -->
+        <Shape id="action-bar-02" type="Evolus.Common:Rectangle" x="215" y="15" width="1050" height="52">
+          <Properties>
+            <Property name="fillColor">#151922FF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <Shape id="action-title-02" type="Evolus.Common:PlainText" x="230" y="30" width="300" height="24">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#ffffff;font-size:14px;font-weight:bold;">已配置中转渠道 (共 18 家)</span>]]></Property>
+          </Properties>
+        </Shape>
+        <!-- 添加渠道按钮 -->
+        <Shape id="btn-add-channel-02" type="Evolus.Common:Rectangle" x="980" y="25" width="130" height="32">
+          <Properties>
+            <Property name="fillColor">#2563EBFF</Property>
+            <Property name="radius">6</Property>
+          </Properties>
+        </Shape>
+        <Shape id="btn-add-text-02" type="Evolus.Common:PlainText" x="995" y="32" width="105" height="20">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#ffffff;font-size:11px;font-weight:bold;">+ 新增中转渠道</span>]]></Property>
+          </Properties>
+        </Shape>
+        <!-- 批量检测连通性 -->
+        <Shape id="btn-ping-all-02" type="Evolus.Common:Rectangle" x="1120" y="25" width="130" height="32">
+          <Properties>
+            <Property name="fillColor">#1E2430FF</Property>
+            <Property name="strokeColor">#374151FF</Property>
+            <Property name="radius">6</Property>
+          </Properties>
+        </Shape>
+        <Shape id="btn-ping-text-02" type="Evolus.Common:PlainText" x="1132" y="32" width="110" height="20">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#E5E7EB;font-size:11px;">⚡ 一键全站探测</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 渠道卡片列表 (Grid 卡片流) -->
+        <!-- 卡片 1: 极速云 (NewAPI) -->
+        <Shape id="card-chan-1" type="Evolus.Common:Rectangle" x="215" y="80" width="515" height="210">
+          <Properties>
+            <Property name="fillColor">#151922FF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <Shape id="card-chan-1-content" type="Evolus.Common:PlainText" x="230" y="95" width="485" height="180">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#ffffff;font-weight:bold;font-size:14px;">极速云中转站</span> <span style="background-color:#064E3B;color:#34D399;padding:1px 6px;border-radius:4px;font-size:10px;margin-left:8px;">NewAPI 架构</span> <span style="color:#10B981;font-size:11px;float:right;">● 连通正常 (38ms)</span><br/><br/><span style="color:#9CA3AF;font-size:11px;">接口地址: </span><span style="color:#60A5FA;font-family:monospace;font-size:11px;">https://api.speedrelay.com/v1</span><br/><span style="color:#9CA3AF;font-size:11px;">API 凭证: </span><span style="color:#9CA3AF;font-family:monospace;font-size:11px;">sk-speed88****92x (可用)</span><br/><span style="color:#9CA3AF;font-size:11px;">充值比例: </span><span style="color:#F3F4F6;font-size:11px;">1 元 = 1 刀 | 基础倍率: 0.50x</span><br/><span style="color:#9CA3AF;font-size:11px;">支持模型: </span><span style="color:#F3F4F6;font-size:11px;">38款 (含 GPT-4o, Claude 3.5, DeepSeek-R1)</span><br/><br/><span style="color:#6B7280;font-size:10px;">最后同步: 10分钟前 (从 /api/models 自动抓取)</span><span style="float:right;"><span style="color:#3B82F6;font-size:11px;">[编辑配置]</span> <span style="color:#38BDF8;font-size:11px;margin-left:8px;">[立即同步]</span> <span style="color:#EF4444;font-size:11px;margin-left:8px;">[测速]</span></span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 卡片 2: 星河中转 (Sub2API) -->
+        <Shape id="card-chan-2" type="Evolus.Common:Rectangle" x="750" y="80" width="515" height="210">
+          <Properties>
+            <Property name="fillColor">#151922FF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <Shape id="card-chan-2-content" type="Evolus.Common:PlainText" x="765" y="95" width="485" height="180">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#ffffff;font-weight:bold;font-size:14px;">星河 AI 中转</span> <span style="background-color:#4C1D95;color:#C4B5FD;padding:1px 6px;border-radius:4px;font-size:10px;margin-left:8px;">Sub2API 架构</span> <span style="color:#10B981;font-size:11px;float:right;">● 连通正常 (65ms)</span><br/><br/><span style="color:#9CA3AF;font-size:11px;">接口地址: </span><span style="color:#60A5FA;font-family:monospace;font-size:11px;">https://sub.galaxyapi.net</span><br/><span style="color:#9CA3AF;font-size:11px;">API 凭证: </span><span style="color:#9CA3AF;font-family:monospace;font-size:11px;">Bearer eyJhbGciOi... (月付订阅)</span><br/><span style="color:#9CA3AF;font-size:11px;">计费模式: </span><span style="color:#F3F4F6;font-size:11px;">订阅包月 + 额度扣除 (0.60x)</span><br/><span style="color:#9CA3AF;font-size:11px;">支持模型: </span><span style="color:#F3F4F6;font-size:11px;">52款 (Claude 渠道稳定)</span><br/><br/><span style="color:#6B7280;font-size:10px;">最后同步: 1小时前 (从 /api/user/models 抓取)</span><span style="float:right;"><span style="color:#3B82F6;font-size:11px;">[编辑配置]</span> <span style="color:#38BDF8;font-size:11px;margin-left:8px;">[立即同步]</span> <span style="color:#EF4444;font-size:11px;margin-left:8px;">[测速]</span></span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 卡片 3: 官方直连 (OpenAI / Anthropic / DeepSeek) -->
+        <Shape id="card-chan-3" type="Evolus.Common:Rectangle" x="215" y="305" width="515" height="210">
+          <Properties>
+            <Property name="fillColor">#151922FF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <Shape id="card-chan-3-content" type="Evolus.Common:PlainText" x="230" y="320" width="485" height="180">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#ffffff;font-weight:bold;font-size:14px;">DeepSeek 官方直连通道</span> <span style="background-color:#1E293B;color:#94A3B8;padding:1px 6px;border-radius:4px;font-size:10px;margin-left:8px;">官方 API</span> <span style="color:#10B981;font-size:11px;float:right;">● 连通正常 (18ms)</span><br/><br/><span style="color:#9CA3AF;font-size:11px;">接口地址: </span><span style="color:#60A5FA;font-family:monospace;font-size:11px;">https://api.deepseek.com/v1</span><br/><span style="color:#9CA3AF;font-size:11px;">API 凭证: </span><span style="color:#9CA3AF;font-family:monospace;font-size:11px;">sk-dsk98172**** (自备 Key)</span><br/><span style="color:#9CA3AF;font-size:11px;">计费模式: </span><span style="color:#F3F4F6;font-size:11px;">官方标准计费 ($0.14 / ￥1.00 每 1M)</span><br/><span style="color:#9CA3AF;font-size:11px;">账户余额: </span><span style="color:#34D399;font-family:monospace;font-size:11px;">￥ 328.50 (充足)</span><br/><br/><span style="color:#6B7280;font-size:10px;">状态: 基准对照组通道</span><span style="float:right;"><span style="color:#3B82F6;font-size:11px;">[编辑配置]</span> <span style="color:#38BDF8;font-size:11px;margin-left:8px;">[刷新余额]</span> <span style="color:#EF4444;font-size:11px;margin-left:8px;">[测速]</span></span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 卡片 4: 渠道配置与倍率采集抽屉说明区 -->
+        <Shape id="drawer-preview-02" type="Evolus.Common:Rectangle" x="750" y="305" width="515" height="495">
+          <Properties>
+            <Property name="fillColor">#1A202CFF</Property>
+            <Property name="strokeColor">#3B82F655</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <Shape id="drawer-title-02" type="Evolus.Common:PlainText" x="765" y="320" width="485" height="460">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#38BDF8;font-weight:bold;font-size:13px;">🛠️ 渠道配置与自动探测规则编辑</span><br/><br/><span style="color:#E5E7EB;font-size:11px;">1. 站点类型:</span> <span style="color:#93C5FD;font-size:11px;">[🔘 NewAPI] [⚪ Sub2API] [⚪ OneAPI] [⚪ 官方直连]</span><br/><br/><span style="color:#E5E7EB;font-size:11px;">2. 站点名称:</span> <span style="background-color:#111827;color:#fff;padding:3px 8px;border-radius:4px;font-size:11px;">极速云中转站</span><br/><br/><span style="color:#E5E7EB;font-size:11px;">3. Base URL:</span> <span style="background-color:#111827;color:#60A5FA;padding:3px 8px;border-radius:4px;font-size:11px;font-family:monospace;">https://api.speedrelay.com</span><br/><br/><span style="color:#E5E7EB;font-size:11px;">4. API Key:</span> <span style="background-color:#111827;color:#9CA3AF;padding:3px 8px;border-radius:4px;font-size:11px;font-family:monospace;">sk-speed889218204928190</span><br/><br/><span style="color:#E5E7EB;font-size:11px;">5. 自动同步探测接口:</span><br/><span style="color:#9CA3AF;font-size:10px;">  [✓] 自动拉取模型列表 (/api/models 或 /v1/models)<br/>  [✓] 自动解析模型价格倍率 (/api/status 或倍率端点)<br/>  [✓] 自动更新充值汇率 (1刀 = 1.00元)<br/>  [✓] 启用定时轮询探测 (每 60 分钟自动刷新)</span><br/><br/><span style="background-color:#2563EB;color:#fff;padding:6px 16px;border-radius:6px;font-size:11px;font-weight:bold;">保存配置并测试连通性</span> <span style="color:#9CA3AF;font-size:11px;margin-left:12px;">取消</span>]]></Property>
+          </Properties>
+        </Shape>
+      </Content>
+    </Page>
+
+    <!-- ========================================== -->
+    <!-- Page 3: 大模型厂商与模型元数据库 (models.dev 联动) -->
+    <!-- ========================================== -->
+    <Page id="page-model-catalog" width="1280" height="820">
+      <Properties>
+        <Property name="name">03_大模型厂商与模型元数据</Property>
+      </Properties>
+      <Content>
+        <Shape id="bg-03" type="Desktop:SolidBackground" x="0" y="0" width="1280" height="820">
+          <Properties>
+            <Property name="fillColor">#0B0E14FF</Property>
+          </Properties>
+        </Shape>
+        <Shape id="sidebar-03" type="Evolus.Common:Rectangle" x="0" y="0" width="200" height="820">
+          <Properties>
+            <Property name="fillColor">#0F121AFF</Property>
+            <Property name="strokeColor">#1F2430FF</Property>
+          </Properties>
+        </Shape>
+        <Shape id="nav-item-3-active" type="Evolus.Common:Rectangle" x="10" y="155" width="180" height="38">
+          <Properties>
+            <Property name="fillColor">#1E293BFF</Property>
+            <Property name="strokeColor">#3B82F688</Property>
+            <Property name="radius">6</Property>
+          </Properties>
+        </Shape>
+        <Shape id="nav-text-3-active" type="Evolus.Common:PlainText" x="22" y="165" width="160" height="20">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#38BDF8;font-size:12px;font-weight:bold;">🤖 模型厂商与标准库</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 顶部厂商 Tab 切换 -->
+        <Shape id="provider-tabs-03" type="Evolus.Common:Rectangle" x="215" y="15" width="1050" height="48">
+          <Properties>
+            <Property name="fillColor">#151922FF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <Shape id="provider-text-03" type="Evolus.Common:PlainText" x="230" y="28" width="1020" height="24">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="background-color:#2563EB;color:#fff;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:bold;">全部 (142)</span> <span style="color:#D1D5DB;font-size:11px;margin-left:10px;">OpenAI (24)</span> <span style="color:#D1D5DB;font-size:11px;margin-left:10px;">Anthropic (18)</span> <span style="color:#D1D5DB;font-size:11px;margin-left:10px;">DeepSeek (8)</span> <span style="color:#D1D5DB;font-size:11px;margin-left:10px;">Google Gemini (16)</span> <span style="color:#D1D5DB;font-size:11px;margin-left:10px;">Qwen 阿里 (15)</span> <span style="color:#D1D5DB;font-size:11px;margin-left:10px;">Meta LLaMA (22)</span> <span style="color:#D1D5DB;font-size:11px;margin-left:10px;">智谱 GLM (12)</span> <span style="float:right;color:#60A5FA;font-size:11px;">[从 models.dev 重新拉取标准库]</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 模型元数据卡片列表 -->
+        <!-- 模型卡片 1: DeepSeek-R1 -->
+        <Shape id="model-card-1" type="Evolus.Common:Rectangle" x="215" y="75" width="515" height="225">
+          <Properties>
+            <Property name="fillColor">#151922FF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <Shape id="model-card-1-content" type="Evolus.Common:PlainText" x="230" y="90" width="485" height="195">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#ffffff;font-weight:bold;font-size:14px;">DeepSeek R1 (推理旗舰)</span> <span style="color:#60A5FA;font-family:monospace;font-size:11px;margin-left:6px;">deepseek-reasoner</span><br/><br/><span style="color:#9CA3AF;font-size:11px;">厂商归属: </span><span style="color:#E5E7EB;font-size:11px;">DeepSeek (深度求索)</span><br/><span style="color:#9CA3AF;font-size:11px;">上下文窗口: </span><span style="color:#38BDF8;font-family:monospace;font-size:11px;">64k Context</span> <span style="color:#9CA3AF;font-size:11px;margin-left:12px;">最大输出: </span><span style="color:#38BDF8;font-family:monospace;font-size:11px;">8k Max Tokens</span><br/><span style="color:#9CA3AF;font-size:11px;">核心能力: </span><span style="background-color:#1E293B;color:#94A3B8;padding:1px 4px;border-radius:3px;font-size:10px;">Thinking Reasoning</span> <span style="background-color:#1E293B;color:#94A3B8;padding:1px 4px;border-radius:3px;font-size:10px;">Math & Code</span><br/><br/><span style="color:#9CA3AF;font-size:11px;">官方基准价格: </span><span style="color:#10B981;font-family:monospace;font-size:11px;font-weight:bold;">Input $0.55 / Output $2.19 (每 1M Tokens)</span><br/><span style="color:#9CA3AF;font-size:11px;">全网接入渠道数: </span><span style="color:#F3F4F6;font-size:11px;font-weight:bold;">14 家中转已提供</span> <span style="color:#34D399;font-size:11px;">(最低优惠至 $0.22/1M)</span><br/><br/><span style="color:#6B7280;font-size:10px;">models.dev ID: deepseek/deepseek-r1</span> <span style="float:right;color:#3B82F6;font-size:11px;">[进入比价矩阵] [全网测速]</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 模型卡片 2: Claude 3.5 Sonnet -->
+        <Shape id="model-card-2" type="Evolus.Common:Rectangle" x="750" y="75" width="515" height="225">
+          <Properties>
+            <Property name="fillColor">#151922FF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <Shape id="model-card-2-content" type="Evolus.Common:PlainText" x="765" y="90" width="485" height="195">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#ffffff;font-weight:bold;font-size:14px;">Claude 3.5 Sonnet</span> <span style="color:#A78BFA;font-family:monospace;font-size:11px;margin-left:6px;">claude-3-5-sonnet-20241022</span><br/><br/><span style="color:#9CA3AF;font-size:11px;">厂商归属: </span><span style="color:#E5E7EB;font-size:11px;">Anthropic</span><br/><span style="color:#9CA3AF;font-size:11px;">上下文窗口: </span><span style="color:#38BDF8;font-family:monospace;font-size:11px;">200k Context</span> <span style="color:#9CA3AF;font-size:11px;margin-left:12px;">最大输出: </span><span style="color:#38BDF8;font-family:monospace;font-size:11px;">8,192 Tokens</span><br/><span style="color:#9CA3AF;font-size:11px;">核心能力: </span><span style="background-color:#1E293B;color:#94A3B8;padding:1px 4px;border-radius:3px;font-size:10px;">Vision 视觉</span> <span style="background-color:#1E293B;color:#94A3B8;padding:1px 4px;border-radius:3px;font-size:10px;">Artifacts</span> <span style="background-color:#1E293B;color:#94A3B8;padding:1px 4px;border-radius:3px;font-size:10px;">Computer Use</span><br/><br/><span style="color:#9CA3AF;font-size:11px;">官方基准价格: </span><span style="color:#10B981;font-family:monospace;font-size:11px;font-weight:bold;">Input $3.00 / Output $15.00 (每 1M Tokens)</span><br/><span style="color:#9CA3AF;font-size:11px;">全网接入渠道数: </span><span style="color:#F3F4F6;font-size:11px;font-weight:bold;">16 家中转已提供</span> <span style="color:#34D399;font-size:11px;">(最低优惠至 $1.80/1M)</span><br/><br/><span style="color:#6B7280;font-size:10px;">models.dev ID: anthropic/claude-3-5-sonnet</span> <span style="float:right;color:#3B82F6;font-size:11px;">[进入比价矩阵] [全网测速]</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 模型卡片 3: GPT-4o -->
+        <Shape id="model-card-3" type="Evolus.Common:Rectangle" x="215" y="315" width="515" height="225">
+          <Properties>
+            <Property name="fillColor">#151922FF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <Shape id="model-card-3-content" type="Evolus.Common:PlainText" x="230" y="330" width="485" height="195">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#ffffff;font-weight:bold;font-size:14px;">GPT-4o (Omni 全能旗舰)</span> <span style="color:#34D399;font-family:monospace;font-size:11px;margin-left:6px;">gpt-4o</span><br/><br/><span style="color:#9CA3AF;font-size:11px;">厂商归属: </span><span style="color:#E5E7EB;font-size:11px;">OpenAI</span><br/><span style="color:#9CA3AF;font-size:11px;">上下文窗口: </span><span style="color:#38BDF8;font-family:monospace;font-size:11px;">128k Context</span> <span style="color:#9CA3AF;font-size:11px;margin-left:12px;">最大输出: </span><span style="color:#38BDF8;font-family:monospace;font-size:11px;">16,384 Tokens</span><br/><span style="color:#9CA3AF;font-size:11px;">核心能力: </span><span style="background-color:#1E293B;color:#94A3B8;padding:1px 4px;border-radius:3px;font-size:10px;">Audio / Vision</span> <span style="background-color:#1E293B;color:#94A3B8;padding:1px 4px;border-radius:3px;font-size:10px;">Structured Outputs</span><br/><br/><span style="color:#9CA3AF;font-size:11px;">官方基准价格: </span><span style="color:#10B981;font-family:monospace;font-size:11px;font-weight:bold;">Input $2.50 / Output $10.00 (每 1M Tokens)</span><br/><span style="color:#9CA3AF;font-size:11px;">全网接入渠道数: </span><span style="color:#F3F4F6;font-size:11px;font-weight:bold;">18 家中转已提供</span> <span style="color:#34D399;font-size:11px;">(最低优惠至 $1.25/1M)</span><br/><br/><span style="color:#6B7280;font-size:10px;">models.dev ID: openai/gpt-4o</span> <span style="float:right;color:#3B82F6;font-size:11px;">[进入比价矩阵] [全网测速]</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 模型卡片 4: Qwen-2.5-72B-Instruct -->
+        <Shape id="model-card-4" type="Evolus.Common:Rectangle" x="750" y="315" width="515" height="225">
+          <Properties>
+            <Property name="fillColor">#151922FF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <Shape id="model-card-4-content" type="Evolus.Common:PlainText" x="765" y="330" width="485" height="195">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#ffffff;font-weight:bold;font-size:14px;">Qwen 2.5 72B Instruct</span> <span style="color:#F59E0B;font-family:monospace;font-size:11px;margin-left:6px;">qwen2.5-72b-instruct</span><br/><br/><span style="color:#9CA3AF;font-size:11px;">厂商归属: </span><span style="color:#E5E7EB;font-size:11px;">Alibaba Cloud (阿里通义)</span><br/><span style="color:#9CA3AF;font-size:11px;">上下文窗口: </span><span style="color:#38BDF8;font-family:monospace;font-size:11px;">128k Context</span> <span style="color:#9CA3AF;font-size:11px;margin-left:12px;">开源权重: </span><span style="color:#34D399;font-size:11px;">Open Weights (Apache 2.0)</span><br/><span style="color:#9CA3AF;font-size:11px;">核心能力: </span><span style="background-color:#1E293B;color:#94A3B8;padding:1px 4px;border-radius:3px;font-size:10px;">Coding & Math</span> <span style="background-color:#1E293B;color:#94A3B8;padding:1px 4px;border-radius:3px;font-size:10px;">Tool Calling</span><br/><br/><span style="color:#9CA3AF;font-size:11px;">官方基准价格: </span><span style="color:#10B981;font-family:monospace;font-size:11px;font-weight:bold;">Input ￥4.00 / Output ￥12.00 (每 1M Tokens)</span><br/><span style="color:#9CA3AF;font-size:11px;">全网接入渠道数: </span><span style="color:#F3F4F6;font-size:11px;font-weight:bold;">11 家中转已提供</span> <span style="color:#34D399;font-size:11px;">(含 SiliconFlow, Together)</span><br/><br/><span style="color:#6B7280;font-size:10px;">models.dev ID: qwen/qwen-2.5-72b-instruct</span> <span style="float:right;color:#3B82F6;font-size:11px;">[进入比价矩阵] [全网测速]</span>]]></Property>
+          </Properties>
+        </Shape>
+      </Content>
+    </Page>
+
+    <!-- ========================================== -->
+    <!-- Page 4: 渠道性能实测工作台 (token-speed-tester 融合) -->
+    <!-- ========================================== -->
+    <Page id="page-speed-tester" width="1280" height="820">
+      <Properties>
+        <Property name="name">04_渠道性能实测工作台</Property>
+      </Properties>
+      <Content>
+        <Shape id="bg-04" type="Desktop:SolidBackground" x="0" y="0" width="1280" height="820">
+          <Properties>
+            <Property name="fillColor">#0B0E14FF</Property>
+          </Properties>
+        </Shape>
+        <Shape id="sidebar-04" type="Evolus.Common:Rectangle" x="0" y="0" width="200" height="820">
+          <Properties>
+            <Property name="fillColor">#0F121AFF</Property>
+            <Property name="strokeColor">#1F2430FF</Property>
+          </Properties>
+        </Shape>
+        <Shape id="nav-item-4-active" type="Evolus.Common:Rectangle" x="10" y="195" width="180" height="38">
+          <Properties>
+            <Property name="fillColor">#1E293BFF</Property>
+            <Property name="strokeColor">#3B82F688</Property>
+            <Property name="radius">6</Property>
+          </Properties>
+        </Shape>
+        <Shape id="nav-text-4-active" type="Evolus.Common:PlainText" x="22" y="205" width="160" height="20">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#38BDF8;font-size:12px;font-weight:bold;">⏱️ 渠道性能实测</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 顶部测速控制台面板 -->
+        <Shape id="test-control-04" type="Evolus.Common:Rectangle" x="215" y="15" width="1050" height="135">
+          <Properties>
+            <Property name="fillColor">#151922FF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <Shape id="test-control-content-04" type="Evolus.Common:PlainText" x="230" y="28" width="1020" height="110">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#ffffff;font-size:13px;font-weight:bold;">⚡ 测速配置 (兼容 OpenAI / Anthropic SSE 流式协议)</span><br/><br/><span style="color:#9CA3AF;font-size:11px;">测试目标渠道: </span><span style="background-color:#111827;color:#fff;padding:3px 8px;border-radius:4px;font-size:11px;">[✓ 全部已勾选 8 家中转渠道]</span> <span style="color:#9CA3AF;font-size:11px;margin-left:15px;">测试模型: </span><span style="background-color:#111827;color:#60A5FA;padding:3px 8px;border-radius:4px;font-size:11px;font-family:monospace;">deepseek-v3</span> <span style="color:#9CA3AF;font-size:11px;margin-left:15px;">Prompt 模板: </span><span style="background-color:#111827;color:#fff;padding:3px 8px;border-radius:4px;font-size:11px;">标准 500 字生成 + 真实性防作弊探针</span><br/><br/><span style="color:#9CA3AF;font-size:11px;">测试轮数: </span><span style="background-color:#111827;color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;">3 轮采样</span> <span style="color:#9CA3AF;font-size:11px;margin-left:15px;">并发线程: </span><span style="background-color:#111827;color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;">4 并发</span> <span style="margin-left:25px;background-color:#10B981;color:#fff;padding:6px 20px;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer;">▶ 开始批量并发实测</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 实时流式指标卡片 -->
+        <Shape id="card-metric-1" type="Evolus.Common:Rectangle" x="215" y="162" width="245" height="95">
+          <Properties>
+            <Property name="fillColor">#151922FF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <Shape id="card-metric-1-content" type="Evolus.Common:PlainText" x="228" y="172" width="220" height="75">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#9CA3AF;font-size:11px;">首字延迟 (TTFT) 均值</span><br/><span style="color:#10B981;font-size:24px;font-weight:bold;font-family:monospace;">248</span> <span style="color:#9CA3AF;font-size:12px;">ms</span><br/><span style="color:#6B7280;font-size:10px;">最优: 142ms (极速云) | P95: 390ms</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <Shape id="card-metric-2" type="Evolus.Common:Rectangle" x="480" y="162" width="245" height="95">
+          <Properties>
+            <Property name="fillColor">#151922FF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <Shape id="card-metric-2-content" type="Evolus.Common:PlainText" x="493" y="172" width="220" height="75">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#9CA3AF;font-size:11px;">平均生成速率 (TPS)</span><br/><span style="color:#38BDF8;font-size:24px;font-weight:bold;font-family:monospace;">58.4</span> <span style="color:#9CA3AF;font-size:12px;">tokens/s</span><br/><span style="color:#6B7280;font-size:10px;">峰值 (10-Token窗口): 76.2 tps</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <Shape id="card-metric-3" type="Evolus.Common:Rectangle" x="745" y="162" width="245" height="95">
+          <Properties>
+            <Property name="fillColor">#151922FF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <Shape id="card-metric-3-content" type="Evolus.Common:PlainText" x="758" y="172" width="220" height="75">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#9CA3AF;font-size:11px;">模型一致性探针</span><br/><span style="color:#34D399;font-size:20px;font-weight:bold;">100% 真实</span><br/><span style="color:#6B7280;font-size:10px;">未发现降级/掺水/缓存截获</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <Shape id="card-metric-4" type="Evolus.Common:Rectangle" x="1010" y="162" width="255" height="95">
+          <Properties>
+            <Property name="fillColor">#151922FF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <Shape id="card-metric-4-content" type="Evolus.Common:PlainText" x="1023" y="172" width="230" height="75">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#9CA3AF;font-size:11px;">网络成功率 (Availability)</span><br/><span style="color:#10B981;font-size:24px;font-weight:bold;font-family:monospace;">99.4%</span><br/><span style="color:#6B7280;font-size:10px;">测试 160 请求 | 失败 1 次</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- TPS 流式动态折线图与排行榜 -->
+        <Shape id="chart-card-04" type="Evolus.Common:Rectangle" x="215" y="270" width="600" height="530">
+          <Properties>
+            <Property name="fillColor">#151922FF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <Shape id="chart-content-04" type="Evolus.Common:PlainText" x="230" y="285" width="570" height="500">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#ffffff;font-size:13px;font-weight:bold;">📊 实时流式 TPS 速率与首字延迟波动曲线 (ECharts)</span><br/><br/><span style="color:#6B7280;font-size:11px;font-family:monospace;">[ 动态折线图展示各中转渠道在流式输出过程中的 Token 间隔平稳度 ]<br/>- 极速云 (NewAPI): 绿色曲线, TTFT 142ms, TPS 均值 61.2<br/>- 星河中转 (Sub2API): 紫色曲线, TTFT 210ms, TPS 均值 54.8<br/>- 官方直连: 蓝色曲线, TTFT 180ms, TPS 均值 64.0<br/><br/>★ 抖动率检测 (Jitter): 极速云 (4.2%) 稳定性评级 S 级</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 右侧测速排行榜与打分表 -->
+        <Shape id="rank-card-04" type="Evolus.Common:Rectangle" x="830" y="270" width="435" height="530">
+          <Properties>
+            <Property name="fillColor">#151922FF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <Shape id="rank-content-04" type="Evolus.Common:PlainText" x="845" y="285" width="405" height="500">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#ffffff;font-size:13px;font-weight:bold;">🏆 渠道综合性能排行榜 (Score Matrix)</span><br/><br/><span style="color:#F59E0B;font-weight:bold;font-size:12px;">🥇 第 1 名: 极速云中转 (NewAPI)</span><br/><span style="color:#9CA3AF;font-size:11px;">  综合评分: </span><span style="color:#34D399;font-weight:bold;font-size:12px;">98.2 分 (S级)</span><br/><span style="color:#9CA3AF;font-size:11px;">  TTFT: 142ms | TPS: 61.2 | 折扣: -50% | 一致性: 100%</span><br/><br/><span style="color:#D1D5DB;font-weight:bold;font-size:12px;">🥈 第 2 名: DeepSeek 官方直连</span><br/><span style="color:#9CA3AF;font-size:11px;">  综合评分: </span><span style="color:#34D399;font-weight:bold;font-size:12px;">96.5 分 (S级)</span><br/><span style="color:#9CA3AF;font-size:11px;">  TTFT: 180ms | TPS: 64.0 | 折扣: 0% | 一致性: 100%</span><br/><br/><span style="color:#B45309;font-weight:bold;font-size:12px;">🥉 第 3 名: 星河 AI (Sub2API)</span><br/><span style="color:#9CA3AF;font-size:11px;">  综合评分: </span><span style="color:#60A5FA;font-weight:bold;font-size:12px;">91.0 分 (A级)</span><br/><span style="color:#9CA3AF;font-size:11px;">  TTFT: 210ms | TPS: 54.8 | 折扣: -40% | 一致性: 100%</span><br/><br/><span style="background-color:#2563EB;color:#fff;padding:4px 12px;border-radius:4px;font-size:11px;">导出 HTML / PDF 测评报告</span>]]></Property>
+          </Properties>
+        </Shape>
+      </Content>
+    </Page>
+
+    <!-- ========================================== -->
+    <!-- Page 5: 数据同步与设置中心 -->
+    <!-- ========================================== -->
+    <Page id="page-sync-settings" width="1280" height="820">
+      <Properties>
+        <Property name="name">05_数据同步与设置中心</Property>
+      </Properties>
+      <Content>
+        <Shape id="bg-05" type="Desktop:SolidBackground" x="0" y="0" width="1280" height="820">
+          <Properties>
+            <Property name="fillColor">#0B0E14FF</Property>
+          </Properties>
+        </Shape>
+        <Shape id="sidebar-05" type="Evolus.Common:Rectangle" x="0" y="0" width="200" height="820">
+          <Properties>
+            <Property name="fillColor">#0F121AFF</Property>
+            <Property name="strokeColor">#1F2430FF</Property>
+          </Properties>
+        </Shape>
+        <Shape id="nav-item-5-active" type="Evolus.Common:Rectangle" x="10" y="235" width="180" height="38">
+          <Properties>
+            <Property name="fillColor">#1E293BFF</Property>
+            <Property name="strokeColor">#3B82F688</Property>
+            <Property name="radius">6</Property>
+          </Properties>
+        </Shape>
+        <Shape id="nav-text-5-active" type="Evolus.Common:PlainText" x="22" y="245" width="160" height="20">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#38BDF8;font-size:12px;font-weight:bold;">⚙️ 数据同步与设置</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <!-- 主设置工作区 -->
+        <Shape id="settings-card-1" type="Evolus.Common:Rectangle" x="215" y="15" width="1050" height="250">
+          <Properties>
+            <Property name="fillColor">#151922FF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <Shape id="settings-card-1-content" type="Evolus.Common:PlainText" x="230" y="30" width="1020" height="220">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#ffffff;font-size:14px;font-weight:bold;">🔄 数据源自动同步调度设置</span><br/><br/><span style="color:#E5E7EB;font-size:12px;font-weight:bold;">1. models.dev 官方基准模型数据源:</span><br/><span style="color:#9CA3AF;font-size:11px;">  API 地址: </span><span style="color:#60A5FA;font-family:monospace;font-size:11px;">https://models.dev/api.json</span><br/><span style="color:#9CA3AF;font-size:11px;">  自动同步频率: </span><span style="background-color:#111827;color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;">每日凌晨 03:00 自动拉取</span> <span style="background-color:#2563EB;color:#fff;padding:3px 10px;border-radius:4px;font-size:11px;margin-left:15px;cursor:pointer;">立即全量同步</span><br/><br/><span style="color:#E5E7EB;font-size:12px;font-weight:bold;">2. relaywatch / 中转渠道倍率数据同步:</span><br/><span style="color:#9CA3AF;font-size:11px;">  自动扫描并探测各中转站 /api/models 与价格端点: </span><span style="color:#34D399;font-size:11px;">[✓ 已启用]</span><br/><span style="color:#9CA3AF;font-size:11px;">  渠道轮询周期: </span><span style="background-color:#111827;color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;">每 60 分钟</span> <span style="color:#9CA3AF;font-size:11px;margin-left:10px;">并发探测线程: 5</span> <span style="background-color:#2563EB;color:#fff;padding:3px 10px;border-radius:4px;font-size:11px;margin-left:15px;cursor:pointer;">立即扫描全部中转站</span>]]></Property>
+          </Properties>
+        </Shape>
+
+        <Shape id="settings-card-2" type="Evolus.Common:Rectangle" x="215" y="280" width="1050" height="250">
+          <Properties>
+            <Property name="fillColor">#151922FF</Property>
+            <Property name="strokeColor">#232936FF</Property>
+            <Property name="radius">8</Property>
+          </Properties>
+        </Shape>
+        <Shape id="settings-card-2-content" type="Evolus.Common:PlainText" x="230" y="295" width="1020" height="220">
+          <Properties>
+            <Property name="text"><![CDATA[<span style="color:#ffffff;font-size:14px;font-weight:bold;">💱 汇率折算与通用参数</span><br/><br/><span style="color:#E5E7EB;font-size:12px;font-weight:bold;">1. 实时汇率配置:</span><br/><span style="color:#9CA3AF;font-size:11px;">  当前 USD / CNY 基准汇率: </span><span style="background-color:#111827;color:#34D399;padding:3px 10px;border-radius:4px;font-family:monospace;font-size:12px;font-weight:bold;">7.3000</span> <span style="color:#9CA3AF;font-size:11px;margin-left:10px;">[✓ 自动从公开汇率接口实时更新]</span><br/><br/><span style="color:#E5E7EB;font-size:12px;font-weight:bold;">2. SQLite 本地价格大数据库维护:</span><br/><span style="color:#9CA3AF;font-size:11px;">  数据库文件路径: </span><span style="color:#60A5FA;font-family:monospace;font-size:11px;">./data/welltoken.db (当前大小: 4.2 MB)</span><br/><span style="color:#9CA3AF;font-size:11px;">  历史价格快照数: </span><span style="color:#fff;font-size:11px;font-weight:bold;">32,450 条</span> <span style="color:#9CA3AF;font-size:11px;margin-left:15px;">测速历史记录: </span><span style="color:#fff;font-size:11px;font-weight:bold;">1,280 次</span><br/><br/><span style="background-color:#1E293B;color:#93C5FD;padding:4px 12px;border-radius:4px;font-size:11px;border:1px solid #3B82F6;">备份大数据库</span> <span style="background-color:#1E293B;color:#93C5FD;padding:4px 12px;border-radius:4px;font-size:11px;border:1px solid #3B82F6;margin-left:10px;">导出 Excel 比价总表</span> <span style="background-color:#7F1D1D;color:#FECACA;padding:4px 12px;border-radius:4px;font-size:11px;margin-left:10px;">清理 30 天前过期测速数据</span>]]></Property>
+          </Properties>
+        </Shape>
+      </Content>
+    </Page>
+  </Pages>
+</Document>
