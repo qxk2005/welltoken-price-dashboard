@@ -1,203 +1,165 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-WellToken Price Dashboard (WPD) 控制台 CLI 工具
-支持: wpd --restart, wpd --stop, wpd --status, wpd --start
-"""
+#!/usr/bin/env bash
+# ==============================================================================
+# WellToken Price Dashboard CLI (wpd)
+# 支持指令: wpd --restart, wpd --stop, wpd --status, wpd --start
+# ==============================================================================
 
-import os
-import sys
-import time
-import signal
-import socket
-import subprocess
-import urllib.request
+# 定位项目真实根目录 (解析软链接)
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+PROJECT_ROOT="$( cd -P "$( dirname "$SOURCE" )/.." >/dev/null 2>&1 && pwd )"
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FRONTEND_PORT = 5173
-BACKEND_PORT = 8765
-LOG_DIR = os.path.join(PROJECT_ROOT, ".logs")
+FRONTEND_PORT=5173
+BACKEND_PORT=8765
+LOG_DIR="$PROJECT_ROOT/.logs"
+mkdir -p "$LOG_DIR"
 
-# 彩色输出 ANSI 色值
-GREEN = "\033[92m"
-BLUE = "\033[94m"
-YELLOW = "\033[93m"
-RED = "\033[91m"
-BOLD = "\033[1m"
-RESET = "\033[0m"
+# ANSI 颜色
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[0;33m'
+RED='\033[0;31m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
 
-def print_banner():
-    print(f"{BLUE}{BOLD}======================================================{RESET}")
-    print(f"{BLUE}{BOLD}      WellToken Price Dashboard CLI (wpd)             {RESET}")
-    print(f"{BLUE}{BOLD}======================================================{RESET}")
+print_banner() {
+  echo -e "${BLUE}${BOLD}======================================================${NC}"
+  echo -e "${BLUE}${BOLD}      WellToken Price Dashboard CLI (wpd)             ${NC}"
+  echo -e "${BLUE}${BOLD}======================================================${NC}"
+}
 
-def is_port_in_use(port: int) -> bool:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.settimeout(0.5)
-        return s.connect_ex(('127.0.0.1', port)) == 0
+find_python() {
+  if command -v python &>/dev/null && python -c "import uvicorn, fastapi" &>/dev/null; then
+    which python
+  elif [ -f "$HOME/.pyenv/shims/python" ] && "$HOME/.pyenv/shims/python" -c "import uvicorn, fastapi" &>/dev/null; then
+    echo "$HOME/.pyenv/shims/python"
+  elif command -v python3 &>/dev/null && python3 -c "import uvicorn, fastapi" &>/dev/null; then
+    which python3
+  else
+    which python3 || which python
+  fi
+}
 
-def find_pids_by_port(port: int) -> list:
-    try:
-        output = subprocess.check_output(["lsof", "-ti", f":{port}"], stderr=subprocess.DEVNULL).decode().strip()
-        if output:
-            return [int(pid) for pid in output.split()]
-    except Exception:
-        pass
-    return []
+kill_port() {
+  local port=$1
+  local name=$2
+  local pids=$(lsof -ti :$port 2>/dev/null)
+  if [ -n "$pids" ]; then
+    echo -e "${YELLOW}⏳ 正在停止 $name 服务 (端口 $port, PIDs: $pids)...${NC}"
+    kill -15 $pids 2>/dev/null
+    sleep 1
+    local remaining=$(lsof -ti :$port 2>/dev/null)
+    if [ -n "$remaining" ]; then
+      kill -9 $remaining 2>/dev/null
+    fi
+    echo -e "${GREEN}✓ $name 服务已完全停止，端口 $port 已释放${NC}"
+  else
+    echo -e "ℹ️ $name 服务端口 $port 未被占用"
+  fi
+}
 
-def kill_port_processes(port: int, name: str):
-    pids = find_pids_by_port(port)
-    if pids:
-        print(f"{YELLOW}⏳ 正在停止 {name} 服务 (端口 {port}, PIDs: {pids})...{RESET}")
-        for pid in pids:
-            try:
-                os.kill(pid, signal.SIGTERM)
-            except Exception:
-                pass
-        time.sleep(1)
-        # 二次检查强制 kill -9
-        remaining = find_pids_by_port(port)
-        for pid in remaining:
-            try:
-                os.kill(pid, signal.SIGKILL)
-            except Exception:
-                pass
-        print(f"{GREEN}✓ {name} 服务已完全停止，端口 {port} 已释放{RESET}")
-    else:
-        print(f"ℹ️ {name} 服务端口 {port} 未被占用")
+stop_all() {
+  kill_port $FRONTEND_PORT "前端 Vite (Web)"
+  kill_port $BACKEND_PORT "后端 FastAPI (Server)"
+}
 
-def kill_all_services():
-    kill_port_processes(FRONTEND_PORT, "前端 Vite (Web)")
-    kill_port_processes(BACKEND_PORT, "后端 FastAPI (Server)")
+start_backend() {
+  local py_exec=$(find_python)
+  echo -e "${BLUE}🚀 正在启动后端 FastAPI 服务 (端口 $BACKEND_PORT)...${NC}"
+  cd "$PROJECT_ROOT"
+  PYTHONPATH="$PROJECT_ROOT" nohup "$py_exec" backend/run_server.py --port $BACKEND_PORT --reload >> "$LOG_DIR/backend.log" 2>&1 &
+  
+  # 等待后端就绪 (最多等待 10 秒)
+  for i in {1..20}; do
+    if curl -s "http://127.0.0.1:$BACKEND_PORT/" &>/dev/null; then
+      echo -e "${GREEN}✓ 后端服务启动成功！API 地址: http://127.0.0.1:$BACKEND_PORT${NC}"
+      return 0
+    fi
+    sleep 0.4
+  done
+  echo -e "${YELLOW}⚠️ 后端服务已在后台拉起，正在初始化数据...${NC}"
+}
 
-def find_python_executable() -> str:
-    candidates = [
-        "python",
-        os.path.expanduser("~/.pyenv/shims/python"),
-        sys.executable,
-        "python3"
-    ]
-    for c in candidates:
-        if not c:
-            continue
-        try:
-            res = subprocess.run([c, "-c", "import uvicorn, fastapi"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            if res.returncode == 0:
-                return c
-        except Exception:
-            pass
-    return "python"
+start_frontend() {
+  echo -e "${BLUE}🚀 正在启动前端 Vite 开发服务器 (端口 $FRONTEND_PORT)...${NC}"
+  cd "$PROJECT_ROOT"
+  nohup npx vite --host 0.0.0.0 --port $FRONTEND_PORT >> "$LOG_DIR/frontend.log" 2>&1 &
+  
+  # 等待前端就绪 (最多等待 10 秒)
+  for i in {1..20}; do
+    if curl -s "http://127.0.0.1:$FRONTEND_PORT/" &>/dev/null; then
+      echo -e "${GREEN}✓ 前端服务启动成功！浏览器访问: http://localhost:$FRONTEND_PORT/${NC}"
+      return 0
+    fi
+    sleep 0.4
+  done
+  echo -e "${GREEN}✓ 前端服务已在后台拉起${NC}"
+}
 
-def start_backend():
-    os.makedirs(LOG_DIR, exist_ok=True)
-    backend_log = open(os.path.join(LOG_DIR, "backend.log"), "a")
-    print(f"{BLUE}🚀 正在启动后端 FastAPI 服务 (端口 {BACKEND_PORT})...{RESET}")
-    
-    py_exec = find_python_executable()
-    cmd = [py_exec, "backend/run_server.py", "--port", str(BACKEND_PORT), "--reload"]
-    proc = subprocess.Popen(
-        cmd,
-        cwd=PROJECT_ROOT,
-        stdout=backend_log,
-        stderr=backend_log,
-        env=dict(os.environ, PYTHONPATH=PROJECT_ROOT),
-        start_new_session=True
-    )
-    
-    # 等待后端健康就绪
-    for _ in range(30):
-        time.sleep(0.3)
-        try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{BACKEND_PORT}/", timeout=1) as resp:
-                if resp.status == 200:
-                    print(f"{GREEN}✓ 后端服务启动成功！API 地址: http://127.0.0.1:{BACKEND_PORT}{RESET}")
-                    return proc
-        except Exception:
-            pass
-    print(f"{YELLOW}⚠️ 后端服务已拉起 (PID: {proc.pid})，正在初始化数据...{RESET}")
-    return proc
+show_status() {
+  print_banner
+  echo -e "📊 当前服务运行状态："
+  local b_pids=$(lsof -ti :$BACKEND_PORT 2>/dev/null)
+  local f_pids=$(lsof -ti :$FRONTEND_PORT 2>/dev/null)
+  
+  if [ -n "$b_pids" ]; then
+    echo -e "  • 后端 FastAPI 服务: ${GREEN}● 运行中${NC} (端口 $BACKEND_PORT, PID: $b_pids)"
+  else
+    echo -e "  • 后端 FastAPI 服务: ${RED}○ 已停止${NC}"
+  fi
+  
+  if [ -n "$f_pids" ]; then
+    echo -e "  • 前端 Vite 服务:   ${GREEN}● 运行中${NC} (端口 $FRONTEND_PORT, PID: $f_pids)"
+    echo -e "    👉 访问链接: ${BOLD}http://localhost:$FRONTEND_PORT/${NC}"
+  else
+    echo -e "  • 前端 Vite 服务:   ${RED}○ 已停止${NC}"
+  fi
+  echo ""
+}
 
-def start_frontend():
-    os.makedirs(LOG_DIR, exist_ok=True)
-    frontend_log = open(os.path.join(LOG_DIR, "frontend.log"), "a")
-    print(f"{BLUE}🚀 正在启动前端 Vite 开发服务器 (端口 {FRONTEND_PORT})...{RESET}")
-    
-    cmd = ["npx", "vite", "--host", "0.0.0.0", "--port", str(FRONTEND_PORT)]
-    proc = subprocess.Popen(
-        cmd,
-        cwd=PROJECT_ROOT,
-        stdout=frontend_log,
-        stderr=frontend_log,
-        start_new_session=True
-    )
-    
-    # 等待前端就绪
-    for _ in range(30):
-        time.sleep(0.3)
-        try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{FRONTEND_PORT}/", timeout=1) as resp:
-                if resp.status == 200:
-                    print(f"{GREEN}✓ 前端服务启动成功！浏览器访问: http://localhost:{FRONTEND_PORT}/{RESET}")
-                    return proc
-        except Exception:
-            pass
-    print(f"{GREEN}✓ 前端服务已拉起 (PID: {proc.pid}){RESET}")
-    return proc
+restart_all() {
+  print_banner
+  echo -e "${BOLD}🔄 开始执行 WPD 全局服务重启 (Kill & Restart)...${NC}\n"
+  stop_all
+  sleep 1
+  echo ""
+  start_backend
+  sleep 0.5
+  start_frontend
+  echo ""
+  echo -e "${GREEN}${BOLD}🎉 全部服务重启完成！${NC}"
+  echo -e "👉 浏览器直达: ${BLUE}${BOLD}http://localhost:$FRONTEND_PORT/${NC} 或 ${BLUE}${BOLD}http://127.0.0.1:$FRONTEND_PORT/${NC}"
+  echo -e "${BLUE}======================================================${NC}"
+}
 
-def show_status():
-    print_banner()
-    b_pids = find_pids_by_port(BACKEND_PORT)
-    f_pids = find_pids_by_port(FRONTEND_PORT)
-    
-    print("📊 当前服务运行状态：")
-    if b_pids:
-        print(f"  • 后端 FastAPI 服务: {GREEN}● 运行中{RESET} (端口 {BACKEND_PORT}, PID: {b_pids})")
-    else:
-        print(f"  • 后端 FastAPI 服务: {RED}○ 已停止{RESET}")
-        
-    if f_pids:
-        print(f"  • 前端 Vite 服务:   {GREEN}● 运行中{RESET} (端口 {FRONTEND_PORT}, PID: {f_pids})")
-        print(f"    👉 访问链接: {BOLD}http://localhost:{FRONTEND_PORT}/{RESET}")
-    else:
-        print(f"  • 前端 Vite 服务:   {RED}○ 已停止{RESET}")
-    print()
-
-def restart_all():
-    print_banner()
-    print(f"{BOLD}🔄 开始执行 WPD 全局服务重启 (Kill & Restart)...{RESET}\n")
-    kill_all_services()
-    time.sleep(1)
-    print()
-    start_backend()
-    time.sleep(0.5)
-    start_frontend()
-    print()
-    print(f"{GREEN}{BOLD}🎉 全部服务重启完成！{RESET}")
-    print(f"👉 浏览器直达: {BLUE}{BOLD}http://localhost:{FRONTEND_PORT}/{RESET} 或 {BLUE}{BOLD}http://127.0.0.1:{FRONTEND_PORT}/{RESET}")
-    print(f"{BLUE}======================================================{RESET}")
-
-def main():
-    args = sys.argv[1:]
-    if not args or "--restart" in args or "restart" in args:
-        restart_all()
-    elif "--stop" in args or "stop" in args:
-        print_banner()
-        kill_all_services()
-        print(f"{GREEN}✓ 全部 WPD 服务已停止。{RESET}")
-    elif "--status" in args or "status" in args:
-        show_status()
-    elif "--start" in args or "start" in args:
-        print_banner()
-        start_backend()
-        start_frontend()
-        print(f"\n👉 浏览器访问: {BLUE}{BOLD}http://localhost:{FRONTEND_PORT}/{RESET}")
-    else:
-        print(f"未知参数: {args}")
-        print("使用说明:")
-        print("  wpd --restart   # 终止当前进程并重启前端与后端服务")
-        print("  wpd --stop      # 停止所有前端与后端服务")
-        print("  wpd --status    # 查看服务当前运行状态")
-        print("  wpd --start     # 启动前端与后端服务")
-
-if __name__ == "__main__":
-    main()
+case "$1" in
+  --restart|restart|"")
+    restart_all
+    ;;
+  --stop|stop)
+    print_banner
+    stop_all
+    echo -e "${GREEN}✓ 全部 WPD 服务已停止。${NC}"
+    ;;
+  --status|status)
+    show_status
+    ;;
+  --start|start)
+    print_banner
+    start_backend
+    start_frontend
+    echo -e "\n👉 浏览器访问: ${BLUE}${BOLD}http://localhost:$FRONTEND_PORT/${NC}"
+    ;;
+  *)
+    echo "未知参数: $1"
+    echo "使用说明:"
+    echo "  wpd --restart   # 终止当前进程并重启前端与后端服务"
+    echo "  wpd --stop      # 停止所有前端与后端服务"
+    echo "  wpd --status    # 查看服务当前运行状态"
+    echo "  wpd --start     # 启动前端与后端服务"
+    ;;
+esac
