@@ -15,6 +15,8 @@ async def lifespan(app: FastAPI):
     # 启动阶段 2：非阻塞异步在后台加载 models.dev 真实全网大数据库与启动广播轮询
     async def async_boot():
         try:
+            from backend.app.services.model_normalizer import model_normalizer
+            await model_normalizer.initialize()
             await dashboard_service.initialize()
             await dashboard_service.start_loop()
         except Exception as e:

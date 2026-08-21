@@ -202,3 +202,67 @@ class SystemHealthResponse(BaseModel):
     version: str = "1.0.0"
     uptime_seconds: float
     database_connected: bool
+
+# --- 渠道向导与模型映射体系 Schemas ---
+class ChannelProbeRequest(BaseModel):
+    base_url: str
+    api_key: Optional[str] = ""
+    site_type: str = "newapi"
+    models_endpoint: str = "/v1/models"
+
+class ModelMappingItem(BaseModel):
+    channel_model_name: str
+    is_matched: bool = False
+    match_type: str = "unmapped" # exact, channel_custom, global_alias, rule_normalized, fuzzy, unmapped
+    confidence: float = 0.0
+    standard_model_id: str = ""
+    standard_model_name: str = ""
+    provider: str = ""
+    series: str = ""
+    official_input_price: float = 0.0
+    official_output_price: float = 0.0
+    custom_ratio: Optional[float] = None
+    is_selected: bool = True
+
+class ChannelProbeResponse(BaseModel):
+    is_online: bool
+    status_code: int
+    latency_ms: float
+    raw_count: int
+    matched_count: int
+    unmatched_count: int
+    error: str = ""
+    mappings: List[ModelMappingItem] = []
+
+class ChannelWizardCreateRequest(BaseModel):
+    name: str
+    base_url: str
+    api_key: Optional[str] = ""
+    site_type: str = "newapi"
+    recharge_rate: float = 1.0
+    default_ratio: float = 0.65
+    models_endpoint: str = "/v1/models"
+    status_endpoint: Optional[str] = ""
+    notes: Optional[str] = ""
+    mappings: List[ModelMappingItem] = []
+
+class ChannelModelMappingSchema(BaseModel):
+    id: int
+    site_id: int
+    channel_model_name: str
+    standard_model_id: str
+    custom_ratio: Optional[float] = None
+    is_enabled: bool = True
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ChannelMappingsBatchUpdate(BaseModel):
+    mappings: List[ModelMappingItem]
+
+class PromoteAliasRequest(BaseModel):
+    raw_pattern: str
+    standard_model_id: str
+    notes: Optional[str] = ""
+

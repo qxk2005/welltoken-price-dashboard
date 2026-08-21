@@ -4,9 +4,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, func
 from sqlalchemy.orm import selectinload
 from backend.app.database import get_db, AsyncSessionLocal
-from backend.app.models.token_price import RelaySite, SiteModelPricing, ModelMetadata
-from backend.app.schemas.token_schema import RelaySiteSchema, RelaySiteCreate, RelaySiteUpdate
+from backend.app.models.token_price import RelaySite, SiteModelPricing, ModelMetadata, ChannelModelMapping, ModelAlias
+from backend.app.schemas.token_schema import (
+    RelaySiteSchema, RelaySiteCreate, RelaySiteUpdate,
+    ChannelProbeRequest, ChannelProbeResponse, ModelMappingItem,
+    ChannelWizardCreateRequest, ChannelModelMappingSchema,
+    ChannelMappingsBatchUpdate, PromoteAliasRequest
+)
 from backend.app.services.relay_fetcher import relay_fetcher
+from backend.app.services.model_normalizer import model_normalizer
 
 router = APIRouter(prefix="/channels", tags=["Relay Channels & Providers"])
 
@@ -63,6 +69,206 @@ async def get_channel_models(site_id: int):
                 "is_available": p.is_available
             })
         return result
+
+@router.post("/probe", response_model=ChannelProbeResponse)
+async def probe_channel_and_models(payload: ChannelProbeRequest):
+    """【向导第2步】真实发起 HTTP 请求探测中转站连通性，并执行智能模型归一化映射推断"""
+    probe_res = await model_normalizer.probe_and_fetch_models(
+        base_url=payload.base_url,
+        api_key=payload.api_key or "",
+        site_type=payload.site_type,
+        models_endpoint=payload.models_endpoint
+    )
+
+    mappings_data = []
+    if probe_res["raw_models"]:
+        raw_mappings = await model_normalizer.match_models_for_channel(probe_res["raw_models"])
+        for m in raw_mappings:
+            mappings_data.append(ModelMappingItem(**m))
+
+    matched_cnt = sum(1 for m in mappings_data if m.is_matched)
+    unmatched_cnt = len(mappings_data) - matched_cnt
+
+    return ChannelProbeResponse(
+        is_online=probe_res["is_online"],
+        status_code=probe_res["status_code"],
+        latency_ms=probe_res["latency_ms"],
+        raw_count=probe_res["raw_count"],
+        matched_count=matched_cnt,
+        unmatched_count=unmatched_cnt,
+        error=probe_res["error"],
+        mappings=mappings_data
+    )
+
+@router.post("/wizard-create")
+async def wizard_create_channel(payload: ChannelWizardCreateRequest, db: AsyncSession = Depends(get_db)):
+    """【向导第4步】完成渠道创建、写入渠道模型映射，并初始化生成模型定价记录"""
+    # 1. 创建渠道主体
+    site = RelaySite(
+        name=payload.name,
+        base_url=payload.base_url.rstrip("/"),
+        api_key=payload.api_key or "",
+        site_type=payload.site_type,
+        recharge_rate=payload.recharge_rate,
+        models_endpoint=payload.models_endpoint,
+        status_endpoint=payload.status_endpoint or "",
+        is_official_catalog=False,
+        is_active=True,
+        notes=payload.notes or "",
+        last_latency_ms=45.0
+    )
+    db.add(site)
+    await db.flush()
+
+    # 2. 遍历 mappings，写入 ChannelModelMapping 并生成 SiteModelPricing
+    selected_items = [m for m in payload.mappings if m.is_selected and m.standard_model_id]
+    created_models_count = 0
+
+    # 预加载所有标准模型
+    m_res = await db.execute(select(ModelMetadata))
+    standard_models = {m.model_id: m for m in m_res.scalars().all()}
+
+    for item in selected_items:
+        std_id = item.standard_model_id.strip()
+        # A. 写入渠道私有映射记录
+        cm = ChannelModelMapping(
+            site_id=site.id,
+            channel_model_name=item.channel_model_name.strip(),
+            standard_model_id=std_id,
+            custom_ratio=item.custom_ratio,
+            is_enabled=True
+        )
+        db.add(cm)
+
+        # B. 查验标准模型是否存在，计算折算价格
+        std_meta = standard_models.get(std_id)
+        if std_meta:
+            ratio = item.custom_ratio if item.custom_ratio is not None else payload.default_ratio
+            calc_in = round(std_meta.official_input_price * ratio * site.recharge_rate, 4)
+            calc_out = round(std_meta.official_output_price * ratio * site.recharge_rate, 4)
+            calc_cache = round(std_meta.official_cache_price * ratio * site.recharge_rate, 4)
+            discount = round(((calc_in - std_meta.official_input_price) / std_meta.official_input_price * 100), 1) if std_meta.official_input_price > 0 else 0.0
+
+            pricing = SiteModelPricing(
+                site_id=site.id,
+                model_id=std_id,
+                site_model_name=item.channel_model_name.strip(),
+                model_ratio=ratio,
+                group_ratio=1.0,
+                calculated_input_usd=calc_in,
+                calculated_output_usd=calc_out,
+                calculated_cache_usd=calc_cache,
+                discount_percent=discount,
+                is_available=True,
+                last_tested_tps=50.0
+            )
+            db.add(pricing)
+            created_models_count += 1
+
+    await db.commit()
+    await db.refresh(site)
+
+    return {
+        "status": "success",
+        "site_id": site.id,
+        "site_name": site.name,
+        "imported_models_count": created_models_count
+    }
+
+@router.get("/{site_id}/mappings")
+async def get_channel_mappings(site_id: int, db: AsyncSession = Depends(get_db)):
+    """获取指定渠道的模型映射配置列表"""
+    stmt = (
+        select(ChannelModelMapping)
+        .where(ChannelModelMapping.site_id == site_id)
+        .order_by(ChannelModelMapping.id.asc())
+    )
+    res = await db.execute(stmt)
+    mappings = res.scalars().all()
+    return mappings
+
+@router.put("/{site_id}/mappings")
+async def update_channel_mappings(site_id: int, payload: ChannelMappingsBatchUpdate, db: AsyncSession = Depends(get_db)):
+    """全量更新渠道的模型映射，并同步更新定价表"""
+    # 1. 验证渠道存在
+    site_res = await db.execute(select(RelaySite).where(RelaySite.id == site_id))
+    site = site_res.scalar_one_or_none()
+    if not site:
+        raise HTTPException(status_code=404, detail="Channel not found")
+
+    # 2. 清理旧的映射与定价
+    await db.execute(delete(ChannelModelMapping).where(ChannelModelMapping.site_id == site_id))
+    await db.execute(delete(SiteModelPricing).where(SiteModelPricing.site_id == site_id))
+
+    # 3. 重新写入
+    m_res = await db.execute(select(ModelMetadata))
+    standard_models = {m.model_id: m for m in m_res.scalars().all()}
+
+    count = 0
+    for item in payload.mappings:
+        if not item.is_selected or not item.standard_model_id:
+            continue
+        std_id = item.standard_model_id.strip()
+        cm = ChannelModelMapping(
+            site_id=site.id,
+            channel_model_name=item.channel_model_name.strip(),
+            standard_model_id=std_id,
+            custom_ratio=item.custom_ratio,
+            is_enabled=True
+        )
+        db.add(cm)
+
+        std_meta = standard_models.get(std_id)
+        if std_meta:
+            ratio = item.custom_ratio if item.custom_ratio is not None else 0.65
+            calc_in = round(std_meta.official_input_price * ratio * site.recharge_rate, 4)
+            calc_out = round(std_meta.official_output_price * ratio * site.recharge_rate, 4)
+            calc_cache = round(std_meta.official_cache_price * ratio * site.recharge_rate, 4)
+            discount = round(((calc_in - std_meta.official_input_price) / std_meta.official_input_price * 100), 1) if std_meta.official_input_price > 0 else 0.0
+
+            pricing = SiteModelPricing(
+                site_id=site.id,
+                model_id=std_id,
+                site_model_name=item.channel_model_name.strip(),
+                model_ratio=ratio,
+                group_ratio=1.0,
+                calculated_input_usd=calc_in,
+                calculated_output_usd=calc_out,
+                calculated_cache_usd=calc_cache,
+                discount_percent=discount,
+                is_available=True,
+                last_tested_tps=50.0
+            )
+            db.add(pricing)
+            count += 1
+
+    await db.commit()
+    return {"status": "success", "site_id": site_id, "updated_models_count": count}
+
+@router.post("/promote-alias")
+async def promote_to_global_alias(payload: PromoteAliasRequest, db: AsyncSession = Depends(get_db)):
+    """将某个渠道的自定义别名固化提升为全局智能别名库规则"""
+    pat = payload.raw_pattern.strip().lower()
+    stmt = select(ModelAlias).where(ModelAlias.raw_pattern == pat)
+    res = await db.execute(stmt)
+    alias = res.scalar_one_or_none()
+
+    if alias:
+        alias.standard_model_id = payload.standard_model_id
+        alias.notes = payload.notes or "用户手动固化提升的全局别名"
+    else:
+        alias = ModelAlias(
+            raw_pattern=pat,
+            standard_model_id=payload.standard_model_id,
+            is_system=False,
+            notes=payload.notes or "用户手动固化提升的全局别名"
+        )
+        db.add(alias)
+
+    await db.commit()
+    # 刷新服务缓存
+    await model_normalizer.initialize()
+    return {"status": "success", "pattern": pat, "standard_model_id": payload.standard_model_id}
 
 @router.post("", response_model=RelaySiteSchema)
 async def create_relay_channel(payload: RelaySiteCreate, db: AsyncSession = Depends(get_db)):
@@ -127,3 +333,4 @@ async def ping_and_sync_single_channel(site_id: int):
 async def ping_and_sync_all_channels():
     """一键探测并全量同步所有活跃渠道"""
     return await relay_fetcher.sync_all_sites()
+

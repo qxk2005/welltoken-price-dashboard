@@ -46,10 +46,10 @@
             <span>🔄 同步官方库</span>
           </button>
           <button
-            @click="openAddModal"
+            @click="showWizardModal = true"
             class="text-xs px-3 py-1.5 rounded-lg bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] text-white font-medium shadow-sm transition-all flex items-center space-x-1 whitespace-nowrap"
           >
-            <span>+ 添加自建渠道</span>
+            <span>✨ 添加渠道向导 (Relay-Watch)</span>
           </button>
         </div>
       </div>
@@ -386,6 +386,14 @@
 
           <!-- 右侧操作 -->
           <div class="flex items-center space-x-2">
+            <button
+              v-if="isCustomSite(selectedProvider)"
+              @click="openSyncModalForCurrent"
+              class="px-3 py-1.5 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#0071E3] border border-[#E5E5EA] text-xs font-medium flex items-center space-x-1"
+              title="使用 Relay-Watch 重新探测当前站点的最新模型并自动映射"
+            >
+              <span>📡 重新探测模型</span>
+            </button>
             <a
               v-if="selectedProvider.doc_url"
               :href="selectedProvider.doc_url"
@@ -558,7 +566,14 @@
       </div>
     </template>
 
-    <!-- 弹窗：添加 / 编辑自建渠道 Modal (苹果灰白质感弹窗) -->
+    <!-- 4 步向导式添加自建渠道 Modal (Relay-Watch & 智能模型归一化) -->
+    <AddChannelWizardModal
+      v-if="showWizardModal"
+      @close="showWizardModal = false"
+      @success="onWizardSuccess"
+    />
+
+    <!-- 弹窗：编辑自建渠道基础配置 Modal (苹果灰白质感弹窗) -->
     <div
       v-if="showModal"
       class="fixed inset-0 bg-black/30 backdrop-blur-xs flex items-center justify-center z-50 animate-fade-in"
@@ -652,6 +667,7 @@ import { ref, computed, watch } from 'vue'
 import axios from 'axios'
 import { useDashboardStore } from '../stores/dashboardStore'
 import ProviderLogo from '../components/ProviderLogo.vue'
+import AddChannelWizardModal from '../components/AddChannelWizardModal.vue'
 import type { RelaySite } from '../types'
 
 const store = useDashboardStore()
@@ -662,15 +678,8 @@ const providerModelSearchQuery = ref('')
 const providerModelsList = ref<any[]>([])
 const isDetailLoading = ref(false)
 
-// 分页状态
-const currentPage = ref(1)
-const pageSize = ref(20)
-
-// 排序状态
-const sortField = ref<string>('score')
-const sortOrder = ref<'asc' | 'desc'>('desc')
-
-// 弹窗状态
+// 向导与弹窗状态
+const showWizardModal = ref(false)
 const showModal = ref(false)
 const isEditing = ref(false)
 const currentEditId = ref<number | null>(null)
@@ -681,6 +690,24 @@ const form = ref({
   recharge_rate: 1.0,
   api_key: ''
 })
+
+// 分页状态
+const currentPage = ref(1)
+const pageSize = ref(20)
+
+// 排序状态
+const sortField = ref<string>('score')
+const sortOrder = ref<'asc' | 'desc'>('desc')
+
+const onWizardSuccess = async (res: any) => {
+  await store.fetchRelaySites()
+  await store.fetchComparisonMatrix()
+  alert(`🎉 恭喜！中转渠道「${res.site_name}」添加成功，已精准规整并收录 ${res.imported_models_count} 款模型！`)
+}
+
+const openSyncModalForCurrent = () => {
+  showWizardModal.value = true
+}
 
 // 真正的官方直连母厂 ID 集合 (大模型原创研发母厂一手 API)
 const officialLabProviders = new Set([

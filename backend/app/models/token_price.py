@@ -31,6 +31,7 @@ class RelaySite(Base):
     # 关系
     pricings = relationship("SiteModelPricing", back_populates="site", cascade="all, delete-orphan")
     test_histories = relationship("SpeedTestHistory", back_populates="site", cascade="all, delete-orphan")
+    mappings = relationship("ChannelModelMapping", back_populates="site", cascade="all, delete-orphan")
 
 class ModelMetadata(Base):
     """大模型标准元数据 (基于 models.dev/models.json 与 api.json 标准化定义)"""
@@ -118,3 +119,31 @@ class SyncLog(Base):
     duration_ms = Column(Float, default=0.0)           # 同步耗时 (ms)
     error_message = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+class ModelAlias(Base):
+    """全局模型别名与模式规则库 (用于自动归一化各中转站混乱的命名到 models.dev 标准库)"""
+    __tablename__ = "model_aliases"
+
+    id = Column(Integer, primary_key=True, index=True)
+    raw_pattern = Column(String(150), unique=True, index=True, nullable=False) # 原始命名或通配符规则，如 deepseek-chat, gpt-4o-2024*
+    standard_model_id = Column(String(150), ForeignKey("model_metadata.model_id"), index=True, nullable=False) # 映射的标准模型 ID
+    is_system = Column(Boolean, default=True) # 是否系统内置规则
+    notes = Column(String(255), default="")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class ChannelModelMapping(Base):
+    """渠道级自定义模型映射表 (允许单个渠道覆盖独立别名与专属倍率)"""
+    __tablename__ = "channel_model_mappings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    site_id = Column(Integer, ForeignKey("relay_sites.id"), index=True, nullable=False)
+    channel_model_name = Column(String(150), index=True, nullable=False) # 渠道内原始名称 (如 deepseek-chat 或自定义别名)
+    standard_model_id = Column(String(150), ForeignKey("model_metadata.model_id"), index=True, nullable=False) # 绑定的 models.dev 标准模型 ID
+    custom_ratio = Column(Float, nullable=True) # 针对该模型的专属倍率 (为空则继承渠道全局 recharge_rate/default_ratio)
+    is_enabled = Column(Boolean, default=True) # 是否启用该映射
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 关系
+    site = relationship("RelaySite", back_populates="mappings")
+
