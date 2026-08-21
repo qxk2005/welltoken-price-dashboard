@@ -9,6 +9,7 @@ class ModelMetadataBase(BaseModel):
     model_id: str
     name: str
     provider: str
+    series: str = ""
     context_window: int = 128000
     max_output: int = 4096
     official_input_price: float = 0.0
@@ -80,6 +81,7 @@ class ComparisonItemSchema(BaseModel):
     model_id: str
     model_name: str
     provider: str
+    series: str = ""
     site_id: int
     site_name: str
     site_type: str

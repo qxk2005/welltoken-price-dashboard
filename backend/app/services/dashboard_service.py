@@ -94,6 +94,7 @@ class TokenDashboardService:
                         model_id=model.model_id,
                         model_name=model.name,
                         provider=model.provider,
+                        series=model.series or "通用系列",
                         site_id=site.id,
                         site_name=site.name,
                         site_type=site.site_type,

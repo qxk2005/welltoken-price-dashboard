@@ -35,6 +35,7 @@ class ModelMetadata(Base):
     model_id = Column(String(100), unique=True, index=True, nullable=False)  # 如 gpt-4o, claude-3-5-sonnet
     name = Column(String(100), nullable=False)
     provider = Column(String(50), index=True, nullable=False)  # openai, anthropic, deepseek, google, alibaba, meta
+    series = Column(String(50), index=True, default="")       # deepseek-v3, deepseek-r1, gpt-4o, claude-3-5 等
     context_window = Column(Integer, default=128000)
     max_output = Column(Integer, default=4096)
     official_input_price = Column(Float, default=0.0)   # $/1M tokens

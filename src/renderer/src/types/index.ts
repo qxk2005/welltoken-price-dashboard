@@ -1,8 +1,9 @@
 export interface ComparisonItem {
   id: number
-  model_id: str
+  model_id: string
   model_name: string
   provider: string
+  series: string
   site_id: number
   site_name: string
   site_type: string
@@ -45,6 +46,7 @@ export interface ModelMetadata {
   model_id: string
   name: string
   provider: string
+  series: string
   context_window: number
   max_output: number
   official_input_price: number
