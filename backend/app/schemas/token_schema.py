@@ -79,7 +79,7 @@ class RelaySiteSchema(RelaySiteBase):
     class Config:
         from_attributes = True
 
-# --- 聚合比价矩阵条目 ---
+# --- 聚合比价矩阵条目与分页 ---
 class ComparisonItemSchema(BaseModel):
     id: int
     model_id: str
@@ -105,6 +105,25 @@ class ComparisonItemSchema(BaseModel):
 
     class Config:
         from_attributes = True
+
+class PaginatedComparisonResponse(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+    items: List[ComparisonItemSchema]
+
+class FilterItemOption(BaseModel):
+    value: str
+    label: str
+    count: int = 0
+
+class ComparisonFilterOptionsResponse(BaseModel):
+    providers: List[FilterItemOption]
+    series: List[FilterItemOption]
+    models: List[FilterItemOption]
+    sites: List[FilterItemOption]
+
 
 # --- 测速请求与结果 ---
 class SpeedTestRequest(BaseModel):

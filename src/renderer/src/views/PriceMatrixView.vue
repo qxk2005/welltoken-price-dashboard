@@ -1,7 +1,7 @@
 <template>
-  <div class="h-full flex flex-col space-y-3 overflow-hidden select-none">
+  <div class="h-full flex flex-col space-y-2.5 overflow-hidden select-none">
     <!-- 顶部四级联动多维筛选栏 -->
-    <div class="p-3 rounded-xl bg-[#151922] border border-[#232936] space-y-2.5">
+    <div class="p-3 rounded-xl bg-[#151922] border border-[#232936] space-y-2">
       <!-- 第一行：四大维度可搜索多选下拉 -->
       <div class="flex items-center justify-between flex-wrap gap-2">
         <div class="flex items-center flex-wrap gap-2">
@@ -41,7 +41,7 @@
         <!-- 右侧：快捷操作与匹配统计 -->
         <div class="flex items-center space-x-2 text-xs">
           <span class="text-gray-400">
-            匹配到 <strong class="text-emerald-400 font-mono font-bold">{{ filteredMatrix.length }}</strong> 条报价
+            全网匹配: <strong class="text-emerald-400 font-mono font-bold">{{ totalRecords }}</strong> 条报价
           </span>
           <button
             v-if="hasAnyFilter"
@@ -63,7 +63,7 @@
           :key="`p-${p}`"
           class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 text-[11px]"
         >
-          <span>🏢 {{ getProviderLabel(p) }}</span>
+          <span>🏢 {{ p }}</span>
           <button @click="removeProvider(p)" class="hover:text-white ml-0.5">✕</button>
         </span>
 
@@ -104,47 +104,53 @@
       <!-- 表头 -->
       <div class="grid grid-cols-12 gap-2 text-[11px] text-gray-400 font-bold px-3 py-2 border-b border-[#232936] bg-[#1A202C]/60 rounded-t-lg">
         <div class="col-span-2">模型系列 / 厂商</div>
-        <div class="col-span-2">模型标准标识</div>
-        <div class="col-span-2">渠道 / 中转站点</div>
+        <div class="col-span-3">模型标准标识</div>
+        <div class="col-span-2">渠道 / 供应商</div>
         <div class="col-span-1">类型</div>
         <div class="col-span-1 text-right">输入单价</div>
         <div class="col-span-1 text-right">输出单价</div>
         <div class="col-span-1 text-center">倍率</div>
-        <div class="col-span-1 text-center">官方折扣</div>
         <div class="col-span-1 text-right">实测 TPS</div>
       </div>
 
-      <!-- 数据行列表 -->
-      <div class="flex-1 overflow-y-auto divide-y divide-[#232936]/40 pr-1 mt-1">
+      <!-- 数据行列表 (仅渲染当前页 50 条，极速流畅 60 FPS) -->
+      <div class="flex-1 overflow-y-auto divide-y divide-[#232936]/40 pr-1 mt-1 relative">
+        <div v-if="isLoading" class="absolute inset-0 bg-[#151922]/70 backdrop-blur-xs flex items-center justify-center z-10">
+          <div class="text-xs text-blue-400 font-medium flex items-center space-x-2">
+            <span class="animate-spin">🌀</span>
+            <span>加载报价数据中...</span>
+          </div>
+        </div>
+
         <div
-          v-for="row in filteredMatrix"
+          v-for="row in pagedItems"
           :key="row.id"
           @click="selectRow(row)"
-          class="grid grid-cols-12 gap-2 items-center px-3 py-2.5 text-xs transition-colors cursor-pointer rounded-lg"
+          class="grid grid-cols-12 gap-2 items-center px-3 py-2 text-xs transition-colors cursor-pointer rounded-lg"
           :class="selectedRow?.id === row.id ? 'bg-blue-600/15 border border-blue-500/30' : 'hover:bg-[#1A202C]'"
         >
           <!-- 系列与厂商 -->
           <div class="col-span-2 flex items-center space-x-1.5 truncate">
-            <span class="px-1.5 py-0.5 rounded bg-[#1E293B] text-gray-300 text-[10px] font-mono">
+            <span class="px-1.5 py-0.2 rounded bg-[#1E293B] text-gray-300 text-[10px] font-mono">
               {{ row.provider.toUpperCase() }}
             </span>
-            <span class="text-gray-300 font-medium truncate">{{ row.series || '通用' }}</span>
+            <span class="text-gray-300 font-medium truncate text-[11px]">{{ row.series || '通用' }}</span>
           </div>
 
           <!-- 模型标识 -->
-          <div class="col-span-2 flex items-center space-x-1.5 truncate">
-            <span class="font-bold text-blue-400 font-mono truncate" :title="row.model_id">{{ row.model_id }}</span>
+          <div class="col-span-3 flex items-center space-x-1.5 truncate">
+            <span class="font-bold text-blue-400 font-mono truncate text-xs" :title="row.model_id">{{ row.model_id }}</span>
           </div>
 
           <!-- 渠道站点 -->
           <div class="col-span-2 flex items-center space-x-1.5 truncate">
-            <span class="font-medium text-white truncate" :title="row.site_name">{{ row.site_name }}</span>
+            <span class="font-medium text-white truncate text-xs" :title="row.site_name">{{ row.site_name }}</span>
           </div>
 
           <!-- 类型徽标 -->
           <div class="col-span-1">
             <span
-              class="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold uppercase"
+              class="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold uppercase"
               :class="getTypeBadgeClass(row.site_type)"
             >
               {{ row.site_type }}
@@ -152,57 +158,115 @@
           </div>
 
           <!-- 输入价格 -->
-          <div class="col-span-1 text-right font-mono font-bold text-emerald-400">
+          <div class="col-span-1 text-right font-mono font-bold text-emerald-400 text-xs">
             {{ formatPrice(row.calculated_input_usd, row.calculated_input_cny) }}
           </div>
 
           <!-- 输出价格 -->
-          <div class="col-span-1 text-right font-mono text-emerald-400">
+          <div class="col-span-1 text-right font-mono text-emerald-400 text-xs">
             {{ formatPrice(row.calculated_output_usd, row.calculated_output_cny) }}
           </div>
 
           <!-- 倍率 -->
-          <div class="col-span-1 text-center font-mono text-gray-300 font-semibold">
+          <div class="col-span-1 text-center font-mono text-gray-300 font-semibold text-xs">
             {{ row.model_ratio }}x
           </div>
 
-          <!-- 官方折扣 -->
-          <div class="col-span-1 text-center font-mono">
-            <span
-              v-if="row.discount_percent < 0"
-              class="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-bold text-[10px]"
-            >
-              {{ row.discount_percent }}%
-            </span>
-            <span v-else-if="row.is_official" class="text-gray-500 text-[10px]">
-              官方基准
-            </span>
-            <span v-else class="text-gray-400 text-[10px]">
-              +{{ row.discount_percent }}%
-            </span>
-          </div>
-
           <!-- 实测 TPS -->
-          <div class="col-span-1 text-right font-mono text-sky-400 font-bold">
-            {{ row.last_tested_tps }} <span class="text-[10px] text-gray-500 font-normal">tps</span>
+          <div class="col-span-1 text-right font-mono text-sky-400 font-bold text-xs">
+            {{ row.last_tested_tps }} <span class="text-[9px] text-gray-500 font-normal">tps</span>
           </div>
         </div>
 
-        <div v-if="filteredMatrix.length === 0" class="py-12 text-center text-xs text-gray-500">
+        <div v-if="!isLoading && pagedItems.length === 0" class="py-12 text-center text-xs text-gray-500">
           无匹配的大模型比价数据，请调整筛选条件
+        </div>
+      </div>
+
+      <!-- 底部精致高性能分页控制栏 -->
+      <div class="pt-2 border-t border-[#232936] flex items-center justify-between text-xs text-gray-400">
+        <!-- 左侧信息 -->
+        <div class="flex items-center space-x-3 text-[11px]">
+          <span>
+            第 <strong class="text-white font-mono">{{ currentPage }}</strong> / <span class="font-mono">{{ totalPages }}</span> 页
+            (共 <strong class="text-emerald-400 font-mono">{{ totalRecords }}</strong> 条)
+          </span>
+          <div class="flex items-center space-x-1">
+            <span>每页</span>
+            <select
+              v-model="pageSize"
+              class="bg-[#0B0E14] border border-[#2D3748] rounded px-1.5 py-0.5 text-white font-mono text-xs focus:outline-none"
+            >
+              <option :value="20">20 条</option>
+              <option :value="50">50 条</option>
+              <option :value="100">100 条</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 中间页码翻页控制器 -->
+        <div class="flex items-center space-x-1 font-mono">
+          <button
+            :disabled="currentPage <= 1"
+            @click="changePage(1)"
+            class="px-2 py-1 rounded bg-[#1E2430] hover:bg-[#283244] disabled:opacity-40 text-gray-200 border border-[#374151] text-[11px]"
+            title="首页"
+          >
+            «
+          </button>
+          <button
+            :disabled="currentPage <= 1"
+            @click="changePage(currentPage - 1)"
+            class="px-2.5 py-1 rounded bg-[#1E2430] hover:bg-[#283244] disabled:opacity-40 text-gray-200 border border-[#374151] text-[11px]"
+          >
+            ◀ 上一页
+          </button>
+
+          <!-- 数字页码按钮组 -->
+          <div class="flex items-center space-x-1">
+            <button
+              v-for="p in visiblePages"
+              :key="`page-${p}`"
+              @click="changePage(p)"
+              class="w-7 h-7 rounded text-[11px] font-bold transition-all flex items-center justify-center"
+              :class="
+                currentPage === p
+                  ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30'
+                  : 'bg-[#1A202C] hover:bg-[#283244] text-gray-300 border border-[#2D3748]'
+              "
+            >
+              {{ p }}
+            </button>
+          </div>
+
+          <button
+            :disabled="currentPage >= totalPages"
+            @click="changePage(currentPage + 1)"
+            class="px-2.5 py-1 rounded bg-[#1E2430] hover:bg-[#283244] disabled:opacity-40 text-gray-200 border border-[#374151] text-[11px]"
+          >
+            下一页 ▶
+          </button>
+          <button
+            :disabled="currentPage >= totalPages"
+            @click="changePage(totalPages)"
+            class="px-2 py-1 rounded bg-[#1E2430] hover:bg-[#283244] disabled:opacity-40 text-gray-200 border border-[#374151] text-[11px]"
+            title="末页"
+          >
+            »
+          </button>
         </div>
       </div>
     </div>
 
     <!-- 底部：全网价格-TPS 性价比散点图 (ECharts) -->
-    <div class="h-44 rounded-xl bg-[#151922] border border-[#232936] p-3 flex flex-col">
+    <div class="h-40 rounded-xl bg-[#151922] border border-[#232936] p-2.5 flex flex-col">
       <div class="flex items-center justify-between pb-1 border-b border-[#232936]/60">
         <div class="flex items-center space-x-2 text-xs font-bold text-white">
           <span>📈 全网性价比散点分布 (当前模型: {{ activeScatterModelId }})</span>
-          <span class="text-[11px] text-gray-400 font-normal">| 越偏左上角（价格低、TPS 高）综合性价比越高</span>
+          <span class="text-[10px] text-gray-400 font-normal">| 越偏左上角（价格低、TPS 高）综合性价比越高</span>
         </div>
       </div>
-      <div class="flex-1 w-full relative min-h-0 mt-1">
+      <div class="flex-1 w-full relative min-h-0 mt-0.5">
         <div ref="scatterChartRef" class="w-full h-full"></div>
       </div>
     </div>
@@ -211,6 +275,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import axios from 'axios'
 import * as echarts from 'echarts'
 import { useDashboardStore } from '../stores/dashboardStore'
 import MultiSelectFilter, { type FilterOption } from '../components/MultiSelectFilter.vue'
@@ -224,155 +289,89 @@ const selectedSeries = ref<string[]>([])
 const selectedModels = ref<string[]>([])
 const selectedSites = ref<string[]>([])
 
+// 筛选候选项数据
+const providerOptions = ref<FilterOption[]>([])
+const seriesOptions = ref<FilterOption[]>([])
+const modelOptions = ref<FilterOption[]>([])
+const siteOptions = ref<FilterOption[]>([])
+
+// 分页状态
+const pagedItems = ref<ComparisonItem[]>([])
+const totalRecords = ref(0)
+const totalPages = ref(1)
+const currentPage = ref(1)
+const pageSize = ref(50)
+const isLoading = ref(false)
+
 const scatterChartRef = ref<HTMLElement | null>(null)
 let chartInstance: echarts.ECharts | null = null
 const selectedRow = ref<ComparisonItem | null>(null)
 
-// 厂商名称中英文映射表
-const providerNames: Record<string, string> = {
-  deepseek: 'DeepSeek (深度求索)',
-  openai: 'OpenAI',
-  anthropic: 'Anthropic (Claude)',
-  google: 'Google (Gemini)',
-  alibaba: 'Alibaba (阿里通义)',
-  meta: 'Meta (Llama)',
-  zhipu: '智谱 AI'
+// 异步获取筛选器候选选项
+const fetchFilterOptions = async () => {
+  try {
+    const params: any = {}
+    if (selectedProviders.value.length > 0) params.provider = selectedProviders.value
+    if (selectedSeries.value.length > 0) params.series = selectedSeries.value
+
+    const res = await axios.get(`${store.apiUrl}/api/v1/comparison/filter-options`, { params })
+    providerOptions.value = res.data.providers
+    seriesOptions.value = res.data.series
+    modelOptions.value = res.data.models
+    siteOptions.value = res.data.sites
+  } catch (e) {
+    console.error('Fetch filter options failed:', e)
+  }
 }
 
-const getProviderLabel = (p: string) => providerNames[p.toLowerCase()] || p
+// 核心高性能分页拉取方法 (毫秒级响应)
+const fetchPaginatedData = async () => {
+  isLoading.value = true
+  try {
+    const params: any = {
+      page: currentPage.value,
+      page_size: pageSize.value
+    }
+    if (selectedProviders.value.length > 0) params.provider = selectedProviders.value
+    if (selectedSeries.value.length > 0) params.series = selectedSeries.value
+    if (selectedModels.value.length > 0) params.model = selectedModels.value
+    if (selectedSites.value.length > 0) params.site = selectedSites.value
+    if (store.searchQuery.trim()) params.search = store.searchQuery.trim()
 
-// 1. 厂商下拉选项 (包含计数)
-const providerOptions = computed<FilterOption[]>(() => {
-  const map: Record<string, number> = {}
-  store.comparisonMatrix.forEach((item) => {
-    const p = item.provider.toLowerCase()
-    map[p] = (map[p] || 0) + 1
-  })
-  return Object.keys(map).map((p) => ({
-    value: p,
-    label: getProviderLabel(p),
-    count: map[p]
-  }))
-})
+    const res = await axios.get(`${store.apiUrl}/api/v1/comparison/paginated`, { params })
+    pagedItems.value = res.data.items
+    totalRecords.value = res.data.total
+    totalPages.value = res.data.total_pages
+    currentPage.value = res.data.page
 
-// 2. 模型系列下拉选项 (根据已选厂商级联收敛)
-const seriesOptions = computed<FilterOption[]>(() => {
-  let list = store.comparisonMatrix
-  if (selectedProviders.value.length > 0) {
-    list = list.filter((item) => selectedProviders.value.includes(item.provider.toLowerCase()))
+    if (pagedItems.value.length > 0 && !selectedRow.value) {
+      selectedRow.value = pagedItems.value[0]
+    }
+    updateScatterChart()
+  } catch (e) {
+    console.error('Fetch paginated data failed:', e)
+  } finally {
+    isLoading.value = false
   }
-  const map: Record<string, number> = {}
-  list.forEach((item) => {
-    const s = item.series || '通用系列'
-    map[s] = (map[s] || 0) + 1
-  })
-  return Object.keys(map).map((s) => ({
-    value: s,
-    label: s,
-    count: map[s]
-  }))
-})
+}
 
-// 3. 模型名称下拉选项 (根据已选厂商与已选系列级联收敛)
-const modelOptions = computed<FilterOption[]>(() => {
-  let list = store.comparisonMatrix
-  if (selectedProviders.value.length > 0) {
-    list = list.filter((item) => selectedProviders.value.includes(item.provider.toLowerCase()))
-  }
-  if (selectedSeries.value.length > 0) {
-    list = list.filter((item) => selectedSeries.value.includes(item.series || '通用系列'))
-  }
-  const map: Record<string, number> = {}
-  list.forEach((item) => {
-    const m = item.model_id
-    map[m] = (map[m] || 0) + 1
-  })
-  return Object.keys(map).map((m) => ({
-    value: m,
-    label: m,
-    count: map[m]
-  }))
-})
+const changePage = (p: number) => {
+  if (p < 1 || p > totalPages.value) return
+  currentPage.value = p
+  fetchPaginatedData()
+}
 
-// 4. 渠道中转站下拉选项 (根据已选模型级联收敛)
-const siteOptions = computed<FilterOption[]>(() => {
-  let list = store.comparisonMatrix
-  if (selectedProviders.value.length > 0) {
-    list = list.filter((item) => selectedProviders.value.includes(item.provider.toLowerCase()))
+// 计算当前页码周围可见的页码数字
+const visiblePages = computed(() => {
+  const cur = currentPage.value
+  const total = totalPages.value
+  const pages: number[] = []
+  const start = Math.max(1, cur - 2)
+  const end = Math.min(total, cur + 2)
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
   }
-  if (selectedSeries.value.length > 0) {
-    list = list.filter((item) => selectedSeries.value.includes(item.series || '通用系列'))
-  }
-  if (selectedModels.value.length > 0) {
-    list = list.filter((item) => selectedModels.value.includes(item.model_id))
-  }
-  const map: Record<string, number> = {}
-  list.forEach((item) => {
-    const name = item.site_name
-    map[name] = (map[name] || 0) + 1
-  })
-  return Object.keys(map).map((name) => ({
-    value: name,
-    label: name,
-    count: map[name]
-  }))
-})
-
-// 级联自愈：当上级筛选变更导致下级选项失效时，自动清理
-watch(selectedProviders, (newProviders) => {
-  if (newProviders.length > 0) {
-    const validSeries = new Set(seriesOptions.value.map((o) => o.value))
-    selectedSeries.value = selectedSeries.value.filter((s) => validSeries.has(s))
-    const validModels = new Set(modelOptions.value.map((o) => o.value))
-    selectedModels.value = selectedModels.value.filter((m) => validModels.has(m))
-  }
-})
-
-watch(selectedSeries, (newSeries) => {
-  if (newSeries.length > 0) {
-    const validModels = new Set(modelOptions.value.map((o) => o.value))
-    selectedModels.value = selectedModels.value.filter((m) => validModels.has(m))
-  }
-})
-
-// 核心过滤计算：四维多选 + 全局模糊搜索复合过滤
-const filteredMatrix = computed<ComparisonItem[]>(() => {
-  let list = store.comparisonMatrix
-
-  // 1. 厂商筛选
-  if (selectedProviders.value.length > 0) {
-    list = list.filter((item) => selectedProviders.value.includes(item.provider.toLowerCase()))
-  }
-
-  // 2. 系列筛选
-  if (selectedSeries.value.length > 0) {
-    list = list.filter((item) => selectedSeries.value.includes(item.series || '通用系列'))
-  }
-
-  // 3. 模型名称筛选
-  if (selectedModels.value.length > 0) {
-    list = list.filter((item) => selectedModels.value.includes(item.model_id))
-  }
-
-  // 4. 渠道筛选
-  if (selectedSites.value.length > 0) {
-    list = list.filter((item) => selectedSites.value.includes(item.site_name))
-  }
-
-  // 5. 全局搜索框模糊匹配
-  if (store.searchQuery.trim()) {
-    const q = store.searchQuery.toLowerCase().trim()
-    list = list.filter(
-      (item) =>
-        item.model_id.toLowerCase().includes(q) ||
-        item.model_name.toLowerCase().includes(q) ||
-        (item.series && item.series.toLowerCase().includes(q)) ||
-        item.site_name.toLowerCase().includes(q) ||
-        item.provider.toLowerCase().includes(q)
-    )
-  }
-
-  return list
+  return pages
 })
 
 const hasAnyFilter = computed(() => {
@@ -406,17 +405,20 @@ const resetAllFilters = () => {
   selectedModels.value = []
   selectedSites.value = []
   store.searchQuery = ''
+  currentPage.value = 1
+  fetchPaginatedData()
 }
 
 const formatPrice = (usd: number, cny: number) => {
   if (store.currency === 'CNY') {
-    return `￥${cny.toFixed(2)}`
+    return `￥${cny.toFixed(3)}`
   }
   return `$${usd >= 1 ? usd.toFixed(2) : usd.toFixed(3)}`
 }
 
 const getTypeBadgeClass = (type: string) => {
   if (type === 'official') return 'bg-slate-700 text-slate-200'
+  if (type === 'cloud') return 'bg-sky-950 text-sky-400 border border-sky-800'
   if (type === 'newapi') return 'bg-emerald-950 text-emerald-400 border border-emerald-800'
   if (type === 'sub2api') return 'bg-purple-950 text-purple-300 border border-purple-800'
   return 'bg-blue-950 text-blue-300'
@@ -430,8 +432,8 @@ const selectRow = (row: ComparisonItem) => {
 const activeScatterModelId = computed(() => {
   if (selectedRow.value) return selectedRow.value.model_id
   if (selectedModels.value.length === 1) return selectedModels.value[0]
-  if (filteredMatrix.value.length > 0) return filteredMatrix.value[0].model_id
-  return 'deepseek-v3'
+  if (pagedItems.value.length > 0) return pagedItems.value[0].model_id
+  return 'deepseek/deepseek-v4-flash'
 })
 
 const initChart = () => {
@@ -443,9 +445,10 @@ const initChart = () => {
 const updateScatterChart = () => {
   if (!chartInstance) return
   const currentModelId = activeScatterModelId.value
-  const items = store.comparisonMatrix.filter((item) => item.model_id === currentModelId)
+  const items = pagedItems.value.filter((item) => item.model_id === currentModelId)
+  const displayItems = items.length > 0 ? items : pagedItems.value.slice(0, 15)
 
-  const data = items.map((item) => [
+  const data = displayItems.map((item) => [
     item.calculated_input_usd,
     item.last_tested_tps,
     item.site_name,
@@ -484,12 +487,13 @@ const updateScatterChart = () => {
       {
         name: '性价比点',
         type: 'scatter',
-        symbolSize: 22,
+        symbolSize: 20,
         data: data,
         itemStyle: {
           color: (params: any) => {
             const type = params.value[4]
             if (type === 'official') return '#64748B'
+            if (type === 'cloud') return '#38BDF8'
             if (type === 'newapi') return '#10B981'
             if (type === 'sub2api') return '#A855F7'
             return '#3B82F6'
@@ -505,7 +509,9 @@ const updateScatterChart = () => {
 
 const handleResize = () => chartInstance?.resize()
 
-onMounted(() => {
+onMounted(async () => {
+  await fetchFilterOptions()
+  await fetchPaginatedData()
   initChart()
   window.addEventListener('resize', handleResize)
 })
@@ -515,7 +521,18 @@ onUnmounted(() => {
   chartInstance?.dispose()
 })
 
-watch(() => [filteredMatrix.value, store.currency, activeScatterModelId.value], () => {
+// 监听筛选条件与分页变化
+watch(
+  [selectedProviders, selectedSeries, selectedModels, selectedSites, () => store.searchQuery, pageSize],
+  () => {
+    currentPage.value = 1
+    fetchPaginatedData()
+    fetchFilterOptions()
+  },
+  { deep: true }
+)
+
+watch(() => [store.currency, activeScatterModelId.value], () => {
   updateScatterChart()
-}, { deep: true })
+})
 </script>

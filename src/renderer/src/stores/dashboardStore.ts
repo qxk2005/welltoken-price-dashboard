@@ -201,9 +201,12 @@ export const useDashboardStore = defineStore('dashboard', {
       }
       try {
         this.ws = new WebSocket(this.wsUrl)
-        this.ws.onopen = () => {
+        this.ws.onopen = async () => {
           this.isConnected = true
           this.backendHealthy = true
+          await this.fetchSyncStatus()
+          await this.fetchRelaySites()
+          await this.fetchModelsCatalog()
         }
         this.ws.onmessage = (event) => {
           try {
