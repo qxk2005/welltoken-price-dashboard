@@ -532,7 +532,7 @@ class ModelNormalizerService:
             std_meta = self._cached_standard_models.get(matched_standard_id) if matched_standard_id else None
 
             # ---------------------------------------------------------
-            # 精确计算实际货币金额 (输入、输出、缓存价格)
+            # NewAPI / OneAPI 规范价格推导引擎
             # ---------------------------------------------------------
             billing_mode = raw_item.get("billing_mode", "")
             billing_expr = raw_item.get("billing_expr", "")
@@ -540,22 +540,30 @@ class ModelNormalizerService:
             item_completion_ratio = float(raw_item.get("completion_ratio") or 1.0)
             item_cache_ratio = float(raw_item.get("cache_ratio") or 0.1)
 
+            # 1. 计算该模型的基准官方原价 (Base Price)
+            # 在 NewAPI 中，1.0 倍率基准配额为 $0.002/1K = $2/1M tokens，折合人民币 14.6 元/1M
+            if billing_mode == "tiered_expr" and billing_expr:
+                coeffs = self.parse_billing_expr(billing_expr)
+                base_in_cny = round(coeffs["p"] * 7.3, 2)
+                base_out_cny = round(coeffs["c"] * 7.3, 2)
+                base_ca_cny = round(coeffs["cr"] * 7.3, 3)
+            else:
+                m_rat = float(raw_item.get("model_ratio") or p_ratio or 1.0)
+                # 比例换算：输入原价 = model_ratio * 14.6
+                base_in_cny = round(m_rat * 14.6, 2)
+                base_out_cny = round(base_in_cny * item_completion_ratio, 2)
+                base_ca_cny = round(base_in_cny * item_cache_ratio, 2)
+
+            base_in_usd = round(base_in_cny / 7.25, 4)
+            base_out_usd = round(base_out_cny / 7.25, 4)
+            base_ca_usd = round(base_ca_cny / 7.25, 4)
+
             # 多分组价格集合
             group_pricings = {}
             for g_name, g_ratio_val in group_ratios_map.items():
-                if billing_mode == "tiered_expr" and billing_expr:
-                    coeffs = self.parse_billing_expr(billing_expr)
-                    in_cny = round(coeffs["p"] * 7.3 * g_ratio_val, 4)
-                    out_cny = round(coeffs["c"] * 7.3 * g_ratio_val, 4)
-                    ca_cny = round(coeffs["cr"] * 7.3 * g_ratio_val, 4)
-                else:
-                    m_rat = float(raw_item.get("model_ratio") or p_ratio or 1.0)
-                    if m_rat >= 5.0:
-                        in_cny = round(m_rat * g_ratio_val, 4)
-                    else:
-                        in_cny = round(m_rat * 7.3 * g_ratio_val, 4)
-                    out_cny = round(in_cny * item_completion_ratio, 4)
-                    ca_cny = round(in_cny * item_cache_ratio, 4)
+                in_cny = round(base_in_cny * g_ratio_val, 2)
+                out_cny = round(base_out_cny * g_ratio_val, 2)
+                ca_cny = round(base_ca_cny * g_ratio_val, 3)
 
                 group_pricings[g_name] = {
                     "group_name": g_name,
@@ -577,6 +585,8 @@ class ModelNormalizerService:
                     "input_price_cny": 0.0, "output_price_cny": 0.0, "cache_price_cny": 0.0,
                     "input_price_usd": 0.0, "output_price_usd": 0.0, "cache_price_usd": 0.0
                 })
+                g_ratio = group_ratios_map.get(g_name, 1.0)
+                final_item_ratio = g_ratio
 
                 results.append({
                     "channel_model_name": raw_clean,
@@ -589,10 +599,13 @@ class ModelNormalizerService:
                     "standard_model_name": std_meta.name if std_meta else "",
                     "provider": std_meta.provider if std_meta else "",
                     "series": std_meta.series if std_meta else "",
-                    "official_input_price": std_meta.official_input_price if std_meta else 0.0,
-                    "official_output_price": std_meta.official_output_price if std_meta else 0.0,
-                    "official_cache_price": std_meta.official_cache_price if std_meta else 0.0,
-                    "custom_ratio": custom_ratio,
+                    "official_input_price": base_in_usd,
+                    "official_output_price": base_out_usd,
+                    "official_cache_price": base_ca_usd,
+                    "official_input_cny": base_in_cny,
+                    "official_output_cny": base_out_cny,
+                    "official_cache_cny": base_ca_cny,
+                    "custom_ratio": final_item_ratio,
                     "public_ratio": p_ratio,
                     "key_ratio": k_ratio,
                     "has_ratio_diff": has_diff,

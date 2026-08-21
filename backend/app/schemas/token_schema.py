@@ -252,6 +252,9 @@ class ModelMappingItem(BaseModel):
     official_input_price: float = 0.0
     official_output_price: float = 0.0
     official_cache_price: float = 0.0
+    official_input_cny: float = 0.0
+    official_output_cny: float = 0.0
+    official_cache_cny: float = 0.0
     custom_ratio: Optional[float] = None
     public_ratio: Optional[float] = None
     key_ratio: Optional[float] = None
