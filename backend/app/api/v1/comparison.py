@@ -14,17 +14,22 @@ async def get_paginated_comparison(
     provider: Optional[List[str]] = Query(None, description="厂商多选"),
     series: Optional[List[str]] = Query(None, description="系列多选"),
     model: Optional[List[str]] = Query(None, description="模型多选"),
+    model_id: Optional[List[str]] = Query(None, description="模型多选(兼容)"),
     site: Optional[List[str]] = Query(None, description="渠道多选"),
+    site_name: Optional[List[str]] = Query(None, description="渠道多选(兼容)"),
     search: Optional[str] = Query(None, description="全局搜索"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(50, ge=10, le=200, description="每页条数")
 ):
-    """高性能分页查询全网大模型 Token 比价数据"""
+    """高性能分页查询全网大模型 Token 比价数据，支持多维级联筛选与模糊搜索"""
+    effective_models = model or model_id or None
+    effective_sites = site or site_name or None
+
     return await dashboard_service.get_paginated_comparison_matrix(
         providers=provider,
         series=series,
-        models=model,
-        sites=site,
+        models=effective_models,
+        sites=effective_sites,
         search_query=search,
         page=page,
         page_size=page_size
@@ -33,12 +38,21 @@ async def get_paginated_comparison(
 @router.get("/filter-options", response_model=ComparisonFilterOptionsResponse)
 async def get_filter_options(
     provider: Optional[List[str]] = Query(None, description="已选厂商"),
-    series: Optional[List[str]] = Query(None, description="已选系列")
+    series: Optional[List[str]] = Query(None, description="已选系列"),
+    model: Optional[List[str]] = Query(None, description="已选模型"),
+    model_id: Optional[List[str]] = Query(None, description="已选模型(兼容)"),
+    site: Optional[List[str]] = Query(None, description="已选渠道"),
+    site_name: Optional[List[str]] = Query(None, description="已选渠道(兼容)")
 ):
-    """轻量级获取筛选器候选选项及统计条数"""
+    """轻量级获取筛选器候选选项及统计条数 (支持四级联动收敛)"""
+    effective_models = model or model_id or None
+    effective_sites = site or site_name or None
+
     return await dashboard_service.get_filter_options(
         selected_providers=provider,
-        selected_series=series
+        selected_series=series,
+        selected_models=effective_models,
+        selected_sites=effective_sites
     )
 
 @router.get("/matrix", response_model=List[ComparisonItemSchema])

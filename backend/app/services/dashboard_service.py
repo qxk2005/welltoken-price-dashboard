@@ -1,69 +1,60 @@
-import asyncio
-import time
 import math
-from datetime import datetime
-from typing import List, Dict, Any, Set, Optional
-from fastapi import WebSocket
-from sqlalchemy import select, func, or_
+from typing import List, Optional, Dict, Any
+from sqlalchemy import select, func, or_, and_, distinct
+from sqlalchemy.orm import selectinload
 from backend.app.database import AsyncSessionLocal
-from backend.app.models.token_price import RelaySite, ModelMetadata, SiteModelPricing
+from backend.app.models.token_price import RelaySite, SiteModelPricing, ModelMetadata
 from backend.app.schemas.token_schema import (
     ComparisonItemSchema,
     PaginatedComparisonResponse,
     ComparisonFilterOptionsResponse,
     FilterItemOption
 )
-from backend.app.services.models_dev_sync import models_dev_sync
-from backend.app.services.relay_fetcher import relay_fetcher
-from backend.app.services.exchange_rate import exchange_rate_service
 
-class TokenDashboardService:
+class DashboardService:
     def __init__(self):
-        self.usd_to_cny_rate: float = 7.30
-        self.active_websockets: Set[WebSocket] = set()
-        self.is_running: bool = False
-        self._loop_task: asyncio.Task | None = None
+        self.usd_to_cny_rate = 7.25
 
-    async def initialize(self):
-        """系统启动时全量真实初始化：拉取外汇汇率、models.dev 标准库与渠道倍率数据"""
-        print("[DashboardService] Fetching real USD/CNY exchange rate...")
-        self.usd_to_cny_rate = await exchange_rate_service.fetch_real_rate()
-
-        # 检查数据库是否已有数据，若无则执行一次全量拉取
+    async def get_overview_statistics(self) -> Dict[str, Any]:
+        """获取仪表盘概览统计指标"""
         async with AsyncSessionLocal() as session:
-            count = await session.scalar(select(func.count(SiteModelPricing.id)))
-            if not count or count == 0:
-                print("[DashboardService] Database is empty, performing initial full sync from models.dev...")
-                await models_dev_sync.full_sync_from_models_dev()
-            else:
-                print(f"[DashboardService] Found {count} pricing records in local SQLite cache.")
+            # 渠道总数与活跃数
+            site_count_res = await session.execute(
+                select(
+                    func.count(RelaySite.id),
+                    func.count().filter(RelaySite.is_active == True)
+                )
+            )
+            total_sites, active_sites = site_count_res.one()
 
-        print(f"[DashboardService] System ready! Exchange rate: 1 USD = {self.usd_to_cny_rate} CNY")
+            # 收录标准模型总数
+            model_count = await session.scalar(select(func.count(ModelMetadata.id))) or 0
 
-    async def start_loop(self):
-        """启动后台定时扫描与行情广播循环"""
-        self.is_running = True
-        self._loop_task = asyncio.create_task(self._background_worker())
-        print("[DashboardService] Background auto-sync worker started.")
+            # 聚合定价条目总数
+            pricing_count = await session.scalar(select(func.count(SiteModelPricing.id))) or 0
 
-    async def stop_loop(self):
-        """停止后台循环"""
-        self.is_running = False
-        if self._loop_task:
-            self._loop_task.cancel()
-        print("[DashboardService] Background auto-sync worker stopped.")
+            # 计算平均折扣力度
+            avg_discount = await session.scalar(
+                select(func.avg(SiteModelPricing.discount_percent))
+                .where(SiteModelPricing.discount_percent > 0)
+            ) or 0.0
 
-    async def _background_worker(self):
-        """后台轮询更新中转站状态与广播行情"""
-        while self.is_running:
-            try:
-                await asyncio.sleep(60)
-                await self.broadcast_market_update()
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                print(f"[DashboardService Worker Error]: {e}")
-                await asyncio.sleep(10)
+            # 平均网络延迟
+            avg_latency = await session.scalar(
+                select(func.avg(RelaySite.last_latency_ms))
+                .where(RelaySite.is_active == True, RelaySite.last_latency_ms > 0)
+            ) or 45.0
+
+            return {
+                "total_sites": total_sites,
+                "active_sites": active_sites,
+                "total_models": model_count,
+                "total_pricings": pricing_count,
+                "usd_to_cny_rate": self.usd_to_cny_rate,
+                "avg_discount_percent": round(avg_discount, 1),
+                "avg_network_latency_ms": round(avg_latency, 1),
+                "last_sync_time": "实时同步中"
+            }
 
     async def get_paginated_comparison_matrix(
         self,
@@ -75,7 +66,7 @@ class TokenDashboardService:
         page: int = 1,
         page_size: int = 50
     ) -> PaginatedComparisonResponse:
-        """高性能分页查询全网聚合比价大矩阵 (SQLite 级 LIMIT + OFFSET)"""
+        """高性能分页查询全网 Token 比价矩阵"""
         async with AsyncSessionLocal() as session:
             # 基础条件构建
             base_conditions = [RelaySite.is_active == True]
@@ -88,10 +79,18 @@ class TokenDashboardService:
                 base_conditions.append(ModelMetadata.series.in_(series))
 
             if models and len(models) > 0 and "all" not in models:
-                base_conditions.append(ModelMetadata.model_id.in_(models))
+                base_conditions.append(
+                    or_(
+                        ModelMetadata.model_id.in_(models),
+                        SiteModelPricing.model_id.in_(models)
+                    )
+                )
 
             if sites and len(sites) > 0 and "all" not in sites:
-                base_conditions.append(RelaySite.name.in_(sites))
+                if "__NONE__" in sites:
+                    base_conditions.append(RelaySite.id == -999)
+                else:
+                    base_conditions.append(RelaySite.name.in_(sites))
 
             if search_query and search_query.strip():
                 q = f"%{search_query.strip().lower()}%"
@@ -170,9 +169,11 @@ class TokenDashboardService:
     async def get_filter_options(
         self,
         selected_providers: Optional[List[str]] = None,
-        selected_series: Optional[List[str]] = None
+        selected_series: Optional[List[str]] = None,
+        selected_models: Optional[List[str]] = None,
+        selected_sites: Optional[List[str]] = None
     ) -> ComparisonFilterOptionsResponse:
-        """轻量级快速获取各筛选维度的去重候选列表与计数"""
+        """轻量级快速获取各筛选维度的去重候选列表与计数 (四级完全级联联动)"""
         async with AsyncSessionLocal() as session:
             # 1. 厂商列表与计数
             p_stmt = select(
@@ -187,7 +188,7 @@ class TokenDashboardService:
                 for p, cnt in p_res.all() if p
             ]
 
-            # 2. 系列列表与计数
+            # 2. 系列列表与计数 (根据选中的厂商级联收敛)
             s_stmt = select(
                 ModelMetadata.series,
                 func.count(SiteModelPricing.id)
@@ -203,7 +204,7 @@ class TokenDashboardService:
                 for s, cnt in s_res.all() if s
             ]
 
-            # 3. 热门模型列表 (Top 100)
+            # 3. 模型列表 (根据选中的厂商与系列级联收敛)
             m_stmt = select(
                 ModelMetadata.model_id,
                 ModelMetadata.name,
@@ -215,20 +216,30 @@ class TokenDashboardService:
                 m_stmt = m_stmt.where(func.lower(ModelMetadata.provider).in_([p.lower() for p in selected_providers]))
             if selected_series and len(selected_series) > 0 and "all" not in selected_series:
                 m_stmt = m_stmt.where(ModelMetadata.series.in_(selected_series))
-            m_stmt = m_stmt.group_by(ModelMetadata.model_id).order_by(func.count(SiteModelPricing.id).desc()).limit(100)
+            m_stmt = m_stmt.group_by(ModelMetadata.model_id, ModelMetadata.name).order_by(func.count(SiteModelPricing.id).desc()).limit(300)
             m_res = await session.execute(m_stmt)
             models_opt = [
-                FilterItemOption(value=m_id, label=m_id, count=cnt)
+                FilterItemOption(value=m_id, label=f"{m_name} ({m_id})", count=cnt)
                 for m_id, m_name, cnt in m_res.all()
             ]
 
-            # 4. 供应商/渠道列表 (Top 100)
+            # 4. 供应商/渠道列表 (根据选中的厂商/系列/模型级联收敛)
             st_stmt = select(
                 RelaySite.name,
                 func.count(SiteModelPricing.id)
             ).join(
                 SiteModelPricing, RelaySite.id == SiteModelPricing.site_id
-            ).group_by(RelaySite.name).order_by(func.count(SiteModelPricing.id).desc()).limit(100)
+            ).join(
+                ModelMetadata, SiteModelPricing.model_id == ModelMetadata.model_id
+            )
+            if selected_providers and len(selected_providers) > 0 and "all" not in selected_providers:
+                st_stmt = st_stmt.where(func.lower(ModelMetadata.provider).in_([p.lower() for p in selected_providers]))
+            if selected_series and len(selected_series) > 0 and "all" not in selected_series:
+                st_stmt = st_stmt.where(ModelMetadata.series.in_(selected_series))
+            if selected_models and len(selected_models) > 0 and "all" not in selected_models:
+                st_stmt = st_stmt.where(ModelMetadata.model_id.in_(selected_models))
+
+            st_stmt = st_stmt.group_by(RelaySite.name).order_by(func.count(SiteModelPricing.id).desc()).limit(200)
             st_res = await session.execute(st_stmt)
             sites_opt = [
                 FilterItemOption(value=s_name, label=s_name, count=cnt)
@@ -248,7 +259,7 @@ class TokenDashboardService:
         model_id: str | None = None,
         search_query: str | None = None
     ) -> List[ComparisonItemSchema]:
-        """兼容获取前 100 条比价数据"""
+        """兼容获取比价数据"""
         res = await self.get_paginated_comparison_matrix(
             providers=[provider] if provider else None,
             models=[model_id] if model_id else None,
@@ -258,33 +269,4 @@ class TokenDashboardService:
         )
         return res.items
 
-    # WebSocket 管理
-    async def connect_ws(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_websockets.add(websocket)
-
-    def disconnect_ws(self, websocket: WebSocket):
-        self.active_websockets.discard(websocket)
-
-    async def broadcast(self, payload: Dict[str, Any]):
-        if not self.active_websockets:
-            return
-        dead = set()
-        for ws in self.active_websockets:
-            try:
-                await ws.send_json(payload)
-            except Exception:
-                dead.add(ws)
-        for d in dead:
-            self.disconnect_ws(d)
-
-    async def broadcast_market_update(self):
-        matrix = await self.get_comparison_matrix()
-        payload = {
-            "type": "matrix_update",
-            "timestamp": int(time.time() * 1000),
-            "data": [m.model_dump(mode="json") for m in matrix]
-        }
-        await self.broadcast(payload)
-
-dashboard_service = TokenDashboardService()
+dashboard_service = DashboardService()

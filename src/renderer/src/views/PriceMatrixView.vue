@@ -5,15 +5,15 @@
       <!-- 第一行：四大维度可搜索多选下拉 + 收藏快捷切换 -->
       <div class="flex items-center justify-between flex-wrap gap-2">
         <div class="flex items-center flex-wrap gap-2">
-          <!-- 1. 模型厂商多选 -->
+          <!-- 1. 模型厂商多选 (支持中文别名模糊搜索 如“深度探索”) -->
           <MultiSelectFilter
             label="模型厂商"
             icon="🏢"
-            :options="providerOptions"
+            :options="formattedProviderOptions"
             v-model="selectedProviders"
           />
 
-          <!-- 2. 模型系列多选 (联动收敛) -->
+          <!-- 2. 模型系列多选 (根据已选厂商级联收敛 如 DeepSeek-V3, V4, R1) -->
           <MultiSelectFilter
             label="模型系列"
             icon="📦"
@@ -21,7 +21,7 @@
             v-model="selectedSeries"
           />
 
-          <!-- 3. 模型名称多选 (联动收敛) -->
+          <!-- 3. 模型名称多选 (根据已选厂商/系列级联收敛 如 deepseek-v4-flash, pro) -->
           <MultiSelectFilter
             label="模型名称"
             icon="🤖"
@@ -29,7 +29,7 @@
             v-model="selectedModels"
           />
 
-          <!-- 4. 渠道中转站多选 -->
+          <!-- 4. 渠道中转站多选 (支持模糊搜索 如“七牛”, “OpenRouter”, “硅基”) -->
           <MultiSelectFilter
             label="渠道中转站"
             icon="🌐"
@@ -82,7 +82,7 @@
           :key="`p-${p}`"
           class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-[#E8F2FD] border border-[#CCE4FB] text-[#0071E3] text-[11px] font-medium"
         >
-          <span>🏢 {{ p }}</span>
+          <span>🏢 {{ getProviderLabel(p) }}</span>
           <button @click="removeProvider(p)" class="hover:text-[#004BB3] ml-0.5">✕</button>
         </span>
 
@@ -150,7 +150,7 @@
         >
           <!-- 系列与厂商 -->
           <div class="col-span-2 flex items-center space-x-1.5 truncate">
-            <span class="px-1.5 py-0.2 rounded bg-[#F2F2F7] text-[#1D1D1F] border border-[#E5E5EA] text-[10px] font-mono">
+            <span class="px-1.5 py-0.2 rounded bg-[#F2F2F7] text-[#1D1D1F] border border-[#E5E5EA] text-[10px] font-mono font-bold">
               {{ row.provider.toUpperCase() }}
             </span>
             <span class="text-[#1D1D1F] font-medium truncate text-[11px]">{{ row.series || '通用' }}</span>
@@ -310,6 +310,35 @@ import type { ComparisonItem } from '../types'
 
 const store = useDashboardStore()
 
+// 厂商中文与别名映射表 (支持用户输入“深度探索”、“通义千问”、“Kimi”等模糊搜索)
+const labNamesCn: Record<string, string> = {
+  openai: 'OpenAI (ChatGPT)',
+  anthropic: 'Anthropic (Claude)',
+  google: 'Google (谷歌/Gemini)',
+  deepseek: 'DeepSeek (深度求索/深度探索)',
+  alibaba: 'Alibaba (阿里巴巴/通义千问/Qwen)',
+  moonshotai: 'Moonshot AI (月之暗面/Kimi)',
+  zhipuai: 'Zhipu AI (智谱/GLM)',
+  bytedance: 'ByteDance (字节跳动/豆包)',
+  tencent: 'Tencent (腾讯/混元)',
+  minimax: 'MiniMax (名之梦)',
+  meta: 'Meta (Facebook/Llama)',
+  mistral: 'Mistral AI (欧洲顶尖开源)',
+  nvidia: 'Nvidia (英伟达/Nemotron)',
+  xai: 'xAI (马斯克/Grok)',
+  cohere: 'Cohere (Command R)',
+  stepfun: 'StepFun (阶跃星辰/跃问)',
+  baichuan: 'Baichuan (百川智能)',
+  xiaomi: 'Xiaomi (小米大模型)',
+  microsoft: 'Microsoft (微软/MAI)',
+  cloudflare: 'Cloudflare (Workers AI)',
+  upstage: 'Upstage (Solar)',
+  perplexity: 'Perplexity (AI 搜索)',
+  meituan: 'Meituan (美团大模型)',
+  internlm: 'InternLM (书生·浦语)',
+  '01-ai': '01.AI (零一万物/Yi)'
+}
+
 // 选中的多维筛选状态
 const selectedProviders = ref<string[]>([])
 const selectedSeries = ref<string[]>([])
@@ -318,10 +347,28 @@ const selectedSites = ref<string[]>([])
 const onlyFavorites = ref(false)
 
 // 筛选候选项数据
-const providerOptions = ref<FilterOption[]>([])
+const rawProviderOptions = ref<FilterOption[]>([])
 const seriesOptions = ref<FilterOption[]>([])
 const modelOptions = ref<FilterOption[]>([])
 const siteOptions = ref<FilterOption[]>([])
+
+// 格式化厂商候选列表 (加上中文别名，支持多维度模糊搜索)
+const formattedProviderOptions = computed<FilterOption[]>(() => {
+  return rawProviderOptions.value.map((opt) => {
+    const key = opt.value.toLowerCase()
+    const cnName = labNamesCn[key]
+    return {
+      value: opt.value,
+      label: cnName || opt.label || opt.value,
+      count: opt.count
+    }
+  })
+})
+
+const getProviderLabel = (p: string) => {
+  const key = p.toLowerCase()
+  return labNamesCn[key] || p.toUpperCase()
+}
 
 // 分页状态
 const pagedItems = ref<ComparisonItem[]>([])
@@ -335,18 +382,30 @@ const scatterChartRef = ref<HTMLElement | null>(null)
 let chartInstance: echarts.ECharts | null = null
 const selectedRow = ref<ComparisonItem | null>(null)
 
-// 异步获取筛选器候选选项
+// 异步获取筛选器候选选项 (根据已选维度进行四级级联联动收敛)
 const fetchFilterOptions = async () => {
   try {
     const params: any = {}
     if (selectedProviders.value.length > 0) params.provider = selectedProviders.value
     if (selectedSeries.value.length > 0) params.series = selectedSeries.value
+    if (selectedModels.value.length > 0) params.model = selectedModels.value
+    if (selectedSites.value.length > 0) params.site = selectedSites.value
 
     const res = await axios.get(`${store.apiUrl}/api/v1/comparison/filter-options`, { params })
-    providerOptions.value = res.data.providers
-    seriesOptions.value = res.data.series
-    modelOptions.value = res.data.models
-    siteOptions.value = res.data.sites
+    rawProviderOptions.value = res.data.providers || []
+    seriesOptions.value = res.data.series || []
+    modelOptions.value = res.data.models || []
+    siteOptions.value = res.data.sites || []
+
+    // 级联清理：如果已选的系列/模型不在新的候选池中，自动剔除
+    if (selectedSeries.value.length > 0) {
+      const validSeries = new Set(seriesOptions.value.map((s) => s.value))
+      selectedSeries.value = selectedSeries.value.filter((s) => validSeries.has(s))
+    }
+    if (selectedModels.value.length > 0) {
+      const validModels = new Set(modelOptions.value.map((m) => m.value))
+      selectedModels.value = selectedModels.value.filter((m) => validModels.has(m))
+    }
   } catch (e) {
     console.error('Fetch filter options failed:', e)
   }
@@ -372,8 +431,8 @@ const fetchPaginatedMatrix = async () => {
     }
     if (selectedProviders.value.length > 0) params.provider = selectedProviders.value
     if (selectedSeries.value.length > 0) params.series = selectedSeries.value
-    if (selectedModels.value.length > 0) params.model_id = selectedModels.value
-    if (effectiveSites.length > 0) params.site_name = effectiveSites
+    if (selectedModels.value.length > 0) params.model = selectedModels.value
+    if (effectiveSites.length > 0) params.site = effectiveSites
 
     const res = await axios.get(`${store.apiUrl}/api/v1/comparison/paginated`, { params })
     pagedItems.value = res.data.items || []
@@ -410,10 +469,23 @@ const toggleFavoriteByName = (siteName: string) => {
   }
 }
 
-// 监听筛选条件变化
-watch([selectedProviders, selectedSeries, selectedModels, selectedSites, pageSize], () => {
+// 监听厂商变化 -> 触发级联收敛与数据刷新
+watch(selectedProviders, () => {
   currentPage.value = 1
   fetchFilterOptions()
+  fetchPaginatedMatrix()
+})
+
+// 监听系列变化 -> 触发模型级联收敛与数据刷新
+watch(selectedSeries, () => {
+  currentPage.value = 1
+  fetchFilterOptions()
+  fetchPaginatedMatrix()
+})
+
+// 监听模型、渠道与分页条数变化 -> 触发数据刷新
+watch([selectedModels, selectedSites, pageSize], () => {
+  currentPage.value = 1
   fetchPaginatedMatrix()
 })
 
