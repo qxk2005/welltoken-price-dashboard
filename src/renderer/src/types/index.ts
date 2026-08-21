@@ -7,6 +7,7 @@ export interface ComparisonItem {
   site_id: number
   site_name: string
   group_name?: string
+  site_currency?: string
   site_type: string
   is_official: boolean
   model_ratio: number
@@ -31,6 +32,7 @@ export interface RelaySite {
   api_key: string
   site_type: string
   group_name?: string
+  currency?: string
   recharge_rate: number
   models_endpoint: string
   status_endpoint: string

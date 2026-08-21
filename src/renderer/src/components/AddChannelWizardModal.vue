@@ -1,6 +1,6 @@
 <template>
   <div class="fixed inset-0 bg-black/35 backdrop-blur-xs flex items-center justify-center z-50 animate-fade-in select-none">
-    <div class="bg-[#FFFFFF] border border-[#E5E5EA] rounded-2xl w-[780px] max-h-[88vh] flex flex-col shadow-[0_20px_60px_rgba(0,0,0,0.18)] overflow-hidden font-sans text-xs">
+    <div class="bg-[#FFFFFF] border border-[#E5E5EA] rounded-2xl w-[920px] max-h-[88vh] flex flex-col shadow-[0_20px_60px_rgba(0,0,0,0.18)] overflow-hidden font-sans text-xs">
       
       <!-- 1. 弹窗顶部：标题与关闭按钮 -->
       <div class="px-6 py-4 border-b border-[#E5E5EA] flex items-center justify-between bg-[#F9F9FB]">
@@ -58,27 +58,29 @@
           </div>
 
           <div class="space-y-3">
-            <div>
-              <label class="block text-[#6E6E73] font-medium mb-1">渠道/站点名称 (Name) *</label>
-              <input
-                v-model="form.name"
-                type="text"
-                placeholder="例如: 极速云 AI 聚合 (NewAPI)"
-                class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-3 py-2 text-[#1D1D1F] focus:outline-none transition-all"
-              />
-            </div>
-
-            <div>
-              <label class="block text-[#6E6E73] font-medium mb-1">API 基础端点地址 (Base URL) *</label>
-              <input
-                v-model="form.base_url"
-                type="text"
-                placeholder="https://api.my-relay.com/v1"
-                class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-3 py-2 text-[#1D1D1F] font-mono focus:outline-none transition-all"
-              />
-            </div>
-
             <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[#6E6E73] font-medium mb-1">渠道/站点名称 (Name) *</label>
+                <input
+                  v-model="form.name"
+                  type="text"
+                  placeholder="例如: 极速云 AI 聚合 (NewAPI)"
+                  class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-3 py-2 text-[#1D1D1F] focus:outline-none transition-all"
+                />
+              </div>
+
+              <div>
+                <label class="block text-[#6E6E73] font-medium mb-1">API 基础端点地址 (Base URL) *</label>
+                <input
+                  v-model="form.base_url"
+                  type="text"
+                  placeholder="https://api.my-relay.com/v1"
+                  class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-3 py-2 text-[#1D1D1F] font-mono focus:outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3">
               <div>
                 <label class="block text-[#6E6E73] font-medium mb-1">系统类型 (Site Type)</label>
                 <select
@@ -92,7 +94,31 @@
               </div>
 
               <div>
-                <label class="block text-[#6E6E73] font-medium mb-1">充值折算汇率 (1元兑换多少美元额度)</label>
+                <label class="block text-[#6E6E73] font-medium mb-1">渠道结算货币 (Currency) *</label>
+                <div class="grid grid-cols-2 gap-1.5 bg-[#F2F2F7] p-1 rounded-xl border border-[#E5E5EA]">
+                  <button
+                    type="button"
+                    @click="form.currency = 'CNY'"
+                    class="py-1 rounded-lg text-xs font-bold transition-all flex items-center justify-center space-x-1"
+                    :class="form.currency === 'CNY' ? 'bg-[#FFFFFF] text-[#0071E3] shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+                  >
+                    <span>🇨🇳</span>
+                    <span>人民币 CNY</span>
+                  </button>
+                  <button
+                    type="button"
+                    @click="form.currency = 'USD'"
+                    class="py-1 rounded-lg text-xs font-bold transition-all flex items-center justify-center space-x-1"
+                    :class="form.currency === 'USD' ? 'bg-[#FFFFFF] text-[#0071E3] shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+                  >
+                    <span>🇺🇸</span>
+                    <span>美元 USD</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-[#6E6E73] font-medium mb-1">充值折算汇率 (1元换多少美元额度)</label>
                 <input
                   v-model.number="form.recharge_rate"
                   type="number"
@@ -327,13 +353,14 @@
             <table class="w-full text-left border-collapse">
               <thead class="bg-[#F2F2F7] sticky top-0 z-10 text-[11px] text-[#6E6E73] border-b border-[#E5E5EA]">
                 <tr>
-                  <th class="py-2 px-3 text-center w-10">收录</th>
-                  <th class="py-2 px-3">渠道原始模型名 & 所属分组</th>
-                  <th class="py-2 px-3 text-center w-8">➔</th>
+                  <th class="py-2 px-2.5 text-center w-9">收录</th>
+                  <th class="py-2 px-3 w-40">渠道模型 & 分组</th>
+                  <th class="py-2 px-1 text-center w-5">➔</th>
                   <th class="py-2 px-3">对应 models.dev 标准模型</th>
-                  <th class="py-2 px-3 text-center w-44">折算实际价格 (每1M Tokens)</th>
-                  <th class="py-2 px-3 text-center w-18">机制</th>
-                  <th class="py-2 px-3 text-center w-16">操作</th>
+                  <th class="py-2 px-2.5 text-center w-36">标准官方原价</th>
+                  <th class="py-2 px-2.5 text-center w-26">计费倍率 & 机制</th>
+                  <th class="py-2 px-3 text-center w-38">折算实际单价 (每1M)</th>
+                  <th class="py-2 px-2 text-center w-14">操作</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-[#E5E5EA] text-[11px]">
@@ -344,7 +371,7 @@
                   :class="{'bg-[#FFF9E6]/30': !item.is_matched}"
                 >
                   <!-- 1. 勾选 -->
-                  <td class="py-2 px-3 text-center">
+                  <td class="py-2 px-2.5 text-center">
                     <input
                       type="checkbox"
                       v-model="item.is_selected"
@@ -354,7 +381,7 @@
 
                   <!-- 2. 原始模型名称与所属分组徽章 -->
                   <td class="py-2 px-3">
-                    <div class="font-mono font-bold text-[#1D1D1F]">
+                    <div class="font-mono font-bold text-[#1D1D1F] truncate" :title="item.channel_model_name">
                       {{ item.channel_model_name }}
                     </div>
                     <div class="mt-0.5">
@@ -365,7 +392,7 @@
                   </td>
 
                   <!-- 3. 箭头 -->
-                  <td class="py-2 px-3 text-center text-[#86868B]">➔</td>
+                  <td class="py-2 px-1 text-center text-[#86868B]">➔</td>
 
                   <!-- 4. 目标标准模型下拉选择 -->
                   <td class="py-2 px-3">
@@ -386,12 +413,49 @@
                     </select>
                   </td>
 
-                  <!-- 5. 实际交易货币金额直观卡片 (根据顶部货币设置 USD / CNY) -->
+                  <!-- 5. 【第一段】标准官方原价 (入 / 出 / 缓) -->
+                  <td class="py-2 px-2.5 text-center">
+                    <div v-if="item.official_input_price > 0" class="inline-flex flex-col items-center bg-[#F9F9FB] px-2 py-0.5 rounded-lg border border-[#E5E5EA] text-[10px] font-mono text-[#6E6E73] w-full">
+                      <div class="flex items-center justify-between w-full">
+                        <span>入:</span>
+                        <span>{{ store.currency === 'USD' ? `$${item.official_input_price.toFixed(3)}` : `¥${(item.official_input_price * 7.25).toFixed(2)}` }}</span>
+                      </div>
+                      <div class="flex items-center justify-between w-full">
+                        <span>出:</span>
+                        <span>{{ store.currency === 'USD' ? `$${item.official_output_price.toFixed(3)}` : `¥${(item.official_output_price * 7.25).toFixed(2)}` }}</span>
+                      </div>
+                      <div v-if="item.official_cache_price > 0" class="flex items-center justify-between w-full text-[9px] text-[#86868B]">
+                        <span>缓:</span>
+                        <span>{{ store.currency === 'USD' ? `$${item.official_cache_price.toFixed(3)}` : `¥${(item.official_cache_price * 7.25).toFixed(2)}` }}</span>
+                      </div>
+                    </div>
+                    <span v-else class="text-[10px] text-[#AEAEB2] font-mono">--</span>
+                  </td>
+
+                  <!-- 6. 【第二段】计费倍率 & 机制 -->
+                  <td class="py-2 px-2.5 text-center">
+                    <div class="flex flex-col items-center space-y-0.5">
+                      <span
+                        class="px-1.5 py-0.2 rounded font-mono text-[10px] font-bold border shadow-2xs"
+                        :class="item.has_ratio_diff && item.applied_ratio_source === 'key' ? 'bg-[#E6F4EA] text-[#137333] border-[#CEEAD6]' : 'bg-[#F2F2F7] text-[#1D1D1F] border-[#E5E5EA]'"
+                      >
+                        {{ item.custom_ratio !== null ? `${item.custom_ratio}x` : '1.0x' }}
+                      </span>
+                      <span
+                        class="text-[9px] px-1 rounded-sm"
+                        :class="item.match_type === 'exact' ? 'text-[#0071E3]' : (item.match_type === 'global_alias' ? 'text-[#AF52DE]' : 'text-[#86868B]')"
+                      >
+                        {{ item.has_ratio_diff ? (item.applied_ratio_source === 'key' ? 'Key特权' : '公开倍率') : '分组倍率' }}
+                      </span>
+                    </div>
+                  </td>
+
+                  <!-- 7. 【第三段】折算实际单价 (精致高亮卡片) -->
                   <td class="py-2 px-3 text-center">
-                    <div class="inline-flex flex-col items-center bg-[#F9F9FB] px-2.5 py-1 rounded-lg border border-[#E5E5EA] w-full text-[11px] font-mono">
+                    <div class="inline-flex flex-col items-center bg-[#F4FBF7] px-2.5 py-1 rounded-lg border border-[#CEEAD6] w-full text-[11px] font-mono">
                       <div class="flex items-center justify-between w-full space-x-2">
                         <span class="text-[#86868B]">入:</span>
-                        <span class="font-bold text-[#1D1D1F]">
+                        <span class="font-bold text-[#137333]">
                           {{ store.currency === 'USD' ? `$${item.input_price_usd.toFixed(3)}` : `¥${item.input_price_cny.toFixed(2)}` }}
                         </span>
                       </div>
@@ -402,28 +466,18 @@
                         </span>
                       </div>
                       <div v-if="item.cache_price_cny > 0" class="flex items-center justify-between w-full space-x-2 text-[10px] text-[#34C759]">
-                        <span>缓:</span>
-                        <span>{{ store.currency === 'USD' ? `$${item.cache_price_usd.toFixed(4)}` : `¥${item.cache_price_cny.toFixed(3)}` }}</span>
+                        <span class="text-[#86868B]">缓:</span>
+                        <span>{{ store.currency === 'USD' ? `$${item.cache_price_usd.toFixed(3)}` : `¥${item.cache_price_cny.toFixed(3)}` }}</span>
                       </div>
                     </div>
                   </td>
 
-                  <!-- 6. 识别机制与置信度 -->
-                  <td class="py-2 px-3 text-center whitespace-nowrap">
-                    <span
-                      class="px-2 py-0.5 rounded-full text-[10px] font-mono border inline-block"
-                      :class="getMatchBadgeClass(item.match_type)"
-                    >
-                      {{ getMatchBadgeLabel(item.match_type) }}
-                    </span>
-                  </td>
-
-                  <!-- 7. 固化为全局规则 -->
-                  <td class="py-2 px-3 text-center whitespace-nowrap">
+                  <!-- 8. 固化为全局规则 -->
+                  <td class="py-2 px-2 text-center whitespace-nowrap">
                     <button
                       v-if="item.standard_model_id"
                       @click="promoteAlias(item)"
-                      class="text-[10px] px-2 py-0.5 rounded bg-[#F2F2F7] hover:bg-[#0071E3] hover:text-white text-[#0071E3] border border-[#E5E5EA] transition-all"
+                      class="text-[10px] px-2 py-0.5 rounded bg-[#F2F2F7] hover:bg-[#0071E3] hover:text-white text-[#0071E3] border border-[#E5E5EA] transition-all shadow-2xs"
                       title="将此映射固化为全局智能别名库规则，未来所有渠道自动生效"
                     >
                       ⭐ 固化
@@ -564,6 +618,7 @@ const form = reactive({
   name: '',
   base_url: '',
   site_type: 'newapi',
+  currency: 'CNY',
   recharge_rate: 1.0,
   default_ratio: 0.65,
   api_key: '',
@@ -796,6 +851,7 @@ async function submitWizard() {
       base_url: form.base_url,
       api_key: form.api_key,
       site_type: form.site_type,
+      currency: form.currency,
       selected_group: probeResult.selected_group,
       recharge_rate: form.recharge_rate,
       default_ratio: form.default_ratio,

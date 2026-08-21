@@ -129,6 +129,7 @@ async def wizard_create_channel(payload: ChannelWizardCreateRequest, db: AsyncSe
         api_key=payload.api_key or "",
         site_type=payload.site_type,
         group_name=selected_grp,
+        currency=payload.currency or "CNY",
         recharge_rate=payload.recharge_rate,
         models_endpoint=payload.models_endpoint,
         status_endpoint=payload.status_endpoint or "",

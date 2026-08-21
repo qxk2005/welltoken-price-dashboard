@@ -14,6 +14,7 @@ class RelaySite(Base):
     api_key = Column(String(255), default="")
     site_type = Column(String(30), default="official")  # official, cloud, newapi, sub2api, oneapi, custom
     group_name = Column(String(100), default="")        # 渠道绑定的结算分组 (如 deepseek-三方, vip)
+    currency = Column(String(10), default="CNY")        # 渠道结算货币 (CNY 或 USD)
     recharge_rate = Column(Float, default=1.0)  # 充值汇率比，例如 1元=1刀为1.0
     models_endpoint = Column(String(255), default="/v1/models")
     status_endpoint = Column(String(255), default="")

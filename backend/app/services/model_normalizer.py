@@ -591,6 +591,7 @@ class ModelNormalizerService:
                     "series": std_meta.series if std_meta else "",
                     "official_input_price": std_meta.official_input_price if std_meta else 0.0,
                     "official_output_price": std_meta.official_output_price if std_meta else 0.0,
+                    "official_cache_price": std_meta.official_cache_price if std_meta else 0.0,
                     "custom_ratio": custom_ratio,
                     "public_ratio": p_ratio,
                     "key_ratio": k_ratio,

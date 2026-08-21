@@ -41,6 +41,7 @@ class RelaySiteBase(BaseModel):
     base_url: str
     site_type: str = "official" # official, cloud, newapi, sub2api, oneapi, custom
     group_name: Optional[str] = "" # 渠道绑定的结算分组 (如 deepseek-三方, vip)
+    currency: str = "CNY" # 渠道结算货币 (CNY 或 USD)
     recharge_rate: float = 1.0
     models_endpoint: str = "/v1/models"
     status_endpoint: str = ""
@@ -60,6 +61,7 @@ class RelaySiteUpdate(BaseModel):
     api_key: Optional[str] = None
     site_type: Optional[str] = None
     group_name: Optional[str] = None
+    currency: Optional[str] = None
     recharge_rate: Optional[float] = None
     models_endpoint: Optional[str] = None
     status_endpoint: Optional[str] = None
@@ -112,6 +114,7 @@ class ComparisonItemSchema(BaseModel):
     site_id: int
     site_name: str
     group_name: Optional[str] = ""
+    site_currency: str = "CNY" # 渠道的结算货币基准
     site_type: str
     is_official: bool
     model_ratio: float
@@ -248,6 +251,7 @@ class ModelMappingItem(BaseModel):
     series: str = ""
     official_input_price: float = 0.0
     official_output_price: float = 0.0
+    official_cache_price: float = 0.0
     custom_ratio: Optional[float] = None
     public_ratio: Optional[float] = None
     key_ratio: Optional[float] = None
@@ -288,6 +292,7 @@ class ChannelWizardCreateRequest(BaseModel):
     base_url: str
     api_key: Optional[str] = ""
     site_type: str = "newapi"
+    currency: str = "CNY" # 渠道结算货币 (CNY 或 USD)
     selected_group: Optional[str] = ""
     recharge_rate: float = 1.0
     default_ratio: float = 0.65
