@@ -52,32 +52,32 @@
         </div>
       </div>
 
-      <!-- 供应商与渠道列表式表格 (支持横向自由滚动，绝不挤压文字，舒适易读) -->
+      <!-- 供应商与渠道列表式表格 (精简长字段，来源标签独立成列，极度充裕舒适的显示空间) -->
       <div class="flex-1 flex flex-col bg-[#FFFFFF] rounded-2xl border border-[#E5E5EA] p-3 shadow-[0_1px_3px_rgba(0,0,0,0.02)] overflow-hidden min-h-0">
-        <!-- 表格滚动区 (横向 + 纵向滚动) -->
+        <!-- 表格滚动区 -->
         <div class="flex-1 overflow-x-auto overflow-y-auto pr-1">
-          <table class="w-full text-left text-xs border-collapse min-w-[1380px]">
+          <table class="w-full text-left text-xs border-collapse min-w-[1000px]">
             <!-- 表头 (支持点击排序) -->
             <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans select-none">
               <tr>
                 <th class="py-3 px-2 text-center w-12">收藏</th>
-                <th @click="toggleSort('name')" class="py-3 px-3 cursor-pointer hover:text-[#1D1D1F] transition-colors min-w-[220px]">
+                <th @click="toggleSort('name')" class="py-3 px-3 cursor-pointer hover:text-[#1D1D1F] transition-colors">
                   供应商 / 渠道名称 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('name') }}</span>
                 </th>
-                <th class="py-3 px-3 text-center min-w-[110px]">渠道分类</th>
-                <th @click="toggleSort('model_count')" class="py-3 px-3 text-center cursor-pointer hover:text-[#1D1D1F] transition-colors min-w-[110px]">
+                <th class="py-3 px-3 text-center w-28">渠道分类</th>
+                <th class="py-3 px-3 text-center w-36">数据来源</th>
+                <th @click="toggleSort('model_count')" class="py-3 px-3 text-center cursor-pointer hover:text-[#1D1D1F] transition-colors w-28">
                   收录模型数 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('model_count') }}</span>
                 </th>
-                <th class="py-3 px-3 min-w-[280px]">API 基础端点 (Base URL)</th>
-                <th class="py-3 px-3 min-w-[220px]">环境变量标识 (Env Keys)</th>
-                <th @click="toggleSort('recharge_rate')" class="py-3 px-3 text-center cursor-pointer hover:text-[#1D1D1F] transition-colors min-w-[90px]">
+                <th @click="toggleSort('recharge_rate')" class="py-3 px-3 text-center cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
                   充值倍率 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('recharge_rate') }}</span>
                 </th>
-                <th @click="toggleSort('score')" class="py-3 px-3 text-center cursor-pointer hover:text-[#1D1D1F] transition-colors min-w-[110px]">
-                  评分 / 延迟 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('score') }}</span>
+                <th @click="toggleSort('score')" class="py-3 px-3 text-center cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
+                  综合评分 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('score') }}</span>
                 </th>
-                <th class="py-3 px-3 text-center min-w-[80px]">状态</th>
-                <th class="py-3 px-3 text-center min-w-[200px]">快捷操作</th>
+                <th class="py-3 px-3 text-center w-24">实测延迟</th>
+                <th class="py-3 px-3 text-center w-20">状态</th>
+                <th class="py-3 px-3 text-center w-48">快捷操作</th>
               </tr>
             </thead>
 
@@ -101,7 +101,7 @@
                 </td>
 
                 <!-- 1. 供应商名称、Logo 缩写与 ID (点击进入供应商详情页) -->
-                <td class="py-3 px-3 min-w-[220px]">
+                <td class="py-3 px-3">
                   <div
                     @click="selectProvider(site)"
                     class="flex items-center space-x-2.5 cursor-pointer group-hover:text-[#0071E3] transition-colors"
@@ -110,15 +110,8 @@
                       <ProviderLogo :provider-id="site.provider_id || site.name" custom-class="w-5 h-5" />
                     </div>
                     <div>
-                      <div class="flex items-center space-x-1.5">
-                        <span class="font-bold text-xs text-[#1D1D1F] group-hover:text-[#0071E3] transition-colors">{{ site.name }}</span>
-                        <span
-                          v-if="site.is_official_catalog"
-                          class="px-1.5 py-0.2 rounded bg-[#E8F2FD] text-[#0071E3] text-[9px] font-mono border border-[#CCE4FB] font-medium"
-                          title="models.dev 官方标准渠道"
-                        >
-                          MODELS.DEV
-                        </span>
+                      <div class="font-bold text-xs text-[#1D1D1F] group-hover:text-[#0071E3] transition-colors">
+                        {{ site.name }}
                       </div>
                       <div class="text-[11px] text-[#86868B] font-mono mt-0.5">
                         {{ site.provider_id || `site-${site.id}` }}
@@ -127,8 +120,8 @@
                   </div>
                 </td>
 
-                <!-- 2. 渠道分类 (单行不折行) -->
-                <td class="py-3 px-3 text-center min-w-[110px] whitespace-nowrap">
+                <!-- 2. 渠道分类 (官方直连 / 中转站渠道 / 自添加网站) -->
+                <td class="py-3 px-3 text-center w-28 whitespace-nowrap">
                   <span
                     class="px-2 py-0.5 rounded-md text-[11px] font-medium border whitespace-nowrap inline-block"
                     :class="getCategoryBadgeClass(site)"
@@ -137,8 +130,26 @@
                   </span>
                 </td>
 
-                <!-- 3. 收录模型总数 (单行不折行) -->
-                <td class="py-3 px-3 text-center min-w-[110px] whitespace-nowrap">
+                <!-- 3. 数据来源标签 (单独独立一列，如 MODELS.DEV 官方库 / 用户自建) -->
+                <td class="py-3 px-3 text-center w-36 whitespace-nowrap">
+                  <span
+                    v-if="site.is_official_catalog"
+                    class="px-2 py-0.5 rounded-full bg-[#E8F2FD] text-[#0071E3] text-[10px] font-mono border border-[#CCE4FB] font-bold inline-flex items-center space-x-1"
+                  >
+                    <span>●</span>
+                    <span>MODELS.DEV</span>
+                  </span>
+                  <span
+                    v-else
+                    class="px-2 py-0.5 rounded-full bg-[#F2F2F7] text-[#6E6E73] text-[10px] font-mono border border-[#E5E5EA] font-medium inline-flex items-center space-x-1"
+                  >
+                    <span>○</span>
+                    <span>用户自建中转</span>
+                  </span>
+                </td>
+
+                <!-- 4. 收录模型总数 -->
+                <td class="py-3 px-3 text-center w-28 whitespace-nowrap">
                   <span
                     @click="selectProvider(site)"
                     class="px-2.5 py-0.5 rounded-full bg-[#E6F4EA] text-[#137333] border border-[#CEEAD6] font-mono font-bold text-xs cursor-pointer hover:bg-[#CEEAD6] transition-colors inline-block"
@@ -148,44 +159,23 @@
                   </span>
                 </td>
 
-                <!-- 4. API 端点 Base URL (单行舒展显示) -->
-                <td class="py-3 px-3 font-mono text-[11px] text-[#6E6E73] min-w-[280px] whitespace-nowrap" :title="site.base_url">
-                  <div class="flex items-center space-x-1.5">
-                    <span class="truncate max-w-[220px]">{{ site.base_url }}</span>
-                    <button
-                      @click.stop="copyText(site.base_url)"
-                      class="text-[#86868B] hover:text-[#0071E3] text-[10px] px-1.5 py-0.5 rounded bg-[#F2F2F7] border border-[#E5E5EA] flex-shrink-0"
-                      title="复制端点 URL"
-                    >
-                      复制
-                    </button>
-                  </div>
-                </td>
-
-                <!-- 5. 环境变量标识 (单行舒展显示) -->
-                <td class="py-3 px-3 font-mono text-[11px] text-[#1D1D1F] min-w-[220px] whitespace-nowrap">
-                  <span v-if="site.env_vars" class="px-2 py-0.5 rounded bg-[#F2F2F7] border border-[#E5E5EA] text-[#0071E3] truncate max-w-[200px] inline-block" :title="site.env_vars">
-                    {{ site.env_vars }}
-                  </span>
-                  <span v-else class="text-[#86868B]">-</span>
-                </td>
-
-                <!-- 6. 充值/折算倍率 -->
-                <td class="py-3 px-3 text-center font-mono font-bold text-[#1D1D1F] min-w-[90px] whitespace-nowrap">
+                <!-- 5. 充值/折算倍率 -->
+                <td class="py-3 px-3 text-center font-mono font-bold text-[#1D1D1F] w-24 whitespace-nowrap">
                   {{ site.recharge_rate ? site.recharge_rate.toFixed(2) : '1.00' }}x
                 </td>
 
-                <!-- 7. 评分与延迟 -->
-                <td class="py-3 px-3 text-center font-mono text-[11px] min-w-[110px] whitespace-nowrap">
-                  <div class="flex items-center justify-center space-x-1.5">
-                    <span class="text-[#34C759] font-bold">{{ site.score || 95 }}分</span>
-                    <span class="text-[#86868B]">/</span>
-                    <span class="text-[#0071E3]">{{ site.last_latency_ms ? site.last_latency_ms.toFixed(0) : '35' }}ms</span>
-                  </div>
+                <!-- 6. 综合评分 -->
+                <td class="py-3 px-3 text-center font-mono text-[11px] w-24 whitespace-nowrap">
+                  <span class="text-[#34C759] font-bold">{{ site.score || 95 }} 分</span>
+                </td>
+
+                <!-- 7. 实测延迟 -->
+                <td class="py-3 px-3 text-center font-mono text-[11px] w-24 whitespace-nowrap">
+                  <span class="text-[#0071E3] font-medium">{{ site.last_latency_ms ? site.last_latency_ms.toFixed(0) : '35' }} ms</span>
                 </td>
 
                 <!-- 8. 启用/活跃状态 -->
-                <td class="py-3 px-3 text-center min-w-[80px] whitespace-nowrap">
+                <td class="py-3 px-3 text-center w-20 whitespace-nowrap">
                   <label class="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
@@ -198,7 +188,7 @@
                 </td>
 
                 <!-- 9. 快捷操作 -->
-                <td class="py-3 px-3 text-center font-mono text-[11px] min-w-[200px] whitespace-nowrap">
+                <td class="py-3 px-3 text-center font-mono text-[11px] w-48 whitespace-nowrap">
                   <button
                     @click="selectProvider(site)"
                     class="text-[#0071E3] hover:underline mr-2 font-bold"
@@ -878,7 +868,6 @@ const selectProvider = async (site: RelaySite) => {
     providerModelsList.value = res.data || []
   } catch (e) {
     console.error('Fetch provider models failed:', e)
-    // 降级使用本地
     providerModelsList.value = store.comparisonMatrix.filter(
       (m) => m.site_name.toLowerCase() === site.name.toLowerCase()
     )
