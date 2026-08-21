@@ -222,6 +222,11 @@ class ModelMappingItem(BaseModel):
     official_input_price: float = 0.0
     official_output_price: float = 0.0
     custom_ratio: Optional[float] = None
+    public_ratio: Optional[float] = None
+    key_ratio: Optional[float] = None
+    has_ratio_diff: bool = False
+    ratio_diff_percent: Optional[float] = None
+    applied_ratio_source: str = "key" # key, public, custom
     is_selected: bool = True
 
 class ChannelProbeResponse(BaseModel):
@@ -232,6 +237,10 @@ class ChannelProbeResponse(BaseModel):
     matched_count: int
     unmatched_count: int
     fetch_source: str = ""
+    token_group: str = ""
+    token_group_ratio: Optional[float] = None
+    has_special_pricing: bool = False
+    special_pricing_count: int = 0
     error: str = ""
     mappings: List[ModelMappingItem] = []
 

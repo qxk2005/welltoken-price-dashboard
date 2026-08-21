@@ -193,6 +193,23 @@
               </div>
             </div>
 
+            <!-- Key 专属令牌特权状态卡片 -->
+            <div
+              v-if="probeResult.token_group || probeResult.has_special_pricing"
+              class="p-3 bg-[#E8F2FD] border border-[#CCE4FB] rounded-xl flex items-center justify-between text-xs text-[#0071E3] animate-fade-in"
+            >
+              <div class="flex items-center space-x-2">
+                <span class="font-bold">🔑 识别到令牌分组:</span>
+                <span class="px-2 py-0.5 rounded bg-white font-mono font-bold text-[#0071E3] border border-[#CCE4FB] shadow-2xs">
+                  {{ probeResult.token_group || '特权令牌' }}
+                </span>
+                <span v-if="probeResult.special_pricing_count > 0" class="text-[#137333] font-medium">
+                  (已发现 {{ probeResult.special_pricing_count }} 款模型享受 Key 专属特权折扣！)
+                </span>
+              </div>
+              <span class="text-[11px] text-[#0071E3]/80">已在第3步默认应用优惠特权价</span>
+            </div>
+
             <div v-if="probeResult.error" class="p-3 bg-[#FFF3CD] border border-[#FFEEBA] text-[#856404] rounded-xl text-[11px]">
               ⚠️ 探测提示: {{ probeResult.error }}
             </div>
@@ -228,20 +245,40 @@
               </button>
             </div>
 
-            <div class="flex items-center space-x-2">
-              <button
-                @click="toggleSelectAll(true)"
-                class="text-[11px] text-[#0071E3] hover:underline"
-              >
-                全选
-              </button>
-              <span class="text-[#D1D1D6]">|</span>
-              <button
-                @click="toggleSelectAll(false)"
-                class="text-[11px] text-[#86868B] hover:underline"
-              >
-                清空
-              </button>
+            <!-- 批量操作与 Key 特权倍率快捷决策 -->
+            <div class="flex items-center space-x-3">
+              <div v-if="hasSpecialPricingInMappings" class="flex items-center space-x-1.5">
+                <button
+                  @click="batchApplyRatio('key')"
+                  class="px-2 py-1 rounded-lg bg-[#E8F2FD] text-[#0071E3] border border-[#CCE4FB] text-[10px] font-bold hover:bg-[#D4E8FC] transition-colors"
+                  title="将所有存在差异的模型一键切换为优惠的 Key 特权倍率"
+                >
+                  ⚡ 一键应用 Key 优惠倍率
+                </button>
+                <button
+                  @click="batchApplyRatio('public')"
+                  class="px-2 py-1 rounded-lg bg-[#F2F2F7] text-[#6E6E73] border border-[#E5E5EA] text-[10px] font-medium hover:bg-[#E5E5EA] transition-colors"
+                  title="将所有模型一键还原为公开基准倍率"
+                >
+                  🌐 一键还原公开倍率
+                </button>
+              </div>
+
+              <div class="flex items-center space-x-2">
+                <button
+                  @click="toggleSelectAll(true)"
+                  class="text-[11px] text-[#0071E3] hover:underline"
+                >
+                  全选
+                </button>
+                <span class="text-[#D1D1D6]">|</span>
+                <button
+                  @click="toggleSelectAll(false)"
+                  class="text-[11px] text-[#86868B] hover:underline"
+                >
+                  清空
+                </button>
+              </div>
             </div>
           </div>
 
@@ -254,9 +291,9 @@
                   <th class="py-2 px-3">渠道原始模型名 (Raw Model ID)</th>
                   <th class="py-2 px-3 text-center w-8">➔</th>
                   <th class="py-2 px-3">对应 models.dev 标准模型</th>
-                  <th class="py-2 px-2 text-center w-20">原生倍率</th>
-                  <th class="py-2 px-3 text-center w-20">机制</th>
-                  <th class="py-2 px-3 text-center w-20">操作</th>
+                  <th class="py-2 px-2 text-center w-36">折算倍率 (Key / 公开)</th>
+                  <th class="py-2 px-3 text-center w-18">机制</th>
+                  <th class="py-2 px-3 text-center w-16">操作</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-[#E5E5EA] text-[11px]">
@@ -302,17 +339,44 @@
                     </select>
                   </td>
 
-                  <!-- 5. 渠道原生倍率输入与展示 -->
+                  <!-- 5. 渠道倍率决策双轨选择器 (Key 特权 vs 公开基准) -->
                   <td class="py-2 px-2 text-center">
-                    <input
-                      v-model.number="item.custom_ratio"
-                      type="number"
-                      step="0.01"
-                      placeholder="默认"
-                      class="w-16 bg-[#FFFFFF] border border-[#E5E5EA] focus:border-[#0071E3] rounded px-1.5 py-0.5 text-center font-mono text-[11px] text-[#1D1D1F]"
-                      :class="{'border-[#CCE4FB] text-[#0071E3] font-bold bg-[#E8F2FD]/30': item.custom_ratio !== null && item.custom_ratio !== undefined}"
-                      :title="item.custom_ratio !== null ? `已从中转站配置提取原生倍率: ${item.custom_ratio}x` : '未单独设定，将继承第4步全局默认倍率'"
-                    />
+                    <div v-if="item.has_ratio_diff" class="inline-flex flex-col items-center space-y-1">
+                      <div class="inline-flex items-center bg-[#F2F2F7] p-0.5 rounded-lg border border-[#E5E5EA]">
+                        <button
+                          type="button"
+                          @click="item.custom_ratio = item.key_ratio; item.applied_ratio_source = 'key'"
+                          class="px-1.5 py-0.5 rounded-md text-[10px] font-mono transition-all"
+                          :class="item.applied_ratio_source === 'key' ? 'bg-[#34C759] text-white font-bold shadow-2xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+                          :title="`选用 Key 专属特权倍率: ${item.key_ratio}x (享受 ${item.ratio_diff_percent}% 折扣)`"
+                        >
+                          🔑 {{ item.key_ratio }}x
+                        </button>
+                        <button
+                          type="button"
+                          @click="item.custom_ratio = item.public_ratio; item.applied_ratio_source = 'public'"
+                          class="px-1.5 py-0.5 rounded-md text-[10px] font-mono transition-all"
+                          :class="item.applied_ratio_source === 'public' ? 'bg-[#0071E3] text-white font-bold shadow-2xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+                          :title="`选用全站公开基准倍率: ${item.public_ratio}x`"
+                        >
+                          🌐 {{ item.public_ratio }}x
+                        </button>
+                      </div>
+                      <span class="text-[9px] text-[#34C759] font-mono font-bold" v-if="item.ratio_diff_percent < 0">
+                        特权减免 {{ Math.abs(item.ratio_diff_percent) }}%
+                      </span>
+                    </div>
+                    <div v-else class="flex justify-center">
+                      <input
+                        v-model.number="item.custom_ratio"
+                        type="number"
+                        step="0.01"
+                        placeholder="默认"
+                        class="w-16 bg-[#FFFFFF] border border-[#E5E5EA] focus:border-[#0071E3] rounded px-1.5 py-0.5 text-center font-mono text-[11px] text-[#1D1D1F]"
+                        :class="{'border-[#CCE4FB] text-[#0071E3] font-bold bg-[#E8F2FD]/30': item.custom_ratio !== null && item.custom_ratio !== undefined}"
+                        :title="item.custom_ratio !== null ? `已从中转站配置提取原生倍率: ${item.custom_ratio}x` : '未单独设定，将继承第4步全局默认倍率'"
+                      />
+                    </div>
                   </td>
 
                   <!-- 6. 识别机制与置信度 -->
@@ -481,6 +545,9 @@ const probeResult = reactive({
   matched_count: 0,
   unmatched_count: 0,
   fetch_source: '',
+  token_group: '',
+  has_special_pricing: false,
+  special_pricing_count: 0,
   error: ''
 })
 
@@ -489,6 +556,16 @@ const mappingsList = ref<any[]>([])
 const matchedMappingsCount = computed(() => mappingsList.value.filter(m => m.is_matched).length)
 const unmatchedMappingsCount = computed(() => mappingsList.value.filter(m => !m.is_matched).length)
 const selectedMappingsCount = computed(() => mappingsList.value.filter(m => m.is_selected && m.standard_model_id).length)
+const hasSpecialPricingInMappings = computed(() => mappingsList.value.some(m => m.has_ratio_diff))
+
+function batchApplyRatio(source: 'key' | 'public') {
+  for (const m of mappingsList.value) {
+    if (m.has_ratio_diff) {
+      m.applied_ratio_source = source
+      m.custom_ratio = source === 'key' ? m.key_ratio : m.public_ratio
+    }
+  }
+}
 
 const filteredMappings = computed(() => {
   if (mappingFilter.value === 'matched') {
@@ -529,12 +606,18 @@ async function runProbe() {
     probeResult.matched_count = res.data.matched_count
     probeResult.unmatched_count = res.data.unmatched_count
     probeResult.fetch_source = res.data.fetch_source || ''
+    probeResult.token_group = res.data.token_group || ''
+    probeResult.has_special_pricing = res.data.has_special_pricing || false
+    probeResult.special_pricing_count = res.data.special_pricing_count || 0
     probeResult.error = res.data.error
 
     mappingsList.value = res.data.mappings || []
   } catch (e: any) {
     probeResult.is_online = false
     probeResult.fetch_source = ''
+    probeResult.token_group = ''
+    probeResult.has_special_pricing = false
+    probeResult.special_pricing_count = 0
     probeResult.error = e.response?.data?.detail || e.message || '网络连接超时'
   } finally {
     isProbing.value = false

@@ -149,15 +149,19 @@ class ModelNormalizerService:
         site_type: str = "newapi",
         models_endpoint: str = "/v1/models"
     ) -> Dict[str, Any]:
-        """使用 relay-watch 智能全量探测链：自动提取根域，优先免 Key 请求公开 JSON (/api/pricing, /api/models)，提取全量模型与真实倍率"""
+        """使用 relay-watch 智能全量探测链：自动提取根域，优先免 Key 请求公开 JSON (/api/pricing, /api/models)，探测令牌分组并提取/比对专属倍率"""
         start_t = time.time()
         is_online = False
         status_code = 0
         real_latency_ms = 0.0
         raw_models: List[str] = []
-        raw_ratios: Dict[str, float] = {}
+        raw_public_ratios: Dict[str, float] = {}
+        raw_key_ratios: Dict[str, float] = {}
         fetch_source = ""
         error_msg = ""
+
+        token_group = ""
+        token_group_ratio = None
 
         clean_base = base_url.strip().rstrip("/")
         root_url = self.extract_root_url(clean_base)
@@ -172,10 +176,35 @@ class ModelNormalizerService:
             headers_with_auth["Authorization"] = f"Bearer {api_key}"
 
         # -------------------------------------------------------------
+        # Phase 0: 若提供了 API Key，先尝试嗅探该 Key 的用户分组与特权信息
+        # -------------------------------------------------------------
+        if api_key:
+            group_probe_endpoints = [
+                f"{root_url}/api/user/self",
+                f"{root_url}/dashboard/billing/subscription",
+                f"{root_url}/api/token"
+            ]
+            async with httpx.AsyncClient(timeout=4.0, follow_redirects=True) as client:
+                for ep in group_probe_endpoints:
+                    try:
+                        g_resp = await client.get(ep, headers=headers_with_auth)
+                        if g_resp.status_code == 200:
+                            g_data = g_resp.json()
+                            u_data = g_data.get("data") if isinstance(g_data, dict) else None
+                            if isinstance(u_data, dict):
+                                token_group = str(u_data.get("group") or u_data.get("user_group") or "").strip()
+                            elif isinstance(g_data, dict):
+                                token_group = str(g_data.get("group") or g_data.get("user_group") or "").strip()
+                            if token_group:
+                                break
+                    except Exception:
+                        pass
+
+        # -------------------------------------------------------------
         # Phase 1: 优先探测公开端点 (免 Key，获取未受限全量模型及官方倍率)
         # -------------------------------------------------------------
         public_probe_targets = [
-            # 1. NewAPI / OneAPI 全量定价接口 (最权威：包含全量模型与真实倍率 model_ratio)
+            # 1. NewAPI / OneAPI 全量定价接口 (最权威：包含全量模型与各分组倍率 group_ratio)
             {"url": f"{root_url}/api/pricing", "auth": False, "source": "/api/pricing (免Key全量定价)"},
             # 2. NewAPI / OneAPI 公开模型列表接口
             {"url": f"{root_url}/api/models", "auth": False, "source": "/api/models (免Key公开模型)"},
@@ -198,14 +227,24 @@ class ModelNormalizerService:
                         data = resp.json()
                         raw_list = data if isinstance(data, list) else (data.get("data") or data.get("models") or [])
                         
-                        # 解析 pricing 格式（带有 model_name 与 model_ratio）
+                        # 解析 pricing 格式（带有 model_name, model_ratio, group_ratio）
                         for item in raw_list:
                             if isinstance(item, dict):
                                 m_name = item.get("model_name") or item.get("id") or item.get("name")
                                 m_ratio = item.get("model_ratio")
+                                group_ratios = item.get("group_ratio") or {}
                                 if m_ratio is not None:
                                     try:
-                                        raw_ratios[str(m_name).strip().lower()] = float(m_ratio)
+                                        p_ratio = float(m_ratio)
+                                        m_key = str(m_name).strip().lower()
+                                        raw_public_ratios[m_key] = p_ratio
+
+                                        # 计算 Key 专属倍率
+                                        if token_group and isinstance(group_ratios, dict) and token_group in group_ratios:
+                                            g_coeff = float(group_ratios[token_group])
+                                            raw_key_ratios[m_key] = round(p_ratio * g_coeff, 4)
+                                        else:
+                                            raw_key_ratios[m_key] = p_ratio
                                     except (ValueError, TypeError):
                                         pass
                             elif isinstance(item, str):
@@ -219,7 +258,7 @@ class ModelNormalizerService:
                         if raw_models:
                             fetch_source = target["source"]
                             break # 成功免 Key 获取到全量模型
-                except Exception as e:
+                except Exception:
                     pass
 
         # -------------------------------------------------------------
@@ -266,13 +305,26 @@ class ModelNormalizerService:
         seen_m = set()
         unique_raw_models = [m for m in raw_models if not (m.lower() in seen_m or seen_m.add(m.lower()))]
 
+        # 统计差异倍率模型数
+        special_cnt = 0
+        for m in unique_raw_models:
+            m_low = m.lower()
+            if m_low in raw_public_ratios and m_low in raw_key_ratios:
+                if raw_public_ratios[m_low] != raw_key_ratios[m_low]:
+                    special_cnt += 1
+
         return {
             "is_online": is_online,
             "status_code": status_code,
             "latency_ms": real_latency_ms,
             "raw_models": unique_raw_models,
             "raw_count": len(unique_raw_models),
-            "raw_ratios": raw_ratios,
+            "raw_public_ratios": raw_public_ratios,
+            "raw_key_ratios": raw_key_ratios,
+            "token_group": token_group,
+            "token_group_ratio": token_group_ratio,
+            "has_special_pricing": special_cnt > 0,
+            "special_pricing_count": special_cnt,
             "fetch_source": fetch_source or ("公开/鉴权端点均无响应" if not is_online else "未获取到模型列表"),
             "error": error_msg
         }
@@ -281,13 +333,15 @@ class ModelNormalizerService:
         self,
         raw_model_names: List[str],
         site_id: Optional[int] = None,
-        raw_ratios: Optional[Dict[str, float]] = None
+        raw_public_ratios: Optional[Dict[str, float]] = None,
+        raw_key_ratios: Optional[Dict[str, float]] = None
     ) -> List[Dict[str, Any]]:
-        """为渠道的一批原始模型名称执行两层智能映射匹配，并自动应用提取到的原生模型倍率"""
+        """为渠道的一批原始模型名称执行两层智能映射匹配，并比对计算 Key 专属倍率与公开基准倍率差异"""
         if not self._is_initialized:
             await self.initialize()
 
-        raw_ratios_map = raw_ratios or {}
+        public_map = raw_public_ratios or {}
+        key_map = raw_key_ratios or {}
 
         # 1. 如果指定了 site_id，先读取该渠道现存的专属映射表
         channel_mappings: Dict[str, ChannelModelMapping] = {}
@@ -308,6 +362,14 @@ class ModelNormalizerService:
             confidence = 0.0
             custom_ratio = None
 
+            # 获取公开与 Key 倍率
+            p_ratio = public_map.get(raw_lower)
+            k_ratio = key_map.get(raw_lower) if key_map else p_ratio
+            has_diff = (p_ratio is not None and k_ratio is not None and p_ratio != k_ratio)
+            diff_pct = None
+            if has_diff and p_ratio and p_ratio > 0:
+                diff_pct = round(((k_ratio - p_ratio) / p_ratio) * 100, 1)
+
             # Level 1: 检查渠道私有映射 (最高优先级)
             if raw_lower in channel_mappings:
                 cm = channel_mappings[raw_lower]
@@ -316,9 +378,9 @@ class ModelNormalizerService:
                 confidence = 1.0
                 custom_ratio = cm.custom_ratio
 
-            # 如果渠道没有私有指定倍率，尝试从探测到的公开原生倍率中提取
-            if custom_ratio is None and raw_lower in raw_ratios_map:
-                custom_ratio = raw_ratios_map[raw_lower]
+            # 默认应用更优惠的 Key 倍率，若无则使用公开倍率
+            if custom_ratio is None:
+                custom_ratio = k_ratio if k_ratio is not None else p_ratio
 
             # Level 2: 检查全局别名库 (ModelAlias 精确模式或通配符规则，强制将混乱别名归一化到旗舰标准模型)
             if not matched_standard_id:
@@ -353,7 +415,7 @@ class ModelNormalizerService:
                     match_type = "rule_normalized"
                     confidence = 0.88
                 elif not matched_standard_id:
-                    # Level 5: 尝试前缀包含模糊匹配 (如 deepseek-v3-0328 包含 deepseek-v3)
+                    # Level 5: 尝试前缀包含模糊匹配
                     for std_id in self._cached_standard_models.keys():
                         if std_id in normalized or normalized in std_id:
                             matched_standard_id = std_id
@@ -376,6 +438,11 @@ class ModelNormalizerService:
                 "official_input_price": std_meta.official_input_price if std_meta else 0.0,
                 "official_output_price": std_meta.official_output_price if std_meta else 0.0,
                 "custom_ratio": custom_ratio,
+                "public_ratio": p_ratio,
+                "key_ratio": k_ratio,
+                "has_ratio_diff": has_diff,
+                "ratio_diff_percent": diff_pct,
+                "applied_ratio_source": "key" if has_diff else "public",
                 "is_selected": bool(matched_standard_id) # 已匹配的默认勾选，未匹配的默认不勾选
             })
 
