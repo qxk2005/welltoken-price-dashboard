@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Set
 from sqlalchemy import select, delete
 from backend.app.database import AsyncSessionLocal
-from backend.app.models.token_price import RelaySite, ModelMetadata, SiteModelPricing
+from backend.app.models.token_price import RelaySite, ModelMetadata, SiteModelPricing, ChannelModelMapping
 
 # 初始默认收录的中转与官方对照渠道 (方便用户初次启动体验，支持用户随时自由新增/修改真实站点与 Key)
 DEFAULT_RELAY_SITES = [
@@ -229,35 +229,40 @@ class RelayFetcherService:
             site.last_status = "online" if is_online else "offline"
             site.last_sync_time = datetime.utcnow()
             
-            # 如果成功发现了模型，动态更新定价表
+            # 如果成功发现了模型，且该渠道未被用户精确指定映射，才进行兜底默认匹配
             if discovered_models:
-                models_res = await session.execute(select(ModelMetadata))
-                db_models = models_res.scalars().all()
-                for m in db_models:
-                    if m.model_id.lower() in discovered_models or any(d in m.model_id.lower() for d in discovered_models):
-                        # 确保存在定价记录
-                        p_stmt = select(SiteModelPricing).where(
-                            SiteModelPricing.site_id == site.id,
-                            SiteModelPricing.model_id == m.model_id
-                        )
-                        p_res = await session.execute(p_stmt)
-                        exist_p = p_res.scalar_one_or_none()
-                        if not exist_p:
-                            calc_in = round(m.official_input_price * 0.65 * site.recharge_rate, 4)
-                            calc_out = round(m.official_output_price * 0.65 * site.recharge_rate, 4)
-                            new_p = SiteModelPricing(
-                                site_id=site.id,
-                                model_id=m.model_id,
-                                model_ratio=0.65,
-                                group_ratio=1.0,
-                                calculated_input_usd=calc_in,
-                                calculated_output_usd=calc_out,
-                                calculated_cache_usd=round(m.official_cache_price * 0.65, 4),
-                                discount_percent=-35.0,
-                                is_available=True,
-                                last_tested_tps=50.0
+                cm_stmt = select(ChannelModelMapping).where(ChannelModelMapping.site_id == site.id)
+                cm_res = await session.execute(cm_stmt)
+                user_mappings = cm_res.scalars().all()
+
+                if not user_mappings:
+                    models_res = await session.execute(select(ModelMetadata))
+                    db_models = models_res.scalars().all()
+                    for m in db_models:
+                        if m.model_id.lower() in discovered_models or any(d in m.model_id.lower() for d in discovered_models):
+                            # 确保存在定价记录
+                            p_stmt = select(SiteModelPricing).where(
+                                SiteModelPricing.site_id == site.id,
+                                SiteModelPricing.model_id == m.model_id
                             )
-                            session.add(new_p)
+                            p_res = await session.execute(p_stmt)
+                            exist_p = p_res.scalar_one_or_none()
+                            if not exist_p:
+                                calc_in = round(m.official_input_price * 0.65 * site.recharge_rate, 4)
+                                calc_out = round(m.official_output_price * 0.65 * site.recharge_rate, 4)
+                                new_p = SiteModelPricing(
+                                    site_id=site.id,
+                                    model_id=m.model_id,
+                                    model_ratio=0.65,
+                                    group_ratio=1.0,
+                                    calculated_input_usd=calc_in,
+                                    calculated_output_usd=calc_out,
+                                    calculated_cache_usd=round(m.official_cache_price * 0.65, 4),
+                                    discount_percent=-35.0,
+                                    is_available=True,
+                                    last_tested_tps=50.0
+                                )
+                                session.add(new_p)
 
             await session.commit()
 

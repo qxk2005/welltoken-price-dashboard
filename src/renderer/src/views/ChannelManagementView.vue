@@ -485,17 +485,40 @@
 
       <!-- 3. 该供应商所能提供的完整模型与价格数据表格 (对标 models.dev/providers/bailing/) -->
       <div class="flex-1 flex flex-col bg-[#FFFFFF] rounded-2xl border border-[#E5E5EA] p-3 shadow-[0_1px_3px_rgba(0,0,0,0.02)] overflow-hidden min-h-0">
-        <div class="flex items-center justify-between pb-2 border-b border-[#E5E5EA]">
-          <span class="text-xs font-bold text-[#1D1D1F]">
-            📋 旗下可用模型规格与定价清单 (共 {{ providerModelsList.length }} 款)
-          </span>
-          <div class="w-60 relative">
-            <input
-              v-model="providerModelSearchQuery"
-              type="text"
-              placeholder="搜索模型名称/标识..."
-              class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-lg px-2.5 py-1 text-xs text-[#1D1D1F] placeholder-[#86868B] focus:outline-none transition-all font-sans"
-            />
+        <div class="flex flex-col space-y-2 pb-2 border-b border-[#E5E5EA]">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-[#1D1D1F]">
+              📋 旗下可用模型规格与定价清单 (共 {{ providerModelsList.length }} 款)
+            </span>
+            <div class="w-60 relative">
+              <input
+                v-model="providerModelSearchQuery"
+                type="text"
+                placeholder="搜索模型名称/标识..."
+                class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-lg px-2.5 py-1 text-xs text-[#1D1D1F] placeholder-[#86868B] focus:outline-none transition-all font-sans"
+              />
+            </div>
+          </div>
+
+          <!-- 分组筛选胶囊 (当包含多分组定价时展示) -->
+          <div v-if="detailAvailableGroups.length > 1" class="flex items-center space-x-1.5 overflow-x-auto py-0.5">
+            <span class="text-[11px] text-[#86868B] font-medium mr-1">分组过滤:</span>
+            <button
+              @click="detailSelectedGroup = 'all'"
+              class="px-2.5 py-0.5 rounded-lg text-xs font-medium transition-all"
+              :class="detailSelectedGroup === 'all' ? 'bg-[#0071E3] text-white shadow-2xs' : 'bg-[#F2F2F7] text-[#6E6E73] hover:bg-[#E5E5EA]'"
+            >
+              全部 ({{ providerModelsList.length }})
+            </button>
+            <button
+              v-for="g in detailAvailableGroups"
+              :key="g.name"
+              @click="detailSelectedGroup = g.name"
+              class="px-2.5 py-0.5 rounded-lg text-xs font-medium font-mono transition-all flex items-center space-x-1"
+              :class="detailSelectedGroup === g.name ? 'bg-[#AF52DE] text-white shadow-2xs' : 'bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] hover:bg-[#EBD5FA]'"
+            >
+              <span>🎯 {{ g.name }} ({{ g.count }})</span>
+            </button>
           </div>
         </div>
 
@@ -511,7 +534,7 @@
             <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans select-none">
               <tr>
                 <th @click="toggleDetailSort('model_name')" class="py-2.5 px-3 cursor-pointer hover:text-[#0071E3] transition-colors">
-                  模型名称 / 标准标识 <span class="text-[10px] font-mono" :class="detailSortField === 'model_name' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('model_name') }}</span>
+                  模型名称 / 标准标识 / 所属分组 <span class="text-[10px] font-mono" :class="detailSortField === 'model_name' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('model_name') }}</span>
                 </th>
                 <th @click="toggleDetailSort('context_window')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#0071E3] transition-colors">
                   上下文 (Context) <span class="text-[10px] font-mono" :class="detailSortField === 'context_window' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('context_window') }}</span>
@@ -536,13 +559,21 @@
             <tbody class="divide-y divide-[#E5E5EA]/60 font-sans">
               <tr
                 v-for="item in filteredProviderModels"
-                :key="item.model_id"
+                :key="item.id || item.model_id"
                 class="hover:bg-[#F5F5F7] transition-colors"
               >
-                <!-- 模型名称与标准 ID -->
+                <!-- 模型名称、标准 ID 与所属分组徽章 -->
                 <td class="py-2.5 px-3">
-                  <div class="font-bold text-[#1D1D1F] text-xs">{{ item.model_name }}</div>
-                  <div class="text-[11px] text-[#0071E3] font-mono mt-0.5">{{ item.model_id }}</div>
+                  <div class="flex items-center space-x-2">
+                    <span class="font-bold text-[#1D1D1F] text-xs">{{ item.model_name }}</span>
+                    <span v-if="item.group_name" class="px-1.5 py-0.2 rounded bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[9px] font-mono font-bold shadow-2xs">
+                      🎯 {{ item.group_name }}
+                    </span>
+                  </div>
+                  <div class="flex items-center space-x-1.5 text-[11px] font-mono mt-0.5">
+                    <span class="text-[#0071E3]">{{ item.model_id }}</span>
+                    <span v-if="item.site_model_name && item.site_model_name !== item.model_id" class="text-[#86868B]">({{ item.site_model_name }})</span>
+                  </div>
                 </td>
 
                 <!-- 上下文 -->
@@ -611,6 +642,14 @@
                     >
                       <span>⚡</span>
                       <span>一键测速</span>
+                    </button>
+                    <button
+                      v-if="isCustomSite(selectedProvider)"
+                      @click="removeModelPricing(item); closeAllDropdowns()"
+                      class="w-full px-3 py-1.5 hover:bg-[#FDE8E8] flex items-center space-x-2 text-[#FF3B30] transition-colors border-t border-[#F2F2F7]"
+                    >
+                      <span>🗑️</span>
+                      <span>移除定价</span>
                     </button>
                   </div>
                 </td>
@@ -997,6 +1036,7 @@ const toggleSiteActive = async (site: RelaySite) => {
 const selectProvider = async (site: RelaySite) => {
   selectedProvider.value = site
   providerModelSearchQuery.value = ''
+  detailSelectedGroup.value = 'all'
   providerModelsList.value = []
   isDetailLoading.value = true
 
@@ -1010,6 +1050,31 @@ const selectProvider = async (site: RelaySite) => {
     )
   } finally {
     isDetailLoading.value = false
+  }
+}
+
+// 详情页多分组筛选支持
+const detailSelectedGroup = ref<string>('all')
+const detailAvailableGroups = computed(() => {
+  const map = new Map<string, number>()
+  for (const m of providerModelsList.value) {
+    if (m.group_name) {
+      map.set(m.group_name, (map.get(m.group_name) || 0) + 1)
+    }
+  }
+  return Array.from(map.entries()).map(([name, count]) => ({ name, count }))
+})
+
+// 详情页单条定价删除
+const removeModelPricing = async (item: any) => {
+  if (!confirm(`确定要将模型 "${item.model_name || item.model_id}" (${item.group_name ? `分组: ${item.group_name}` : '默认分组'}) 从该渠道中移除吗？`)) return
+  try {
+    await axios.delete(`${store.apiUrl}/api/v1/channels/${selectedProvider.value.id}/pricings/${item.id}`)
+    providerModelsList.value = providerModelsList.value.filter((m: any) => m.id !== item.id)
+    await store.fetchRelaySites()
+    await store.fetchComparisonMatrix()
+  } catch (e: any) {
+    alert(`移除失败: ${e.message}`)
   }
 }
 
@@ -1033,12 +1098,21 @@ const getDetailSortIndicator = (field: string) => {
 
 const filteredProviderModels = computed(() => {
   let list = [...providerModelsList.value]
+
+  // 1. 分组过滤
+  if (detailSelectedGroup.value !== 'all') {
+    list = list.filter((m: any) => m.group_name === detailSelectedGroup.value)
+  }
+
+  // 2. 搜索过滤
   if (providerModelSearchQuery.value.trim()) {
     const q = providerModelSearchQuery.value.toLowerCase().trim()
     list = list.filter(
-      (m) =>
+      (m: any) =>
         (m.model_name && m.model_name.toLowerCase().includes(q)) ||
-        (m.model_id && m.model_id.toLowerCase().includes(q))
+        (m.model_id && m.model_id.toLowerCase().includes(q)) ||
+        (m.site_model_name && m.site_model_name.toLowerCase().includes(q)) ||
+        (m.group_name && m.group_name.toLowerCase().includes(q))
     )
   }
 

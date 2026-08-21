@@ -39,6 +39,12 @@ async def init_db():
             await conn.exec_driver_sql("ALTER TABLE relay_sites ADD COLUMN currency VARCHAR(10) DEFAULT 'CNY';")
         except Exception:
             pass
+        try:
+            await conn.exec_driver_sql("PRAGMA foreign_keys=ON;")
+            await conn.exec_driver_sql("DELETE FROM site_model_pricings WHERE site_id NOT IN (SELECT id FROM relay_sites);")
+            await conn.exec_driver_sql("DELETE FROM channel_model_mappings WHERE site_id NOT IN (SELECT id FROM relay_sites);")
+        except Exception:
+            pass
 
 async def get_db():
     async with AsyncSessionLocal() as session:

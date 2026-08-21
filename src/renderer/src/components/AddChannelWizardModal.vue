@@ -520,6 +520,40 @@
             </div>
           </div>
 
+          <!-- 即将入库的模型定价清单预览 (所见即所得) -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-[#1D1D1F]">📋 即将收录入库的模型清单 (共 {{ selectedMappings.length }} 款)</span>
+              <span class="text-[11px] text-[#86868B]">仅选中的条目会写入数据库</span>
+            </div>
+            <div class="border border-[#E5E5EA] rounded-xl overflow-hidden max-h-[140px] overflow-y-auto">
+              <table class="w-full text-left border-collapse text-[11px]">
+                <thead class="bg-[#F2F2F7] text-[#6E6E73] sticky top-0 border-b border-[#E5E5EA]">
+                  <tr>
+                    <th class="py-1.5 px-3">渠道模型名</th>
+                    <th class="py-1.5 px-3">归属分组</th>
+                    <th class="py-1.5 px-3">映射标准模型</th>
+                    <th class="py-1.5 px-3 text-right">折算实际单价</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-[#E5E5EA]">
+                  <tr v-for="item in selectedMappings" :key="item.item_key" class="hover:bg-[#F9F9FB]">
+                    <td class="py-1.5 px-3 font-mono font-bold text-[#1D1D1F]">{{ item.channel_model_name }}</td>
+                    <td class="py-1.5 px-3">
+                      <span class="px-1.5 py-0.2 rounded bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[9px] font-mono font-bold">
+                        🎯 {{ item.group_name }}
+                      </span>
+                    </td>
+                    <td class="py-1.5 px-3 text-[#0071E3] font-mono">{{ item.standard_model_id }}</td>
+                    <td class="py-1.5 px-3 text-right font-mono font-bold text-[#137333]">
+                      {{ store.currency === 'USD' ? `$${item.input_price_usd.toFixed(3)}` : `¥${item.input_price_cny.toFixed(2)}` }} / 1M
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           <div class="space-y-2">
             <label class="block text-[#6E6E73] font-medium">全局默认模型倍率 (Default Model Ratio)</label>
             <div class="flex items-center space-x-3">
@@ -646,7 +680,8 @@ const selectedGroupFilters = ref<string[]>(['all'])
 
 const matchedMappingsCount = computed(() => filteredMappings.value.filter(m => m.is_matched).length)
 const unmatchedMappingsCount = computed(() => filteredMappings.value.filter(m => !m.is_matched).length)
-const selectedMappingsCount = computed(() => mappingsList.value.filter(m => m.is_selected && m.standard_model_id).length)
+const selectedMappings = computed(() => mappingsList.value.filter(m => m.is_selected && m.standard_model_id))
+const selectedMappingsCount = computed(() => selectedMappings.value.length)
 const hasSpecialPricingInMappings = computed(() => mappingsList.value.some(m => m.has_ratio_diff))
 
 function getGroupModelCount(gName: string) {
@@ -743,7 +778,20 @@ async function runProbe() {
     probeResult.selected_group = res.data.selected_group || (probeResult.available_groups[0]?.name || '')
     probeResult.error = res.data.error
 
-    mappingsList.value = res.data.mappings || []
+    const rawList = res.data.mappings || []
+    const defaultActiveGroup = probeResult.token_group || probeResult.selected_group || (probeResult.available_groups[0]?.name || '')
+    
+    // 精准收敛：仅将当前默认激活分组下的匹配模型初始设为 is_selected = true，其余分组模型全部设为 false
+    rawList.forEach((m: any) => {
+      if (defaultActiveGroup && m.group_name === defaultActiveGroup && m.standard_model_id) {
+        m.is_selected = true
+      } else if (!defaultActiveGroup && m.standard_model_id) {
+        m.is_selected = true
+      } else {
+        m.is_selected = false
+      }
+    })
+    mappingsList.value = rawList
 
     // 默认分组筛选器：优先绑定当前令牌所属分组，若无则默认选中目标分组
     if (probeResult.token_group) {
@@ -780,7 +828,9 @@ async function goNextStep() {
 
 function toggleSelectAll(val: boolean) {
   filteredMappings.value.forEach(m => {
-    m.is_selected = val
+    if (m.standard_model_id) {
+      m.is_selected = val
+    }
   })
 }
 

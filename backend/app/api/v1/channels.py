@@ -39,8 +39,11 @@ async def list_all_relay_channels():
 
 @router.get("/{site_id}/models")
 async def get_channel_models(site_id: int):
-    """高速查询指定供应商/渠道所提供的所有模型与实时定价列表"""
+    """高速查询指定供应商/渠道所提供的所有模型与实时定价列表 (支持多分组展示)"""
     async with AsyncSessionLocal() as session:
+        site_res = await session.execute(select(RelaySite).where(RelaySite.id == site_id))
+        site = site_res.scalar_one_or_none()
+
         stmt = (
             select(SiteModelPricing)
             .where(SiteModelPricing.site_id == site_id)
@@ -50,6 +53,7 @@ async def get_channel_models(site_id: int):
         res = await session.execute(stmt)
         pricings = res.scalars().all()
 
+        rate = 7.25
         result = []
         for p in pricings:
             m = p.model
@@ -57,18 +61,36 @@ async def get_channel_models(site_id: int):
                 "id": p.id,
                 "model_id": p.model_id,
                 "model_name": m.name if m else p.model_id,
+                "site_model_name": p.site_model_name or p.model_id,
+                "group_name": p.group_name or getattr(site, "group_name", "") or "",
+                "site_currency": getattr(site, "currency", "CNY") or "CNY",
                 "provider": m.provider if m else "other",
                 "series": m.series if m else "通用系列",
                 "context_window": m.context_window if m else 128000,
                 "max_output": m.max_output if m else 8192,
+                "model_ratio": p.model_ratio,
                 "calculated_input_usd": p.calculated_input_usd,
                 "calculated_output_usd": p.calculated_output_usd,
                 "calculated_cache_usd": p.calculated_cache_usd,
+                "calculated_input_cny": round(p.calculated_input_usd * rate, 2),
+                "calculated_output_cny": round(p.calculated_output_usd * rate, 2),
+                "calculated_cache_cny": round(p.calculated_cache_usd * rate, 3),
                 "discount_percent": p.discount_percent,
                 "last_tested_tps": p.last_tested_tps,
                 "is_available": p.is_available
             })
         return result
+
+@router.delete("/{site_id}/pricings/{pricing_id}")
+async def delete_channel_pricing(site_id: int, pricing_id: int, db: AsyncSession = Depends(get_db)):
+    """从指定渠道中移除某个模型的定价记录"""
+    stmt = delete(SiteModelPricing).where(
+        SiteModelPricing.site_id == site_id,
+        SiteModelPricing.id == pricing_id
+    )
+    await db.execute(stmt)
+    await db.commit()
+    return {"status": "success", "message": "已成功移除该模型定价"}
 
 @router.post("/probe", response_model=ChannelProbeResponse)
 async def probe_channel_and_models(payload: ChannelProbeRequest):
@@ -140,6 +162,10 @@ async def wizard_create_channel(payload: ChannelWizardCreateRequest, db: AsyncSe
     )
     db.add(site)
     await db.flush()
+
+    # 防卫性确保全新 site_id 下不存在历史残留孤立定价
+    await db.execute(delete(SiteModelPricing).where(SiteModelPricing.site_id == site.id))
+    await db.execute(delete(ChannelModelMapping).where(ChannelModelMapping.site_id == site.id))
 
     # 2. 遍历 mappings，写入 ChannelModelMapping 并生成 SiteModelPricing
     selected_items = [m for m in payload.mappings if m.is_selected and m.standard_model_id]
@@ -438,9 +464,10 @@ async def update_relay_channel(site_id: int, payload: RelaySiteUpdate, db: Async
 
 @router.delete("/{site_id}")
 async def delete_relay_channel(site_id: int, db: AsyncSession = Depends(get_db)):
-    """删除指定渠道"""
-    stmt = delete(RelaySite).where(RelaySite.id == site_id)
-    await db.execute(stmt)
+    """删除指定渠道及其所有关联定价、映射与测速记录"""
+    await db.execute(delete(SiteModelPricing).where(SiteModelPricing.site_id == site_id))
+    await db.execute(delete(ChannelModelMapping).where(ChannelModelMapping.site_id == site_id))
+    await db.execute(delete(RelaySite).where(RelaySite.id == site_id))
     await db.commit()
     return {"status": "deleted", "site_id": site_id}
 
