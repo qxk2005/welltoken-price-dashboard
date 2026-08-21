@@ -2,21 +2,21 @@
   <div class="h-full flex flex-col space-y-3 overflow-hidden select-none">
     <!-- ==================== 场景 A：供应商与渠道列表表格 ==================== -->
     <template v-if="!selectedProvider">
-      <!-- 顶部操作栏与精确分类筛选 (苹果高级灰白风格) -->
-      <div class="p-3.5 rounded-2xl bg-[#FFFFFF] border border-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex items-center justify-between">
-        <div class="flex items-center space-x-3">
-          <!-- 分类切换胶囊按钮组：全部 / 官方直连 / 中转站渠道 / 自添加网站 / 收藏夹 -->
-          <div class="flex items-center space-x-1 bg-[#F2F2F7] p-0.5 rounded-xl border border-[#E5E5EA]">
+      <!-- 顶部操作栏与精确分类筛选 (苹果高级灰白风格，言简意赅，防折行) -->
+      <div class="p-3 rounded-2xl bg-[#FFFFFF] border border-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex items-center justify-between flex-nowrap overflow-x-auto">
+        <div class="flex items-center space-x-2.5 flex-shrink-0">
+          <!-- 分类切换胶囊按钮组：全部 / 官方 / 中转 / 自建 / ⭐ 收藏 -->
+          <div class="flex items-center space-x-1 bg-[#F2F2F7] p-0.5 rounded-xl border border-[#E5E5EA] flex-shrink-0">
             <button
               v-for="tab in categoryTabs"
               :key="tab.id"
               @click="setCategory(tab.id)"
-              class="px-3 py-1.5 text-xs rounded-lg font-medium transition-all flex items-center space-x-1"
+              class="px-2.5 py-1 text-xs rounded-lg font-medium transition-all flex items-center space-x-1 whitespace-nowrap"
               :class="activeCategory === tab.id ? 'bg-[#0071E3] text-white font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
             >
               <span>{{ tab.name }}</span>
               <span
-                class="px-1.5 py-0.2 rounded-full text-[10px] font-mono ml-1"
+                class="px-1.5 py-0.2 rounded-full text-[10px] font-mono ml-0.5"
                 :class="activeCategory === tab.id ? 'bg-white/20 text-white' : 'bg-[#E5E5EA] text-[#6E6E73]'"
               >
                 {{ getCategoryCount(tab.id) }}
@@ -24,30 +24,32 @@
             </button>
           </div>
 
-          <!-- 供应商即时搜索框 -->
-          <div class="w-64 relative">
+          <!-- 供应商即时搜索框 (紧凑型) -->
+          <div class="w-48 relative flex-shrink-0">
             <input
               v-model="searchKey"
               type="text"
-              placeholder="搜索供应商/渠道 (如 Bailing, DeepSeek)..."
+              placeholder="搜索渠道/供应商..."
               class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-lg px-2.5 py-1 text-xs text-[#1D1D1F] placeholder-[#86868B] focus:outline-none transition-all font-sans"
             />
             <span v-if="searchKey" @click="searchKey = ''" class="absolute right-2 top-1 text-[#86868B] hover:text-[#1D1D1F] cursor-pointer text-xs">✕</span>
           </div>
         </div>
 
-        <div class="flex items-center space-x-2">
+        <!-- 右侧精简化操作按钮组 -->
+        <div class="flex items-center space-x-2 flex-shrink-0 pl-2">
           <button
             @click="store.triggerFullSync"
-            class="text-xs px-3.5 py-1.5 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#0071E3] border border-[#E5E5EA] font-medium transition-all flex items-center space-x-1"
+            class="text-xs px-3 py-1.5 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#0071E3] border border-[#E5E5EA] font-medium transition-all flex items-center space-x-1 whitespace-nowrap"
+            title="从 models.dev 官方数据库同步最新供应商与渠道"
           >
-            <span>🔄 从 models.dev 重新拉取供应商</span>
+            <span>🔄 同步官方库</span>
           </button>
           <button
             @click="openAddModal"
-            class="text-xs px-3.5 py-1.5 rounded-lg bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] text-white font-medium shadow-sm transition-all flex items-center space-x-1"
+            class="text-xs px-3 py-1.5 rounded-lg bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] text-white font-medium shadow-sm transition-all flex items-center space-x-1 whitespace-nowrap"
           >
-            <span>+ 添加自建 NewAPI/Sub2API 渠道</span>
+            <span>+ 添加自建渠道</span>
           </button>
         </div>
       </div>
@@ -714,13 +716,13 @@ const isRelayChannel = (site: RelaySite): boolean => {
   return !isOfficialDirect(site) && !isCustomSite(site)
 }
 
-// 业务四大分类 Tab + 收藏夹
+// 业务四大分类 Tab + 收藏夹 (言简意赅，防折行)
 const categoryTabs = [
-  { id: 'all', name: '全部渠道' },
-  { id: 'official', name: '官方直连' },
-  { id: 'relay', name: '中转站渠道' },
-  { id: 'custom', name: '自添加网站' },
-  { id: 'favorites', name: '⭐ 收藏夹' }
+  { id: 'all', name: '全部' },
+  { id: 'official', name: '官方' },
+  { id: 'relay', name: '中转' },
+  { id: 'custom', name: '自建' },
+  { id: 'favorites', name: '⭐ 收藏' }
 ]
 
 const setCategory = (catId: string) => {
