@@ -1,18 +1,24 @@
 <template>
   <div class="h-full flex flex-col space-y-3 overflow-hidden select-none">
-    <!-- 顶部操作栏与分类筛选 (苹果高级灰白风格) -->
+    <!-- 顶部操作栏与精确分类筛选 (苹果高级灰白风格) -->
     <div class="p-3.5 rounded-2xl bg-[#FFFFFF] border border-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex items-center justify-between">
       <div class="flex items-center space-x-3">
-        <!-- 分类切换胶囊按钮组 -->
+        <!-- 分类切换胶囊按钮组：官方直连 / 中转站渠道 / 自添加网站 / 收藏夹 -->
         <div class="flex items-center space-x-1 bg-[#F2F2F7] p-0.5 rounded-xl border border-[#E5E5EA]">
           <button
             v-for="tab in categoryTabs"
             :key="tab.id"
             @click="setCategory(tab.id)"
-            class="px-3 py-1 text-xs rounded-lg font-medium transition-all"
+            class="px-3 py-1.5 text-xs rounded-lg font-medium transition-all flex items-center space-x-1"
             :class="activeCategory === tab.id ? 'bg-[#0071E3] text-white font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
           >
-            {{ tab.name }} ({{ getCategoryCount(tab.id) }})
+            <span>{{ tab.name }}</span>
+            <span
+              class="px-1.5 py-0.2 rounded-full text-[10px] font-mono ml-1"
+              :class="activeCategory === tab.id ? 'bg-white/20 text-white' : 'bg-[#E5E5EA] text-[#6E6E73]'"
+            >
+              {{ getCategoryCount(tab.id) }}
+            </span>
           </button>
         </div>
 
@@ -21,7 +27,7 @@
           <input
             v-model="searchKey"
             type="text"
-            placeholder="搜索供应商/渠道 (如 Cloudflare, Groq)..."
+            placeholder="搜索供应商/渠道 (如 DeepSeek, OpenRouter)..."
             class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-lg px-2.5 py-1 text-xs text-[#1D1D1F] placeholder-[#86868B] focus:outline-none transition-all font-sans"
           />
           <span v-if="searchKey" @click="searchKey = ''" class="absolute right-2 top-1 text-[#86868B] hover:text-[#1D1D1F] cursor-pointer text-xs">✕</span>
@@ -44,20 +50,21 @@
       </div>
     </div>
 
-    <!-- 供应商与渠道列表式表格 (Data Table + 分页，高信息密度与对齐排版) -->
+    <!-- 供应商与渠道列表式表格 (Data Table + 收藏夹星标 + 分页，高信息密度排版) -->
     <div class="flex-1 flex flex-col bg-[#FFFFFF] rounded-2xl border border-[#E5E5EA] p-3 shadow-[0_1px_3px_rgba(0,0,0,0.02)] overflow-hidden min-h-0">
       <!-- 表格滚动区 -->
       <div class="flex-1 overflow-x-auto overflow-y-auto pr-1">
-        <table class="w-full text-left text-xs border-collapse min-w-[1020px]">
+        <table class="w-full text-left text-xs border-collapse min-w-[1060px]">
           <!-- 表头 (支持点击排序) -->
           <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans select-none">
             <tr>
+              <th class="py-2.5 px-2 text-center w-10">收藏</th>
               <th @click="toggleSort('name')" class="py-2.5 px-3 cursor-pointer hover:text-[#1D1D1F] transition-colors">
                 供应商 / 渠道名称 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('name') }}</span>
               </th>
-              <th class="py-2.5 px-3 text-center">渠道性质</th>
+              <th class="py-2.5 px-3 text-center">渠道分类</th>
               <th @click="toggleSort('model_count')" class="py-2.5 px-3 text-center cursor-pointer hover:text-[#1D1D1F] transition-colors">
-                提供模型数 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('model_count') }}</span>
+                收录模型数 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('model_count') }}</span>
               </th>
               <th class="py-2.5 px-3">API 基础端点 (Base URL)</th>
               <th class="py-2.5 px-3">环境变量标识</th>
@@ -79,6 +86,18 @@
               :key="site.id"
               class="hover:bg-[#F5F5F7] transition-colors group"
             >
+              <!-- 0. 收藏星标按钮 -->
+              <td class="py-2.5 px-2 text-center">
+                <button
+                  @click="store.toggleFavoriteSite(site.id)"
+                  class="text-base transition-transform hover:scale-125 focus:outline-none"
+                  :title="store.isSiteFavorite(site.id) ? '点击取消收藏' : '点击加入收藏夹'"
+                >
+                  <span v-if="store.isSiteFavorite(site.id)" class="text-[#FF9500]">⭐</span>
+                  <span v-else class="text-[#AEAEB2] hover:text-[#FF9500]">☆</span>
+                </button>
+              </td>
+
               <!-- 1. 供应商名称、Logo 缩写与 ID -->
               <td class="py-2.5 px-3">
                 <div class="flex items-center space-x-2.5">
@@ -91,7 +110,7 @@
                       <span
                         v-if="site.is_official_catalog"
                         class="px-1.5 py-0.2 rounded bg-[#E8F2FD] text-[#0071E3] text-[9px] font-mono border border-[#CCE4FB] font-medium"
-                        title="models.dev 官方标准供应商"
+                        title="models.dev 官方收录供应商"
                       >
                         MODELS.DEV
                       </span>
@@ -103,7 +122,7 @@
                 </div>
               </td>
 
-              <!-- 2. 渠道性质分类 -->
+              <!-- 2. 渠道分类 (官方直连 / 中转站渠道 / 自添加网站) -->
               <td class="py-2.5 px-3 text-center">
                 <span
                   class="px-2 py-0.5 rounded-md text-[10.5px] font-medium border"
@@ -113,12 +132,12 @@
                 </span>
               </td>
 
-              <!-- 3. 提供模型总数 -->
+              <!-- 3. 收录模型总数 -->
               <td class="py-2.5 px-3 text-center">
                 <span
                   @click="goToMatrixWithSite(site.id)"
                   class="px-2 py-0.5 rounded-full bg-[#E6F4EA] text-[#137333] border border-[#CEEAD6] font-mono font-bold text-xs cursor-pointer hover:bg-[#CEEAD6] transition-colors"
-                  title="点击全网比价查看该渠道所有模型报价"
+                  title="点击进入全网比价查看该渠道所有模型报价"
                 >
                   {{ site.model_count || 12 }} 款
                 </span>
@@ -197,14 +216,14 @@
                   [文档]
                 </a>
                 <button
-                  v-if="!site.is_official_catalog"
+                  v-if="isCustomSite(site)"
                   @click="openEditModal(site)"
                   class="text-[#FF9500] hover:underline mr-2 font-medium"
                 >
                   [编辑]
                 </button>
                 <button
-                  v-if="!site.is_official_catalog"
+                  v-if="isCustomSite(site)"
                   @click="deleteSite(site.id)"
                   class="text-[#FF3B30] hover:underline font-medium"
                 >
@@ -214,8 +233,13 @@
             </tr>
 
             <tr v-if="paginatedSites.length === 0">
-              <td colspan="9" class="py-12 text-center text-xs text-[#86868B]">
-                无匹配的供应商与渠道记录
+              <td colspan="10" class="py-12 text-center text-xs text-[#86868B]">
+                <div v-if="activeCategory === 'favorites'">
+                  ⭐ 暂无收藏的渠道，点击列表左侧的星标即可快速加入收藏夹！
+                </div>
+                <div v-else>
+                  无匹配的供应商与渠道记录
+                </div>
               </td>
             </tr>
           </tbody>
@@ -227,9 +251,9 @@
         <!-- 左侧：总数与每页条数选择器 -->
         <div class="flex items-center space-x-3">
           <span>
-            显示第 <strong class="text-[#1D1D1F] font-mono">{{ startIndex + 1 }}</strong> -
+            显示第 <strong class="text-[#1D1D1F] font-mono">{{ totalItems > 0 ? startIndex + 1 : 0 }}</strong> -
             <strong class="text-[#1D1D1F] font-mono">{{ Math.min(startIndex + pageSize, totalItems) }}</strong> 条，
-            共 <strong class="text-[#0071E3] font-mono">{{ totalItems }}</strong> 家供应商与渠道
+            共 <strong class="text-[#0071E3] font-mono">{{ totalItems }}</strong> 家渠道
           </span>
 
           <div class="flex items-center space-x-1.5">
@@ -300,7 +324,7 @@
       </div>
     </div>
 
-    <!-- 弹窗：添加 / 编辑渠道 Modal (苹果灰白质感弹窗) -->
+    <!-- 弹窗：添加 / 编辑自建渠道 Modal (苹果灰白质感弹窗) -->
     <div
       v-if="showModal"
       class="fixed inset-0 bg-black/30 backdrop-blur-xs flex items-center justify-center z-50 animate-fade-in"
@@ -308,14 +332,14 @@
       <div class="bg-[#FFFFFF] border border-[#E5E5EA] rounded-2xl w-[520px] p-6 space-y-4 shadow-[0_20px_50px_rgba(0,0,0,0.15)]">
         <div class="flex items-center justify-between border-b border-[#E5E5EA] pb-3">
           <h3 class="font-bold text-sm text-[#1D1D1F]">
-            {{ isEditing ? '✏️ 编辑自建渠道配置' : '➕ 添加自建 NewAPI / OneAPI / Sub2API 渠道' }}
+            {{ isEditing ? '✏️ 编辑自添加网站配置' : '➕ 添加自建 NewAPI / OneAPI / Sub2API 中转站' }}
           </h3>
           <button @click="showModal = false" class="text-[#86868B] hover:text-[#1D1D1F] text-sm">✕</button>
         </div>
 
         <div class="space-y-3 text-xs">
           <div>
-            <label class="block text-[#6E6E73] font-medium mb-1">渠道名称 (Name) *</label>
+            <label class="block text-[#6E6E73] font-medium mb-1">站点名称 (Name) *</label>
             <input
               v-model="form.name"
               type="text"
@@ -325,7 +349,7 @@
           </div>
 
           <div>
-            <label class="block text-[#6E6E73] font-medium mb-1">API 基础地址 (Base URL) *</label>
+            <label class="block text-[#6E6E73] font-medium mb-1">API 基础端点地址 (Base URL) *</label>
             <input
               v-model="form.base_url"
               type="text"
@@ -343,8 +367,7 @@
               >
                 <option value="newapi">NewAPI / OneAPI 系统</option>
                 <option value="sub2api">Sub2API 系统</option>
-                <option value="cloud">云服务商 (Cloud Platform)</option>
-                <option value="official">官方直连渠道 (Official)</option>
+                <option value="custom">通用自建中转站</option>
               </select>
             </div>
 
@@ -361,7 +384,7 @@
           </div>
 
           <div>
-            <label class="block text-[#6E6E73] font-medium mb-1">中转站 API Key (用于测速与模型探测)</label>
+            <label class="block text-[#6E6E73] font-medium mb-1">中转站 API Key (用于流式测速与有效性验证)</label>
             <input
               v-model="form.api_key"
               type="password"
@@ -420,11 +443,60 @@ const form = ref({
   api_key: ''
 })
 
+// 官方直连厂商 ID 权威集合 (对应所有大模型官方 API 提供商)
+const officialLabProviders = new Set([
+  'openai',
+  'anthropic',
+  'deepseek',
+  'google',
+  'alibaba',
+  'moonshotai',
+  'zhipuai',
+  'meta',
+  'mistral',
+  'nvidia',
+  'cohere',
+  'xai',
+  'minimax',
+  'tencent',
+  'bytedance',
+  'bytedance-seed',
+  'stepfun',
+  'baichuan',
+  'xiaomi',
+  'microsoft',
+  'ibm',
+  'perplexity',
+  'upstage',
+  'aisingapore',
+  'meituan'
+])
+
+// 判定是否属于官方直连 (大模型官方第一手 API 站点)
+const isOfficialDirect = (site: RelaySite): boolean => {
+  if (!site.is_official_catalog) return false
+  const p = (site.provider_id || '').toLowerCase()
+  const n = site.name.toLowerCase()
+  return officialLabProviders.has(p) || officialLabProviders.has(n) || site.site_type === 'official'
+}
+
+// 判定是否属于自添加网站 (用户手动添加的自建 NewAPI / OneAPI / Sub2API 站点)
+const isCustomSite = (site: RelaySite): boolean => {
+  return !site.is_official_catalog || site.site_type === 'newapi' || site.site_type === 'sub2api' || site.site_type === 'custom'
+}
+
+// 判定是否属于中转站渠道 (非官方第一手的 API 网站与云端第三方聚合服务商)
+const isRelayChannel = (site: RelaySite): boolean => {
+  return !isOfficialDirect(site) && !isCustomSite(site)
+}
+
+// 业务四大分类 Tab + 收藏夹
 const categoryTabs = [
-  { id: 'all', name: '全部供应商' },
+  { id: 'all', name: '全部渠道' },
   { id: 'official', name: '官方直连' },
-  { id: 'cloud', name: '知名云厂商' },
-  { id: 'relay', name: '聚合中转站' }
+  { id: 'relay', name: '中转站渠道' },
+  { id: 'custom', name: '自添加网站' },
+  { id: 'favorites', name: '⭐ 收藏夹' }
 ]
 
 const setCategory = (catId: string) => {
@@ -434,41 +506,41 @@ const setCategory = (catId: string) => {
 
 const getCategoryCount = (catId: string) => {
   if (catId === 'all') return store.relaySites.length
-  return store.relaySites.filter((s) => {
-    if (catId === 'official') return s.is_official_catalog && s.site_type === 'official'
-    if (catId === 'cloud') return s.site_type === 'cloud'
-    return s.site_type === 'newapi' || s.site_type === 'sub2api' || !s.is_official_catalog
-  }).length
+  if (catId === 'official') return store.relaySites.filter(isOfficialDirect).length
+  if (catId === 'relay') return store.relaySites.filter(isRelayChannel).length
+  if (catId === 'custom') return store.relaySites.filter(isCustomSite).length
+  if (catId === 'favorites') return store.relaySites.filter((s) => store.isSiteFavorite(s.id)).length
+  return 0
 }
 
 const getCategoryLabel = (site: RelaySite) => {
-  if (site.is_official_catalog && site.site_type === 'official') return '官方直连'
-  if (site.site_type === 'cloud') return '云厂商'
-  if (site.site_type === 'newapi') return 'NewAPI'
-  if (site.site_type === 'sub2api') return 'Sub2API'
-  return '聚合中转'
+  if (isOfficialDirect(site)) return '官方直连'
+  if (isCustomSite(site)) return '自添加网站'
+  return '中转站渠道'
 }
 
 const getCategoryBadgeClass = (site: RelaySite) => {
-  if (site.is_official_catalog && site.site_type === 'official') {
+  if (isOfficialDirect(site)) {
     return 'bg-[#E8F2FD] text-[#0071E3] border-[#CCE4FB]'
   }
-  if (site.site_type === 'cloud') {
-    return 'bg-[#F3E8FF] text-[#9333EA] border-[#E9D5FF]'
+  if (isCustomSite(site)) {
+    return 'bg-[#E6F4EA] text-[#137333] border-[#CEEAD6]'
   }
-  return 'bg-[#FFF8E1] text-[#B78103] border-[#FFE082]'
+  return 'bg-[#F3E8FF] text-[#9333EA] border-[#E9D5FF]'
 }
 
 // 过滤与排序
 const filteredAndSortedSites = computed(() => {
   let list = [...store.relaySites]
 
-  if (activeCategory.value !== 'all') {
-    list = list.filter((s) => {
-      if (activeCategory.value === 'official') return s.is_official_catalog && s.site_type === 'official'
-      if (activeCategory.value === 'cloud') return s.site_type === 'cloud'
-      return s.site_type === 'newapi' || s.site_type === 'sub2api' || !s.is_official_catalog
-    })
+  if (activeCategory.value === 'official') {
+    list = list.filter(isOfficialDirect)
+  } else if (activeCategory.value === 'relay') {
+    list = list.filter(isRelayChannel)
+  } else if (activeCategory.value === 'custom') {
+    list = list.filter(isCustomSite)
+  } else if (activeCategory.value === 'favorites') {
+    list = list.filter((s) => store.isSiteFavorite(s.id))
   }
 
   if (searchKey.value.trim()) {
@@ -611,7 +683,7 @@ const saveChannel = async () => {
 }
 
 const deleteSite = async (siteId: number) => {
-  if (!confirm('确定要删除该渠道吗？')) return
+  if (!confirm('确定要删除该自添加网站吗？')) return
   try {
     await axios.delete(`${store.apiUrl}/api/v1/channels/${siteId}`)
     await store.fetchRelaySites()

@@ -6,7 +6,8 @@ import type {
   ModelMetadata,
   SpeedTestResult,
   SpeedTestStreamEvent,
-  SyncStatus
+  SyncStatus,
+  SyncLog
 } from '../types'
 
 export const useDashboardStore = defineStore('dashboard', {
@@ -18,6 +19,10 @@ export const useDashboardStore = defineStore('dashboard', {
     searchQuery: '',
     selectedProvider: 'all',
     selectedModelId: 'all',
+    selectedSiteId: null as number | null,
+    
+    // 收藏夹渠道 ID 集合 (持久化至 localStorage)
+    favoriteSiteIds: JSON.parse(localStorage.getItem('welltoken_fav_sites') || '[]') as number[],
     
     // 数据集合
     comparisonMatrix: [] as ComparisonItem[],
@@ -63,10 +68,26 @@ export const useDashboardStore = defineStore('dashboard', {
     },
     activeSites(state): RelaySite[] {
       return state.relaySites.filter((s) => s.is_active)
+    },
+    favoriteSites(state): RelaySite[] {
+      return state.relaySites.filter((s) => state.favoriteSiteIds.includes(s.id))
     }
   },
 
   actions: {
+    isSiteFavorite(siteId: number): boolean {
+      return this.favoriteSiteIds.includes(siteId)
+    },
+
+    toggleFavoriteSite(siteId: number) {
+      if (this.favoriteSiteIds.includes(siteId)) {
+        this.favoriteSiteIds = this.favoriteSiteIds.filter((id) => id !== siteId)
+      } else {
+        this.favoriteSiteIds.push(siteId)
+      }
+      localStorage.setItem('welltoken_fav_sites', JSON.stringify(this.favoriteSiteIds))
+    },
+
     async init() {
       if (window.api?.getBackendConfig) {
         try {

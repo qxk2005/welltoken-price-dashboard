@@ -2,7 +2,7 @@
   <div class="h-full flex flex-col space-y-2.5 overflow-hidden select-none">
     <!-- 顶部四级联动多维筛选栏 (苹果灰白卡片) -->
     <div class="p-3 rounded-2xl bg-[#FFFFFF] border border-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-2">
-      <!-- 第一行：四大维度可搜索多选下拉 -->
+      <!-- 第一行：四大维度可搜索多选下拉 + 收藏快捷切换 -->
       <div class="flex items-center justify-between flex-wrap gap-2">
         <div class="flex items-center flex-wrap gap-2">
           <!-- 1. 模型厂商多选 -->
@@ -36,6 +36,16 @@
             :options="siteOptions"
             v-model="selectedSites"
           />
+
+          <!-- 5. 仅看已收藏渠道快捷胶囊 -->
+          <button
+            @click="toggleOnlyFavorites"
+            class="px-3 py-1.5 rounded-xl border text-xs font-medium transition-all flex items-center space-x-1"
+            :class="onlyFavorites ? 'bg-[#FFF8E1] border-[#FFE082] text-[#B78103] font-bold shadow-xs' : 'bg-[#F2F2F7] border-[#E5E5EA] text-[#6E6E73] hover:text-[#1D1D1F]'"
+          >
+            <span>{{ onlyFavorites ? '⭐ 已开启仅看收藏' : '☆ 仅看已收藏渠道' }}</span>
+            <span v-if="store.favoriteSiteIds.length > 0" class="text-[10px] font-mono opacity-80">({{ store.favoriteSiteIds.length }})</span>
+          </button>
         </div>
 
         <!-- 右侧：快捷操作与匹配统计 -->
@@ -44,7 +54,7 @@
             全网匹配: <strong class="text-[#0071E3] font-mono font-bold">{{ totalRecords }}</strong> 条报价
           </span>
           <button
-            v-if="hasAnyFilter"
+            v-if="hasAnyFilter || onlyFavorites"
             @click="resetAllFilters"
             class="px-2.5 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#FFE5E5] text-[#6E6E73] hover:text-[#FF3B30] border border-[#E5E5EA] transition-all text-xs"
           >
@@ -54,8 +64,17 @@
       </div>
 
       <!-- 第二行：已选标签 Chips 展示条 (如果有选择) -->
-      <div v-if="hasAnyFilter" class="flex items-center flex-wrap gap-1.5 pt-1.5 border-t border-[#E5E5EA] text-xs">
+      <div v-if="hasAnyFilter || onlyFavorites" class="flex items-center flex-wrap gap-1.5 pt-1.5 border-t border-[#E5E5EA] text-xs">
         <span class="text-[11px] text-[#86868B] font-medium">当前筛选:</span>
+
+        <!-- 收藏状态 Chip -->
+        <span
+          v-if="onlyFavorites"
+          class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-[#FFF8E1] border border-[#FFE082] text-[#B78103] text-[11px] font-medium"
+        >
+          <span>⭐ 仅看已收藏渠道</span>
+          <button @click="onlyFavorites = false" class="hover:text-[#8C6300] ml-0.5">✕</button>
+        </span>
 
         <!-- 厂商 Chips -->
         <span
@@ -142,8 +161,16 @@
             <span class="font-bold text-[#0071E3] font-mono truncate text-xs" :title="row.model_id">{{ row.model_id }}</span>
           </div>
 
-          <!-- 渠道站点 -->
+          <!-- 渠道站点与收藏星标 -->
           <div class="col-span-2 flex items-center space-x-1.5 truncate">
+            <button
+              @click.stop="toggleFavoriteByName(row.site_name)"
+              class="text-xs transition-transform hover:scale-125 focus:outline-none"
+              :title="isSiteNameFavorite(row.site_name) ? '点击取消收藏' : '点击收藏该渠道'"
+            >
+              <span v-if="isSiteNameFavorite(row.site_name)" class="text-[#FF9500]">⭐</span>
+              <span v-else class="text-[#AEAEB2] hover:text-[#FF9500]">☆</span>
+            </button>
             <span class="font-semibold text-[#1D1D1F] truncate text-xs" :title="row.site_name">{{ row.site_name }}</span>
           </div>
 
@@ -288,6 +315,7 @@ const selectedProviders = ref<string[]>([])
 const selectedSeries = ref<string[]>([])
 const selectedModels = ref<string[]>([])
 const selectedSites = ref<string[]>([])
+const onlyFavorites = ref(false)
 
 // 筛选候选项数据
 const providerOptions = ref<FilterOption[]>([])
@@ -324,50 +352,90 @@ const fetchFilterOptions = async () => {
   }
 }
 
-// 核心高性能分页拉取方法 (毫秒级响应)
-const fetchPaginatedData = async () => {
+// 异步分页拉取比价数据
+const fetchPaginatedMatrix = async () => {
   isLoading.value = true
   try {
+    let effectiveSites = [...selectedSites.value]
+    if (onlyFavorites.value) {
+      const favNames = store.favoriteSites.map((s) => s.name)
+      if (favNames.length > 0) {
+        effectiveSites = effectiveSites.length > 0 ? effectiveSites.filter((n) => favNames.includes(n)) : favNames
+      } else {
+        effectiveSites = ['__NONE__']
+      }
+    }
+
     const params: any = {
       page: currentPage.value,
       page_size: pageSize.value
     }
     if (selectedProviders.value.length > 0) params.provider = selectedProviders.value
     if (selectedSeries.value.length > 0) params.series = selectedSeries.value
-    if (selectedModels.value.length > 0) params.model = selectedModels.value
-    if (selectedSites.value.length > 0) params.site = selectedSites.value
-    if (store.searchQuery.trim()) params.search = store.searchQuery.trim()
+    if (selectedModels.value.length > 0) params.model_id = selectedModels.value
+    if (effectiveSites.length > 0) params.site_name = effectiveSites
 
     const res = await axios.get(`${store.apiUrl}/api/v1/comparison/paginated`, { params })
-    pagedItems.value = res.data.items
-    totalRecords.value = res.data.total
-    totalPages.value = res.data.total_pages
-    currentPage.value = res.data.page
+    pagedItems.value = res.data.items || []
+    totalRecords.value = res.data.total || 0
+    totalPages.value = res.data.pages || 1
+    currentPage.value = res.data.page || 1
 
     if (pagedItems.value.length > 0 && !selectedRow.value) {
       selectedRow.value = pagedItems.value[0]
     }
     updateScatterChart()
   } catch (e) {
-    console.error('Fetch paginated data failed:', e)
+    console.error('Fetch paginated matrix failed:', e)
   } finally {
     isLoading.value = false
   }
 }
 
-const changePage = (p: number) => {
-  if (p < 1 || p > totalPages.value) return
-  currentPage.value = p
-  fetchPaginatedData()
+const toggleOnlyFavorites = () => {
+  onlyFavorites.value = !onlyFavorites.value
+  currentPage.value = 1
+  fetchPaginatedMatrix()
 }
 
-// 计算当前页码周围可见的页码数字
+const isSiteNameFavorite = (siteName: string): boolean => {
+  const site = store.relaySites.find((s) => s.name === siteName)
+  return site ? store.isSiteFavorite(site.id) : false
+}
+
+const toggleFavoriteByName = (siteName: string) => {
+  const site = store.relaySites.find((s) => s.name === siteName)
+  if (site) {
+    store.toggleFavoriteSite(site.id)
+  }
+}
+
+// 监听筛选条件变化
+watch([selectedProviders, selectedSeries, selectedModels, selectedSites, pageSize], () => {
+  currentPage.value = 1
+  fetchFilterOptions()
+  fetchPaginatedMatrix()
+})
+
+const changePage = (page: number) => {
+  if (page < 1 || page > totalPages.value) return
+  currentPage.value = page
+  fetchPaginatedMatrix()
+}
+
 const visiblePages = computed(() => {
-  const cur = currentPage.value
-  const total = totalPages.value
   const pages: number[] = []
-  const start = Math.max(1, cur - 2)
-  const end = Math.min(total, cur + 2)
+  const max = totalPages.value
+  const cur = currentPage.value
+
+  let start = Math.max(1, cur - 2)
+  let end = Math.min(max, cur + 2)
+
+  if (end - start < 4) {
+    if (start === 1) end = Math.min(max, start + 4)
+    else if (end === max) start = Math.max(1, end - 4)
+  }
+
   for (let i = start; i <= end; i++) {
     pages.push(i)
   }
@@ -383,45 +451,31 @@ const hasAnyFilter = computed(() => {
   )
 })
 
-const removeProvider = (p: string) => {
-  selectedProviders.value = selectedProviders.value.filter((x) => x !== p)
-}
-
-const removeSeries = (s: string) => {
-  selectedSeries.value = selectedSeries.value.filter((x) => x !== s)
-}
-
-const removeModel = (m: string) => {
-  selectedModels.value = selectedModels.value.filter((x) => x !== m)
-}
-
-const removeSite = (st: string) => {
-  selectedSites.value = selectedSites.value.filter((x) => x !== st)
-}
-
 const resetAllFilters = () => {
   selectedProviders.value = []
   selectedSeries.value = []
   selectedModels.value = []
   selectedSites.value = []
-  store.searchQuery = ''
+  onlyFavorites.value = false
   currentPage.value = 1
-  fetchPaginatedData()
+  fetchFilterOptions()
+  fetchPaginatedMatrix()
 }
 
-const formatPrice = (usd: number, cny: number) => {
-  if (store.currency === 'CNY') {
-    return `￥${cny.toFixed(3)}`
-  }
-  return `$${usd >= 1 ? usd.toFixed(2) : usd.toFixed(3)}`
+const removeProvider = (p: string) => {
+  selectedProviders.value = selectedProviders.value.filter((item) => item !== p)
 }
 
-const getTypeBadgeClass = (type: string) => {
-  if (type === 'official') return 'bg-[#F2F2F7] text-[#1D1D1F] border border-[#E5E5EA]'
-  if (type === 'cloud') return 'bg-[#E8F2FD] text-[#0071E3] border border-[#CCE4FB]'
-  if (type === 'newapi') return 'bg-[#E6F4EA] text-[#137333] border border-[#CEEAD6]'
-  if (type === 'sub2api') return 'bg-[#F3E8FF] text-[#9333EA] border border-[#E9D5FF]'
-  return 'bg-[#F2F2F7] text-[#1D1D1F]'
+const removeSeries = (s: string) => {
+  selectedSeries.value = selectedSeries.value.filter((item) => item !== s)
+}
+
+const removeModel = (m: string) => {
+  selectedModels.value = selectedModels.value.filter((item) => item !== m)
+}
+
+const removeSite = (st: string) => {
+  selectedSites.value = selectedSites.value.filter((item) => item !== st)
 }
 
 const selectRow = (row: ComparisonItem) => {
@@ -429,91 +483,105 @@ const selectRow = (row: ComparisonItem) => {
   updateScatterChart()
 }
 
+const formatPrice = (usd: number, cny: number) => {
+  if (store.currency === 'USD') {
+    return `$${usd.toFixed(3)}`
+  }
+  return `¥${cny.toFixed(3)}`
+}
+
+const getTypeBadgeClass = (type: string) => {
+  if (type === 'official') return 'bg-[#E8F2FD] text-[#0071E3] border border-[#CCE4FB]'
+  if (type === 'cloud') return 'bg-[#F3E8FF] text-[#9333EA] border border-[#E9D5FF]'
+  if (type === 'newapi') return 'bg-[#E6F4EA] text-[#137333] border border-[#CEEAD6]'
+  return 'bg-[#FFF8E1] text-[#B78103] border border-[#FFE082]'
+}
+
 const activeScatterModelId = computed(() => {
-  if (selectedRow.value) return selectedRow.value.model_id
-  if (selectedModels.value.length === 1) return selectedModels.value[0]
-  if (pagedItems.value.length > 0) return pagedItems.value[0].model_id
-  return 'deepseek/deepseek-v4-flash'
+  return selectedRow.value?.model_id || (pagedItems.value.length > 0 ? pagedItems.value[0].model_id : 'deepseek-v3')
 })
 
-const initChart = () => {
+const initScatterChart = () => {
   if (!scatterChartRef.value) return
-  chartInstance = echarts.init(scatterChartRef.value, undefined, { renderer: 'canvas' })
+  chartInstance = echarts.init(scatterChartRef.value)
   updateScatterChart()
 }
 
 const updateScatterChart = () => {
   if (!chartInstance) return
-  const currentModelId = activeScatterModelId.value
-  const items = pagedItems.value.filter((item) => item.model_id === currentModelId)
-  const displayItems = items.length > 0 ? items : pagedItems.value.slice(0, 15)
 
-  const data = displayItems.map((item) => [
-    item.calculated_input_usd,
-    item.last_tested_tps,
+  const targetModelId = activeScatterModelId.value
+  const targetItems = pagedItems.value.filter((item) => item.model_id === targetModelId)
+
+  const data = targetItems.map((item) => [
+    store.currency === 'USD' ? item.calculated_input_usd : item.calculated_input_cny,
+    item.last_tested_tps || 50,
     item.site_name,
-    item.discount_percent,
-    item.site_type
+    item.model_ratio
   ])
 
   const option: echarts.EChartsOption = {
     backgroundColor: 'transparent',
+    grid: {
+      left: 50,
+      right: 30,
+      top: 15,
+      bottom: 25
+    },
     tooltip: {
       backgroundColor: '#FFFFFF',
       borderColor: '#E5E5EA',
       textStyle: { color: '#1D1D1F', fontSize: 11 },
-      extraCssText: 'box-shadow: 0 4px 16px rgba(0,0,0,0.08); border-radius: 8px;',
       formatter: (params: any) => {
-        const val = params.value
-        return `<strong>${val[2]}</strong> (${val[4]})<br/>输入单价: $${val[0]}/1M<br/>实测 TPS: ${val[1]} tps<br/>折扣: ${val[3]}%`
+        const d = params.data
+        return `
+          <div class="font-sans font-bold text-[#1D1D1F]">${d[2]}</div>
+          <div class="text-[#6E6E73] text-[10px]">输入价格: <strong class="text-[#34C759]">${store.currency === 'USD' ? '$' : '¥'}${d[0]}</strong></div>
+          <div class="text-[#6E6E73] text-[10px]">实测速率: <strong class="text-[#0071E3]">${d[1]} TPS</strong></div>
+        `
       }
     },
-    grid: { left: '4%', right: '4%', top: '15%', bottom: '18%' },
     xAxis: {
-      name: '输入单价 ($/1M)',
-      nameLocation: 'end',
       type: 'value',
-      scale: true,
-      splitLine: { lineStyle: { color: '#F2F2F7', type: 'solid' } },
-      axisLabel: { color: '#86868B', fontSize: 10 }
+      name: `价格 (${store.currency})`,
+      nameLocation: 'end',
+      nameTextStyle: { color: '#86868B', fontSize: 10 },
+      splitLine: { lineStyle: { color: '#E5E5EA', type: 'dashed' } },
+      axisLine: { lineStyle: { color: '#D1D1D6' } },
+      axisLabel: { color: '#6E6E73', fontSize: 10 }
     },
     yAxis: {
-      name: '生成速率 (TPS)',
       type: 'value',
-      scale: true,
-      splitLine: { lineStyle: { color: '#F2F2F7', type: 'solid' } },
-      axisLabel: { color: '#86868B', fontSize: 10 }
+      name: 'TPS',
+      nameTextStyle: { color: '#86868B', fontSize: 10 },
+      splitLine: { lineStyle: { color: '#E5E5EA', type: 'dashed' } },
+      axisLine: { lineStyle: { color: '#D1D1D6' } },
+      axisLabel: { color: '#6E6E73', fontSize: 10 }
     },
     series: [
       {
-        name: '性价比点',
         type: 'scatter',
-        symbolSize: 18,
+        symbolSize: 14,
         data: data,
         itemStyle: {
           color: (params: any) => {
-            const type = params.value[4]
-            if (type === 'official') return '#6E6E73'
-            if (type === 'cloud') return '#0071E3'
-            if (type === 'newapi') return '#34C759'
-            if (type === 'sub2api') return '#AF52DE'
-            return '#0071E3'
+            const ratio = params.data[3] || 1.0
+            return ratio < 1.0 ? '#34C759' : '#0071E3'
           },
-          shadowBlur: 6,
-          shadowColor: 'rgba(0, 0, 0, 0.08)'
+          shadowBlur: 4,
+          shadowColor: 'rgba(0, 113, 227, 0.2)'
         }
       }
     ]
   }
-  chartInstance.setOption(option, true)
+
+  chartInstance.setOption(option)
 }
 
-const handleResize = () => chartInstance?.resize()
-
-onMounted(async () => {
-  await fetchFilterOptions()
-  await fetchPaginatedData()
-  initChart()
+onMounted(() => {
+  fetchFilterOptions()
+  fetchPaginatedMatrix()
+  initScatterChart()
   window.addEventListener('resize', handleResize)
 })
 
@@ -522,18 +590,7 @@ onUnmounted(() => {
   chartInstance?.dispose()
 })
 
-// 监听筛选条件与分页变化
-watch(
-  [selectedProviders, selectedSeries, selectedModels, selectedSites, () => store.searchQuery, pageSize],
-  () => {
-    currentPage.value = 1
-    fetchPaginatedData()
-    fetchFilterOptions()
-  },
-  { deep: true }
-)
-
-watch(() => [store.currency, activeScatterModelId.value], () => {
-  updateScatterChart()
-})
+const handleResize = () => {
+  chartInstance?.resize()
+}
 </script>
