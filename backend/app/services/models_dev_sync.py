@@ -7,13 +7,66 @@ from sqlalchemy import select
 from backend.app.database import AsyncSessionLocal
 from backend.app.models.token_price import ModelMetadata, RelaySite, SiteModelPricing, SyncLog
 
+def infer_lab_provider(model_id: str, raw_provider: str) -> str:
+    """参考 models.dev/labs/ 官方体系，将模型精准归属到所属的研究机构/厂商 (Lab)"""
+    m = model_id.lower()
+    p = (raw_provider or "").lower()
+
+    if "/" in m:
+        prefix = m.split("/")[0]
+        if prefix in ["alibaba", "openai", "anthropic", "google", "deepseek", "meta", "mistral", "moonshotai", "zhipuai", "nvidia", "cohere", "xai", "minimax", "bytedance", "bytedance-seed", "tencent", "baichuan", "stepfun", "sensetime", "xiaomi", "aisingapore", "arcee-ai", "ibm", "meituan", "microsoft", "perplexity", "poolside", "sakana", "sarvam", "sdaia", "swiss-ai", "thinkingmachines", "trendyol", "upstage"]:
+            return prefix
+
+    # 规则识别厂商
+    if "qwen" in m or "alibaba" in p:
+        return "alibaba"
+    if "deepseek" in m or "deepseek" in p:
+        return "deepseek"
+    if "gpt" in m or "o1" in m or "o3" in m or "whisper" in m or "openai" in p:
+        return "openai"
+    if "claude" in m or "anthropic" in p:
+        return "anthropic"
+    if "gemini" in m or "gemma" in m or "google" in p:
+        return "google"
+    if "llama" in m or "meta" in p:
+        return "meta"
+    if "kimi" in m or "moonshot" in p:
+        return "moonshotai"
+    if "glm" in m or "zhipu" in p or "chatglm" in m:
+        return "zhipuai"
+    if "doubao" in m or "seed" in m or "bytedance" in p:
+        return "bytedance"
+    if "hunyuan" in m or "tencent" in p:
+        return "tencent"
+    if "mistral" in m or "codestral" in m or "pixtral" in m or "ministral" in m:
+        return "mistral"
+    if "nemotron" in m or "nvidia" in p:
+        return "nvidia"
+    if "command" in m or "cohere" in p:
+        return "cohere"
+    if "grok" in m or "xai" in p:
+        return "xai"
+    if "minimax" in m or "minimax" in p:
+        return "minimax"
+    if "step" in m or "stepfun" in p:
+        return "stepfun"
+    if "sonar" in m or "perplexity" in p:
+        return "perplexity"
+    if "mimo" in m or "milm" in m or "xiaomi" in p:
+        return "xiaomi"
+    if "baichuan" in m:
+        return "baichuan"
+
+    return p if p and p != "other" else (m.split("/")[0] if "/" in m else "other")
+
 def infer_model_series(model_id: str, provider: str, family: str = "") -> str:
+    """推断模型所属的系列 (Family / Series)"""
     if family:
         return family.replace("-", " ").title()
     m = model_id.lower()
     p = provider.lower()
     
-    if "deepseek" in p or "deepseek" in m:
+    if p == "deepseek" or "deepseek" in m:
         if "r1" in m or "reasoner" in m:
             return "DeepSeek-R1"
         if "v4" in m:
@@ -22,7 +75,7 @@ def infer_model_series(model_id: str, provider: str, family: str = "") -> str:
             return "DeepSeek-V3"
         return "DeepSeek"
         
-    if "openai" in p or "gpt" in m or "o1" in m or "o3" in m:
+    if p == "openai" or "gpt" in m or "o1" in m or "o3" in m:
         if "5" in m:
             return "GPT-5"
         if "4o" in m:
@@ -35,7 +88,7 @@ def infer_model_series(model_id: str, provider: str, family: str = "") -> str:
             return "GPT-4"
         return "GPT"
         
-    if "anthropic" in p or "claude" in m:
+    if p == "anthropic" or "claude" in m:
         if "3-7" in m or "3.7" in m:
             return "Claude-3.7"
         if "3-5" in m or "3.5" in m:
@@ -44,21 +97,47 @@ def infer_model_series(model_id: str, provider: str, family: str = "") -> str:
             return "Claude-3"
         return "Claude"
         
-    if "google" in p or "gemini" in m:
+    if p == "google" or "gemini" in m or "gemma" in m:
         if "2.0" in m or "2-0" in m:
             return "Gemini-2.0"
         if "1.5" in m or "1-5" in m:
             return "Gemini-1.5"
+        if "gemma" in m:
+            return "Gemma"
         return "Gemini"
         
-    if "alibaba" in p or "qwen" in m:
+    if p == "alibaba" or "qwen" in m:
+        if "3.8" in m:
+            return "Qwen-3.8"
+        if "3.7" in m:
+            return "Qwen-3.7"
+        if "3.6" in m:
+            return "Qwen-3.6"
+        if "3.5" in m:
+            return "Qwen-3.5"
         if "3" in m:
             return "Qwen-3"
         if "2.5" in m or "2-5" in m:
             return "Qwen-2.5"
         if "vl" in m:
             return "Qwen-VL"
+        if "coder" in m:
+            return "Qwen-Coder"
         return "Qwen"
+
+    if p == "moonshotai" or "kimi" in m:
+        if "k3" in m:
+            return "Kimi-K3"
+        if "k2" in m:
+            return "Kimi-K2"
+        return "Kimi"
+
+    if p == "zhipuai" or "glm" in m:
+        if "5" in m:
+            return "GLM-5"
+        if "4" in m:
+            return "GLM-4"
+        return "GLM"
         
     return "通用大模型系列"
 
@@ -70,7 +149,7 @@ class ModelsDevSyncService:
         self.last_sync_time: datetime | None = None
 
     async def full_sync_from_models_dev(self) -> Dict[str, Any]:
-        """内存批量聚合全量同步 models.dev 三大接口 (0.5秒极速完成，零锁冲突)"""
+        """内存批量聚合全量同步 models.dev 三大接口并精确规范化 Lab 厂商"""
         start_t = time.time()
         models_count = 0
         providers_count = 0
@@ -92,22 +171,17 @@ class ModelsDevSyncService:
                 api_data = a_resp.json() if a_resp.status_code == 200 else {}
 
             async with AsyncSessionLocal() as session:
-                # 1. 批量加载已有数据到内存哈希表
                 existing_models_res = await session.execute(select(ModelMetadata))
                 model_map: Dict[str, ModelMetadata] = {m.model_id: m for m in existing_models_res.scalars().all()}
 
                 existing_sites_res = await session.execute(select(RelaySite))
                 site_map: Dict[str, RelaySite] = {s.provider_id: s for s in existing_sites_res.scalars().all() if s.provider_id}
 
-                existing_pricings_res = await session.execute(select(SiteModelPricing))
-                pricing_map: Dict[Tuple[int, str], SiteModelPricing] = {
-                    (p.site_id, p.model_id): p for p in existing_pricings_res.scalars().all()
-                }
-
-                # 2. 内存处理模型库
+                # 1. 处理模型库并规范化 Lab
                 for m_id, m in models_dict.items():
                     name = m.get("name") or m_id
-                    provider = m.get("provider") or m.get("company") or (m_id.split("/")[0] if "/" in m_id else "other")
+                    raw_provider = m.get("provider") or m.get("company") or (m_id.split("/")[0] if "/" in m_id else "other")
+                    provider = infer_lab_provider(m_id, raw_provider)
                     family = m.get("family") or ""
                     series = infer_model_series(m_id, provider, family)
                     
@@ -155,7 +229,7 @@ class ModelsDevSyncService:
                         model_map[m_id] = new_m
                     models_count += 1
 
-                # 3. 内存处理供应商库
+                # 2. 处理供应商库
                 for p_id, p in providers_dict.items():
                     name = p.get("name") or p_id.upper()
                     base_url = p.get("api") or p.get("url") or f"https://api.{p_id}.com/v1"
@@ -189,7 +263,7 @@ class ModelsDevSyncService:
                         site_map[p_id] = new_s
                     providers_count += 1
 
-                # 4. 内存处理定价矩阵
+                # 3. 处理定价矩阵
                 for p_id, p_obj in api_data.items():
                     site = site_map.get(p_id)
                     if not site:
@@ -204,11 +278,12 @@ class ModelsDevSyncService:
                         cache_p = float(cost.get("cache_read") or 0.0)
 
                         if not meta_m:
+                            lab_p = infer_lab_provider(m_id, "other")
                             meta_m = ModelMetadata(
                                 model_id=m_id,
                                 name=m_data.get("name") or m_id,
-                                provider=m_id.split("/")[0] if "/" in m_id else "other",
-                                series=infer_model_series(m_id, "other", m_data.get("family", "")),
+                                provider=lab_p,
+                                series=infer_model_series(m_id, lab_p, m_data.get("family", "")),
                                 family=m_data.get("family") or "",
                                 context_window=int(m_data.get("limit", {}).get("context") or 128000),
                                 max_output=int(m_data.get("limit", {}).get("output") or 8192),
@@ -222,10 +297,8 @@ class ModelsDevSyncService:
                             model_map[m_id] = meta_m
                             models_count += 1
 
-                        # 计算折扣
                         discount = round(((in_p - meta_m.official_input_price) / meta_m.official_input_price * 100), 1) if meta_m.official_input_price > 0 else 0.0
 
-                        # 如果是新加的 site，此时 site.id 可能还未持久化，通过 session 关联
                         new_p = SiteModelPricing(
                             site=site,
                             model=meta_m,
@@ -242,7 +315,7 @@ class ModelsDevSyncService:
                         session.add(new_p)
                         pricings_count += 1
 
-                # 5. 单次持久化并记录审计日志
+                # 4. 单次持久化
                 duration_ms = round((time.time() - start_t) * 1000, 1)
                 sync_log = SyncLog(
                     source="models.dev (api+models+catalog)",
@@ -256,7 +329,7 @@ class ModelsDevSyncService:
                 )
                 session.add(sync_log)
                 await session.commit()
-                print(f"[ModelsDevSync] Batch Commit Success in {duration_ms}ms! Models: {models_count}, Providers: {providers_count}, Pricings: {pricings_count}")
+                print(f"[ModelsDevSync] Precision Lab Normalized in {duration_ms}ms! Models: {models_count}, Providers: {providers_count}, Pricings: {pricings_count}")
 
         except Exception as e:
             status = "failed"
@@ -276,7 +349,6 @@ class ModelsDevSyncService:
         }
 
     async def sync_from_models_dev(self):
-        """兼容入口"""
         return await self.full_sync_from_models_dev()
 
 models_dev_sync = ModelsDevSyncService()

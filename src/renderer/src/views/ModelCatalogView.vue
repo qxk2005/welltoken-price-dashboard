@@ -6,8 +6,8 @@
       <div class="p-3 rounded-2xl bg-[#FFFFFF] border border-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex items-center justify-between">
         <div class="flex items-center space-x-3">
           <div class="flex items-center space-x-2">
-            <span class="text-sm font-bold text-[#1D1D1F]">大模型厂商与研究机构 (共 {{ labsList.length }} 家)</span>
-            <span class="text-xs text-[#86868B] font-mono">| 参考 models.dev/labs/ 标准体系</span>
+            <span class="text-sm font-bold text-[#1D1D1F]">大模型研发机构与厂商 (共 {{ labsList.length }} 家)</span>
+            <span class="text-xs text-[#86868B] font-mono">| 标准对齐 models.dev/labs/ 官方架构</span>
           </div>
 
           <!-- 搜索输入框 -->
@@ -15,7 +15,7 @@
             <input
               v-model="labSearchQuery"
               type="text"
-              placeholder="搜索厂商 (如 DeepSeek, OpenAI, 阿里)..."
+              placeholder="搜索厂商 (如 Alibaba, DeepSeek, OpenAI)..."
               class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-lg px-2.5 py-1 text-xs text-[#1D1D1F] placeholder-[#86868B] focus:outline-none transition-all font-sans"
             />
             <span v-if="labSearchQuery" @click="labSearchQuery = ''" class="absolute right-2 top-1 text-[#86868B] hover:text-[#1D1D1F] cursor-pointer text-xs">✕</span>
@@ -30,20 +30,20 @@
         </button>
       </div>
 
-      <!-- 厂商卡片流 (3 列 Grid 布局，纯白苹果质感卡片) -->
+      <!-- 厂商卡片流 (3 列 Grid 布局，纯白苹果质感卡片 + 官方矢量 Logo 图标) -->
       <div class="flex-1 overflow-y-auto pr-1">
         <div class="grid grid-cols-3 gap-3">
           <div
             v-for="lab in filteredLabs"
             :key="lab.id"
             @click="selectLab(lab)"
-            class="p-4 rounded-2xl bg-[#FFFFFF] border border-[#E5E5EA] hover:border-[#B3D7FF] hover:shadow-[0_4px_16px_rgba(0,0,0,0.04)] transition-all cursor-pointer flex flex-col justify-between space-y-3 group"
+            class="p-4 rounded-2xl bg-[#FFFFFF] border border-[#E5E5EA] hover:border-[#B3D7FF] hover:shadow-[0_6px_20px_rgba(0,0,0,0.04)] transition-all cursor-pointer flex flex-col justify-between space-y-3 group"
           >
-            <!-- 厂商头部：图标、名称、模型总数 Badge -->
+            <!-- 厂商头部：官方矢量 Logo、名称、模型总数 Badge -->
             <div class="flex items-start justify-between">
               <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-xl bg-[#F2F2F7] border border-[#E5E5EA] flex items-center justify-center text-sm font-bold font-mono text-[#0071E3] group-hover:scale-105 transition-transform">
-                  {{ lab.id.slice(0, 2).toUpperCase() }}
+                <div class="w-10 h-10 rounded-xl bg-[#F2F2F7] border border-[#E5E5EA] flex items-center justify-center p-2 group-hover:scale-105 group-hover:bg-[#E8F2FD] transition-all">
+                  <LabLogo :lab-id="lab.id" custom-class="w-6 h-6" />
                 </div>
                 <div>
                   <div class="font-bold text-sm text-[#1D1D1F] group-hover:text-[#0071E3] transition-colors">
@@ -63,12 +63,12 @@
 
             <!-- 系列预览 Chips 胶囊 -->
             <div class="space-y-1">
-              <div class="text-[10px] text-[#86868B] uppercase tracking-wider font-semibold">主要模型系列:</div>
+              <div class="text-[10px] text-[#86868B] uppercase tracking-wider font-semibold">核心模型系列:</div>
               <div class="flex flex-wrap gap-1">
                 <span
                   v-for="fam in lab.families.slice(0, 4)"
                   :key="fam"
-                  class="px-2 py-0.5 rounded-md bg-[#F2F2F7] border border-[#E5E5EA] text-[#1D1D1F] text-[10px] font-mono"
+                  class="px-2 py-0.5 rounded-md bg-[#F2F2F7] border border-[#E5E5EA] text-[#1D1D1F] text-[10px] font-mono font-medium"
                 >
                   {{ fam }}
                 </span>
@@ -94,7 +94,7 @@
 
     <!-- ==================== 场景 B：厂商详情与完整汉化对齐数据表格 (参考 models.dev/labs/alibaba/) ==================== -->
     <template v-else>
-      <!-- 1. 顶部厂商介绍 Header 区 (纯白苹果卡片) -->
+      <!-- 1. 顶部厂商介绍 Header 区 -->
       <div class="p-4 rounded-2xl bg-[#FFFFFF] border border-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-3">
         <!-- 顶部返回与代码标识 -->
         <div class="flex items-center justify-between">
@@ -120,15 +120,20 @@
           </div>
         </div>
 
-        <!-- 厂商大标题与简介文案 (中文) -->
+        <!-- 厂商大标题、官方 Logo 与简介文案 (中文) -->
         <div class="flex items-start justify-between">
-          <div class="space-y-1 max-w-3xl">
-            <h2 class="text-xl font-bold text-[#1D1D1F] tracking-tight flex items-center space-x-2">
-              <span>{{ selectedLab.displayName }}</span>
-            </h2>
-            <p class="text-xs text-[#6E6E73] leading-relaxed">
-              {{ getLabDescription(selectedLab.id) }}
-            </p>
+          <div class="flex items-start space-x-3.5 max-w-3xl">
+            <div class="w-12 h-12 rounded-2xl bg-[#F2F2F7] border border-[#E5E5EA] flex items-center justify-center p-2.5 flex-shrink-0">
+              <LabLogo :lab-id="selectedLab.id" custom-class="w-7 h-7" />
+            </div>
+            <div class="space-y-1">
+              <h2 class="text-xl font-bold text-[#1D1D1F] tracking-tight flex items-center space-x-2">
+                <span>{{ selectedLab.displayName }}</span>
+              </h2>
+              <p class="text-xs text-[#6E6E73] leading-relaxed">
+                {{ getLabDescription(selectedLab.id) }}
+              </p>
+            </div>
           </div>
 
           <!-- 搜索过滤 -->
@@ -304,6 +309,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useDashboardStore } from '../stores/dashboardStore'
+import LabLogo from '../components/LabLogo.vue'
 import type { ModelMetadata } from '../types'
 
 interface LabItem {
@@ -323,31 +329,40 @@ const isCopied = ref(false)
 const sortField = ref<string>('context_window')
 const sortOrder = ref<'asc' | 'desc'>('desc')
 
-// 厂商中英文友好名称映射表
+// 厂商中英文友好名称映射表 (对齐 models.dev/labs/)
 const labDisplayNameMap: Record<string, string> = {
-  deepseek: 'DeepSeek (深度求索)',
-  openai: 'OpenAI',
+  alibaba: 'Alibaba (阿里巴巴通义千问 Qwen)',
+  openai: 'OpenAI (GPT / o1 / o3)',
   anthropic: 'Anthropic (Claude)',
-  google: 'Google DeepMind (Gemini)',
-  alibaba: 'Alibaba Cloud (阿里通义千问 Qwen)',
+  google: 'Google DeepMind (Gemini / Gemma)',
+  deepseek: 'DeepSeek (深度求索)',
   moonshotai: 'Moonshot AI (月之暗面 Kimi)',
   zhipuai: 'Zhipu AI (智谱清言 GLM)',
   meta: 'Meta (Llama)',
   mistral: 'Mistral AI',
   nvidia: 'Nvidia (Nemotron)',
-  cohere: 'Cohere',
+  cohere: 'Cohere (Command)',
   bytedance: 'ByteDance (字节跳动 Doubao)',
   'bytedance-seed': 'ByteDance Seed',
   xai: 'xAI (Grok)',
   minimax: 'MiniMax (稀宇科技)',
   xiaomi: 'Xiaomi (小米 MiLM)',
   tencent: 'Tencent (腾讯混元 Hunyuan)',
-  baichuan: 'Baichuan (百川智能)'
+  baichuan: 'Baichuan (百川智能)',
+  stepfun: 'StepFun (阶跃星辰)',
+  perplexity: 'Perplexity (Sonar)',
+  ibm: 'IBM (Granite)',
+  meituan: 'Meituan (美团 LongCat)',
+  microsoft: 'Microsoft (Phi)',
+  poolside: 'Poolside',
+  sakana: 'Sakana AI',
+  sarvam: 'Sarvam AI',
+  upstage: 'Upstage (Solar)'
 }
 
 // 厂商深度介绍文案 (中文)
 const labDescriptions: Record<string, string> = {
-  alibaba: '阿里巴巴通义实验室 (Qwen) 打造全开源与云端托管的多语言大模型矩阵，涵盖深度推理、代码生成、多模态视觉、音频交互以及长程智能体工作流。',
+  alibaba: '阿里巴巴通义实验室 (Qwen) 打造全开源与云端托管的多语言大模型矩阵，涵盖 Qwen3.8、Qwen2.5 等深度推理、代码生成、多模态视觉与长程智能体工作流。',
   openai: 'OpenAI 是全球领先的人工智能研发机构，开创了 GPT 系列、o1/o3 深度推理系列，在通用智能、代码生成及复杂推理领域处于行业前沿。',
   anthropic: 'Anthropic 专注于研发安全可控的 Claude 系列模型，在长上下文窗口 (200k+)、复杂逻辑分析、编码助手和多模态理解方面表现卓越。',
   deepseek: '深度求索 (DeepSeek) 专注于研发原创先进开源大模型，凭借 V3 架构与 R1 深度思考推理模型，以超高性价比与极致生成效率重塑全网格局。',
@@ -362,14 +377,80 @@ const getLabDescription = (labId: string) => {
   return labDescriptions[labId.toLowerCase()] || `${selectedLab.value?.displayName || labId} 致力于研发先进大语言模型与多模态技术，提供高可用 API 与开源权重。`
 }
 
+// 将模型严格规范化归属到正确的 Lab 厂商下 (解决 QWEN 误识别为厂商的问题)
+const normalizeModelToLab = (m: ModelMetadata): string => {
+  const mId = m.model_id.toLowerCase()
+  const p = (m.provider || '').toLowerCase()
+
+  if (mId.startsWith('qwen') || p === 'qwen' || p.includes('alibaba') || mId.includes('qwen')) {
+    return 'alibaba'
+  }
+  if (mId.startsWith('deepseek') || p === 'deepseek') {
+    return 'deepseek'
+  }
+  if (mId.startsWith('gpt') || mId.startsWith('o1') || mId.startsWith('o3') || mId.startsWith('whisper') || p === 'openai') {
+    return 'openai'
+  }
+  if (mId.startsWith('claude') || p === 'anthropic') {
+    return 'anthropic'
+  }
+  if (mId.startsWith('gemini') || mId.startsWith('gemma') || p === 'google') {
+    return 'google'
+  }
+  if (mId.startsWith('llama') || p === 'meta') {
+    return 'meta'
+  }
+  if (mId.startsWith('kimi') || mId.startsWith('moonshot') || p === 'moonshotai') {
+    return 'moonshotai'
+  }
+  if (mId.startsWith('glm') || mId.startsWith('chatglm') || p === 'zhipuai') {
+    return 'zhipuai'
+  }
+  if (mId.startsWith('doubao') || mId.startsWith('seed') || p === 'bytedance' || p === 'bytedance-seed') {
+    return 'bytedance'
+  }
+  if (mId.startsWith('hunyuan') || mId.startsWith('hy') || p === 'tencent') {
+    return 'tencent'
+  }
+  if (mId.startsWith('mistral') || mId.startsWith('codestral') || mId.startsWith('pixtral') || p === 'mistral') {
+    return 'mistral'
+  }
+  if (mId.startsWith('nemotron') || p === 'nvidia') {
+    return 'nvidia'
+  }
+  if (mId.startsWith('command') || p === 'cohere') {
+    return 'cohere'
+  }
+  if (mId.startsWith('grok') || p === 'xai') {
+    return 'xai'
+  }
+  if (mId.startsWith('minimax') || p === 'minimax') {
+    return 'minimax'
+  }
+  if (mId.startsWith('step') || p === 'stepfun') {
+    return 'stepfun'
+  }
+  if (mId.startsWith('sonar') || p === 'perplexity') {
+    return 'perplexity'
+  }
+  if (mId.startsWith('mimo') || mId.startsWith('milm') || p === 'xiaomi') {
+    return 'xiaomi'
+  }
+  if (mId.includes('/')) {
+    const pre = mId.split('/')[0]
+    if (labDisplayNameMap[pre]) return pre
+  }
+
+  return p && p !== 'other' ? p : 'other'
+}
+
 const labsList = computed<LabItem[]>(() => {
   const map: Record<string, ModelMetadata[]> = {}
 
   store.modelsCatalog.forEach((m) => {
-    let labId = m.provider.toLowerCase()
-    if (m.model_id.includes('/')) {
-      labId = m.model_id.split('/')[0].toLowerCase()
-    }
+    const labId = normalizeModelToLab(m)
+    if (labId === 'other') return // 过滤杂质
+
     if (!map[labId]) {
       map[labId] = []
     }
