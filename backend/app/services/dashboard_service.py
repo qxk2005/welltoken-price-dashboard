@@ -246,7 +246,7 @@ class DashboardService:
                 other_total = other_cnt + raw_counts.get("other", 0)
                 providers_opt.append(FilterItemOption(value="other", label="其他独立研究机构", count=other_total))
 
-            # 2. 系列列表与计数 (根据选中的厂商级联收敛)
+            # 2. 系列列表与计数 (根据选中的厂商级联收敛，按字母升序排序)
             s_stmt = select(
                 ModelMetadata.series,
                 func.count(SiteModelPricing.id)
@@ -277,14 +277,14 @@ class DashboardService:
                 elif normal_p:
                     s_stmt = s_stmt.where(func.lower(ModelMetadata.provider).in_(normal_p))
 
-            s_stmt = s_stmt.group_by(ModelMetadata.series).order_by(func.count(SiteModelPricing.id).desc())
+            s_stmt = s_stmt.group_by(ModelMetadata.series).order_by(ModelMetadata.series.asc())
             s_res = await session.execute(s_stmt)
             series_opt = [
                 FilterItemOption(value=s or "通用系列", label=s or "通用系列", count=cnt)
                 for s, cnt in s_res.all() if s
             ]
 
-            # 3. 模型列表 (根据选中的厂商与系列级联收敛)
+            # 3. 模型列表 (根据选中的厂商与系列级联收敛，按字母升序排序)
             m_stmt = select(
                 ModelMetadata.model_id,
                 ModelMetadata.name,
@@ -319,14 +319,14 @@ class DashboardService:
             if selected_series and len(selected_series) > 0 and "all" not in selected_series:
                 m_stmt = m_stmt.where(ModelMetadata.series.in_(selected_series))
 
-            m_stmt = m_stmt.group_by(ModelMetadata.model_id, ModelMetadata.name).order_by(func.count(SiteModelPricing.id).desc()).limit(300)
+            m_stmt = m_stmt.group_by(ModelMetadata.model_id, ModelMetadata.name).order_by(ModelMetadata.name.asc()).limit(300)
             m_res = await session.execute(m_stmt)
             models_opt = [
                 FilterItemOption(value=m_id, label=f"{m_name} ({m_id})", count=cnt)
                 for m_id, m_name, cnt in m_res.all()
             ]
 
-            # 4. 供应商/渠道列表 (根据选中的厂商/系列/模型级联收敛)
+            # 4. 供应商/渠道列表 (根据选中的厂商/系列/模型级联收敛，按字母升序排序)
             st_stmt = select(
                 RelaySite.name,
                 func.count(SiteModelPricing.id)
@@ -363,7 +363,7 @@ class DashboardService:
             if selected_models and len(selected_models) > 0 and "all" not in selected_models:
                 st_stmt = st_stmt.where(ModelMetadata.model_id.in_(selected_models))
 
-            st_stmt = st_stmt.group_by(RelaySite.name).order_by(func.count(SiteModelPricing.id).desc()).limit(200)
+            st_stmt = st_stmt.group_by(RelaySite.name).order_by(RelaySite.name.asc()).limit(200)
             st_res = await session.execute(st_stmt)
             sites_opt = [
                 FilterItemOption(value=s_name, label=s_name, count=cnt)

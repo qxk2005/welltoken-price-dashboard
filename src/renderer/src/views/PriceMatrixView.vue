@@ -2,41 +2,41 @@
   <div class="h-full flex flex-col space-y-2.5 overflow-hidden select-none">
     <!-- 顶部四级联动多维筛选栏 (苹果灰白卡片) -->
     <div class="p-3 rounded-2xl bg-[#FFFFFF] border border-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-2">
-      <!-- 第一行：四大维度可搜索多选下拉 + 收藏快捷切换 -->
+      <!-- 第一行：四大维度可搜索多选下拉 + 收藏快捷切换 (全部支持字母 A-Z 升序排序) -->
       <div class="flex items-center justify-between flex-wrap gap-2">
         <div class="flex items-center flex-wrap gap-2">
-          <!-- 1. 模型厂商多选 (支持中文别名模糊搜索 如“深度探索”) -->
+          <!-- 1. 模型厂商多选 (A-Z 排序，支持中文别名模糊搜索 如“深度探索”) -->
           <MultiSelectFilter
             label="模型厂商"
             icon="🏢"
-            :options="formattedProviderOptions"
+            :options="sortedProviderOptions"
             :model-value="selectedProviders"
             @update:model-value="handleProviderChange"
           />
 
-          <!-- 2. 模型系列多选 (根据已选厂商级联收敛 如 DeepSeek-V3, V4, R1) -->
+          <!-- 2. 模型系列多选 (A-Z 排序，根据已选厂商级联收敛) -->
           <MultiSelectFilter
             label="模型系列"
             icon="📦"
-            :options="seriesOptions"
+            :options="sortedSeriesOptions"
             :model-value="selectedSeries"
             @update:model-value="handleSeriesChange"
           />
 
-          <!-- 3. 模型名称多选 (直接选择模型名称时，其他两项自动变为“全部”) -->
+          <!-- 3. 模型名称多选 (A-Z 排序，保留前面的厂商与系列) -->
           <MultiSelectFilter
             label="模型名称"
             icon="🤖"
-            :options="modelOptions"
+            :options="sortedModelOptions"
             :model-value="selectedModels"
             @update:model-value="handleModelChange"
           />
 
-          <!-- 4. 渠道中转站多选 (支持模糊搜索 如“七牛”, “OpenRouter”, “硅基”) -->
+          <!-- 4. 渠道中转站多选 (A-Z 排序，支持模糊搜索 如“七牛”, “OpenRouter”, “硅基”) -->
           <MultiSelectFilter
             label="渠道中转站"
             icon="🌐"
-            :options="siteOptions"
+            :options="sortedSiteOptions"
             :model-value="selectedSites"
             @update:model-value="handleSiteChange"
           />
@@ -352,15 +352,15 @@ const selectedModels = ref<string[]>([])
 const selectedSites = ref<string[]>([])
 const onlyFavorites = ref(false)
 
-// 筛选候选项数据
+// 筛选候选项原始数据
 const rawProviderOptions = ref<FilterOption[]>([])
-const seriesOptions = ref<FilterOption[]>([])
-const modelOptions = ref<FilterOption[]>([])
-const siteOptions = ref<FilterOption[]>([])
+const rawSeriesOptions = ref<FilterOption[]>([])
+const rawModelOptions = ref<FilterOption[]>([])
+const rawSiteOptions = ref<FilterOption[]>([])
 
-// 格式化厂商候选列表 (加上中文别名，支持多维度模糊搜索)
-const formattedProviderOptions = computed<FilterOption[]>(() => {
-  return rawProviderOptions.value.map((opt) => {
+// 1. 厂商候选列表：带中文别名 + 按字母 A-Z 严格排序 (除 other 置底)
+const sortedProviderOptions = computed<FilterOption[]>(() => {
+  const mapped = rawProviderOptions.value.map((opt) => {
     const key = opt.value.toLowerCase()
     const cnName = labNamesCn[key]
     return {
@@ -368,6 +368,33 @@ const formattedProviderOptions = computed<FilterOption[]>(() => {
       label: cnName || opt.label || opt.value,
       count: opt.count
     }
+  })
+
+  return mapped.sort((a, b) => {
+    if (a.value === 'other') return 1
+    if (b.value === 'other') return -1
+    return a.label.localeCompare(b.label, 'zh-CN', { sensitivity: 'base' })
+  })
+})
+
+// 2. 系列候选列表：按字母 A-Z 严格升序排序
+const sortedSeriesOptions = computed<FilterOption[]>(() => {
+  return [...rawSeriesOptions.value].sort((a, b) => {
+    return a.label.localeCompare(b.label, 'zh-CN', { numeric: true, sensitivity: 'base' })
+  })
+})
+
+// 3. 模型候选列表：按字母 A-Z 严格升序排序
+const sortedModelOptions = computed<FilterOption[]>(() => {
+  return [...rawModelOptions.value].sort((a, b) => {
+    return a.label.localeCompare(b.label, 'zh-CN', { numeric: true, sensitivity: 'base' })
+  })
+})
+
+// 4. 渠道候选列表：按字母 A-Z 严格升序排序
+const sortedSiteOptions = computed<FilterOption[]>(() => {
+  return [...rawSiteOptions.value].sort((a, b) => {
+    return a.label.localeCompare(b.label, 'zh-CN', { numeric: true, sensitivity: 'base' })
   })
 })
 
@@ -423,9 +450,9 @@ const fetchFilterOptions = async (
     const sp = buildSearchParams(params)
     const res = await axios.get(`${store.apiUrl}/api/v1/comparison/filter-options?${sp.toString()}`)
     rawProviderOptions.value = res.data.providers || []
-    seriesOptions.value = res.data.series || []
-    modelOptions.value = res.data.models || []
-    siteOptions.value = res.data.sites || []
+    rawSeriesOptions.value = res.data.series || []
+    rawModelOptions.value = res.data.models || []
+    rawSiteOptions.value = res.data.sites || []
   } catch (e) {
     console.error('Fetch filter options failed:', e)
   }
@@ -484,12 +511,12 @@ const handleProviderChange = async (newProviders: string[]) => {
 
   // 若已选系列不在新候选池中，清空系列
   if (selectedSeries.value.length > 0) {
-    const validSeries = new Set(seriesOptions.value.map((s) => s.value))
+    const validSeries = new Set(rawSeriesOptions.value.map((s) => s.value))
     selectedSeries.value = selectedSeries.value.filter((s) => validSeries.has(s))
   }
   // 若已选模型不在新候选池中，清空模型
   if (selectedModels.value.length > 0) {
-    const validModels = new Set(modelOptions.value.map((m) => m.value))
+    const validModels = new Set(rawModelOptions.value.map((m) => m.value))
     selectedModels.value = selectedModels.value.filter((m) => validModels.has(m))
   }
 
@@ -504,25 +531,17 @@ const handleSeriesChange = async (newSeries: string[]) => {
   await fetchFilterOptions(selectedProviders.value, newSeries, [])
 
   if (selectedModels.value.length > 0) {
-    const validModels = new Set(modelOptions.value.map((m) => m.value))
+    const validModels = new Set(rawModelOptions.value.map((m) => m.value))
     selectedModels.value = selectedModels.value.filter((m) => validModels.has(m))
   }
 
   fetchPaginatedMatrix()
 }
 
-// 3. 用户手动选择/输入【模型名称】-> 核心规则：“除非是手动输入了模型名称，其他两项变为全部，否则就要遵守联动规则”
-const handleModelChange = async (newModels: string[]) => {
+// 3. 用户选择【模型名称】-> 严格保留前面已选的厂商与系列，共同组合筛选！
+const handleModelChange = (newModels: string[]) => {
   selectedModels.value = newModels
   currentPage.value = 1
-
-  // 如果用户主动勾选了具体模型，且之前有选择厂商或系列，则自动将厂商与系列重置为“全部”
-  if (newModels.length > 0 && (selectedProviders.value.length > 0 || selectedSeries.value.length > 0)) {
-    selectedProviders.value = []
-    selectedSeries.value = []
-    // 恢复全量系列与模型候选
-    await fetchFilterOptions([], [], newModels)
-  }
 
   fetchPaginatedMatrix()
 }
