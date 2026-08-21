@@ -1,7 +1,7 @@
 <template>
   <div class="h-full flex flex-col space-y-2.5 overflow-hidden select-none">
-    <!-- 顶部四级联动多维筛选栏 -->
-    <div class="p-3 rounded-xl bg-[#151922] border border-[#232936] space-y-2">
+    <!-- 顶部四级联动多维筛选栏 (苹果灰白卡片) -->
+    <div class="p-3 rounded-2xl bg-[#FFFFFF] border border-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-2">
       <!-- 第一行：四大维度可搜索多选下拉 -->
       <div class="flex items-center justify-between flex-wrap gap-2">
         <div class="flex items-center flex-wrap gap-2">
@@ -13,7 +13,7 @@
             v-model="selectedProviders"
           />
 
-          <!-- 2. 模型系列多选 (根据已选厂商联动收敛) -->
+          <!-- 2. 模型系列多选 (联动收敛) -->
           <MultiSelectFilter
             label="模型系列"
             icon="📦"
@@ -21,7 +21,7 @@
             v-model="selectedSeries"
           />
 
-          <!-- 3. 模型名称多选 (根据已选厂商与系列联动收敛) -->
+          <!-- 3. 模型名称多选 (联动收敛) -->
           <MultiSelectFilter
             label="模型名称"
             icon="🤖"
@@ -40,13 +40,13 @@
 
         <!-- 右侧：快捷操作与匹配统计 -->
         <div class="flex items-center space-x-2 text-xs">
-          <span class="text-gray-400">
-            全网匹配: <strong class="text-emerald-400 font-mono font-bold">{{ totalRecords }}</strong> 条报价
+          <span class="text-[#6E6E73]">
+            全网匹配: <strong class="text-[#0071E3] font-mono font-bold">{{ totalRecords }}</strong> 条报价
           </span>
           <button
             v-if="hasAnyFilter"
             @click="resetAllFilters"
-            class="px-2.5 py-1 rounded bg-[#1E2430] hover:bg-rose-950/60 text-gray-300 hover:text-rose-300 border border-[#374151] hover:border-rose-700 transition-all text-xs"
+            class="px-2.5 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#FFE5E5] text-[#6E6E73] hover:text-[#FF3B30] border border-[#E5E5EA] transition-all text-xs"
           >
             重置筛选
           </button>
@@ -54,55 +54,55 @@
       </div>
 
       <!-- 第二行：已选标签 Chips 展示条 (如果有选择) -->
-      <div v-if="hasAnyFilter" class="flex items-center flex-wrap gap-1.5 pt-1.5 border-t border-[#232936]/60 text-xs">
-        <span class="text-[11px] text-gray-500 font-medium">当前筛选:</span>
+      <div v-if="hasAnyFilter" class="flex items-center flex-wrap gap-1.5 pt-1.5 border-t border-[#E5E5EA] text-xs">
+        <span class="text-[11px] text-[#86868B] font-medium">当前筛选:</span>
 
         <!-- 厂商 Chips -->
         <span
           v-for="p in selectedProviders"
           :key="`p-${p}`"
-          class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 text-[11px]"
+          class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-[#E8F2FD] border border-[#CCE4FB] text-[#0071E3] text-[11px] font-medium"
         >
           <span>🏢 {{ p }}</span>
-          <button @click="removeProvider(p)" class="hover:text-white ml-0.5">✕</button>
+          <button @click="removeProvider(p)" class="hover:text-[#004BB3] ml-0.5">✕</button>
         </span>
 
         <!-- 系列 Chips -->
         <span
           v-for="s in selectedSeries"
           :key="`s-${s}`"
-          class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-[11px]"
+          class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-[#F3E8FF] border border-[#E9D5FF] text-[#9333EA] text-[11px] font-medium"
         >
           <span>📦 {{ s }}</span>
-          <button @click="removeSeries(s)" class="hover:text-white ml-0.5">✕</button>
+          <button @click="removeSeries(s)" class="hover:text-[#6B21A8] ml-0.5">✕</button>
         </span>
 
         <!-- 模型 Chips -->
         <span
           v-for="m in selectedModels"
           :key="`m-${m}`"
-          class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 text-[11px] font-mono"
+          class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-[#EDE9FE] border border-[#DDD6FE] text-[#7C3AED] text-[11px] font-mono font-medium"
         >
           <span>🤖 {{ m }}</span>
-          <button @click="removeModel(m)" class="hover:text-white ml-0.5">✕</button>
+          <button @click="removeModel(m)" class="hover:text-[#5B21B6] ml-0.5">✕</button>
         </span>
 
         <!-- 渠道 Chips -->
         <span
           v-for="st in selectedSites"
           :key="`st-${st}`"
-          class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px]"
+          class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-[#E6F4EA] border border-[#CEEAD6] text-[#137333] text-[11px] font-medium"
         >
           <span>🌐 {{ st }}</span>
-          <button @click="removeSite(st)" class="hover:text-white ml-0.5">✕</button>
+          <button @click="removeSite(st)" class="hover:text-[#0D652D] ml-0.5">✕</button>
         </span>
       </div>
     </div>
 
     <!-- 价格对比大矩阵 (数据表格) -->
-    <div class="flex-1 flex flex-col bg-[#151922] rounded-xl border border-[#232936] p-3 overflow-hidden min-h-0">
+    <div class="flex-1 flex flex-col bg-[#FFFFFF] rounded-2xl border border-[#E5E5EA] p-3 shadow-[0_1px_3px_rgba(0,0,0,0.02)] overflow-hidden min-h-0">
       <!-- 表头 -->
-      <div class="grid grid-cols-12 gap-2 text-[11px] text-gray-400 font-bold px-3 py-2 border-b border-[#232936] bg-[#1A202C]/60 rounded-t-lg">
+      <div class="grid grid-cols-12 gap-2 text-[11px] text-[#6E6E73] font-bold px-3 py-2 border-b border-[#E5E5EA] bg-[#F9F9FB] rounded-t-xl">
         <div class="col-span-2">模型系列 / 厂商</div>
         <div class="col-span-3">模型标准标识</div>
         <div class="col-span-2">渠道 / 供应商</div>
@@ -114,9 +114,9 @@
       </div>
 
       <!-- 数据行列表 (仅渲染当前页 50 条，极速流畅 60 FPS) -->
-      <div class="flex-1 overflow-y-auto divide-y divide-[#232936]/40 pr-1 mt-1 relative">
-        <div v-if="isLoading" class="absolute inset-0 bg-[#151922]/70 backdrop-blur-xs flex items-center justify-center z-10">
-          <div class="text-xs text-blue-400 font-medium flex items-center space-x-2">
+      <div class="flex-1 overflow-y-auto divide-y divide-[#E5E5EA]/60 pr-1 mt-1 relative">
+        <div v-if="isLoading" class="absolute inset-0 bg-white/70 backdrop-blur-xs flex items-center justify-center z-10">
+          <div class="text-xs text-[#0071E3] font-medium flex items-center space-x-2">
             <span class="animate-spin">🌀</span>
             <span>加载报价数据中...</span>
           </div>
@@ -126,25 +126,25 @@
           v-for="row in pagedItems"
           :key="row.id"
           @click="selectRow(row)"
-          class="grid grid-cols-12 gap-2 items-center px-3 py-2 text-xs transition-colors cursor-pointer rounded-lg"
-          :class="selectedRow?.id === row.id ? 'bg-blue-600/15 border border-blue-500/30' : 'hover:bg-[#1A202C]'"
+          class="grid grid-cols-12 gap-2 items-center px-3 py-2 text-xs transition-colors cursor-pointer rounded-xl"
+          :class="selectedRow?.id === row.id ? 'bg-[#E8F2FD] border border-[#CCE4FB]' : 'hover:bg-[#F5F5F7]'"
         >
           <!-- 系列与厂商 -->
           <div class="col-span-2 flex items-center space-x-1.5 truncate">
-            <span class="px-1.5 py-0.2 rounded bg-[#1E293B] text-gray-300 text-[10px] font-mono">
+            <span class="px-1.5 py-0.2 rounded bg-[#F2F2F7] text-[#1D1D1F] border border-[#E5E5EA] text-[10px] font-mono">
               {{ row.provider.toUpperCase() }}
             </span>
-            <span class="text-gray-300 font-medium truncate text-[11px]">{{ row.series || '通用' }}</span>
+            <span class="text-[#1D1D1F] font-medium truncate text-[11px]">{{ row.series || '通用' }}</span>
           </div>
 
           <!-- 模型标识 -->
           <div class="col-span-3 flex items-center space-x-1.5 truncate">
-            <span class="font-bold text-blue-400 font-mono truncate text-xs" :title="row.model_id">{{ row.model_id }}</span>
+            <span class="font-bold text-[#0071E3] font-mono truncate text-xs" :title="row.model_id">{{ row.model_id }}</span>
           </div>
 
           <!-- 渠道站点 -->
           <div class="col-span-2 flex items-center space-x-1.5 truncate">
-            <span class="font-medium text-white truncate text-xs" :title="row.site_name">{{ row.site_name }}</span>
+            <span class="font-semibold text-[#1D1D1F] truncate text-xs" :title="row.site_name">{{ row.site_name }}</span>
           </div>
 
           <!-- 类型徽标 -->
@@ -158,44 +158,44 @@
           </div>
 
           <!-- 输入价格 -->
-          <div class="col-span-1 text-right font-mono font-bold text-emerald-400 text-xs">
+          <div class="col-span-1 text-right font-mono font-bold text-[#34C759] text-xs">
             {{ formatPrice(row.calculated_input_usd, row.calculated_input_cny) }}
           </div>
 
           <!-- 输出价格 -->
-          <div class="col-span-1 text-right font-mono text-emerald-400 text-xs">
+          <div class="col-span-1 text-right font-mono text-[#1D1D1F] text-xs">
             {{ formatPrice(row.calculated_output_usd, row.calculated_output_cny) }}
           </div>
 
           <!-- 倍率 -->
-          <div class="col-span-1 text-center font-mono text-gray-300 font-semibold text-xs">
+          <div class="col-span-1 text-center font-mono text-[#6E6E73] font-semibold text-xs">
             {{ row.model_ratio }}x
           </div>
 
           <!-- 实测 TPS -->
-          <div class="col-span-1 text-right font-mono text-sky-400 font-bold text-xs">
-            {{ row.last_tested_tps }} <span class="text-[9px] text-gray-500 font-normal">tps</span>
+          <div class="col-span-1 text-right font-mono text-[#0071E3] font-bold text-xs">
+            {{ row.last_tested_tps }} <span class="text-[9px] text-[#86868B] font-normal">tps</span>
           </div>
         </div>
 
-        <div v-if="!isLoading && pagedItems.length === 0" class="py-12 text-center text-xs text-gray-500">
+        <div v-if="!isLoading && pagedItems.length === 0" class="py-12 text-center text-xs text-[#86868B]">
           无匹配的大模型比价数据，请调整筛选条件
         </div>
       </div>
 
-      <!-- 底部精致高性能分页控制栏 -->
-      <div class="pt-2 border-t border-[#232936] flex items-center justify-between text-xs text-gray-400">
+      <!-- 底部精致高性能分页控制栏 (苹果浅灰按钮组) -->
+      <div class="pt-2.5 border-t border-[#E5E5EA] flex items-center justify-between text-xs text-[#6E6E73]">
         <!-- 左侧信息 -->
         <div class="flex items-center space-x-3 text-[11px]">
           <span>
-            第 <strong class="text-white font-mono">{{ currentPage }}</strong> / <span class="font-mono">{{ totalPages }}</span> 页
-            (共 <strong class="text-emerald-400 font-mono">{{ totalRecords }}</strong> 条)
+            第 <strong class="text-[#1D1D1F] font-mono">{{ currentPage }}</strong> / <span class="font-mono">{{ totalPages }}</span> 页
+            (共 <strong class="text-[#0071E3] font-mono">{{ totalRecords }}</strong> 条)
           </span>
           <div class="flex items-center space-x-1">
             <span>每页</span>
             <select
               v-model="pageSize"
-              class="bg-[#0B0E14] border border-[#2D3748] rounded px-1.5 py-0.5 text-white font-mono text-xs focus:outline-none"
+              class="bg-[#F2F2F7] border border-[#E5E5EA] rounded-md px-1.5 py-0.5 text-[#1D1D1F] font-mono text-xs focus:outline-none focus:border-[#0071E3]"
             >
               <option :value="20">20 条</option>
               <option :value="50">50 条</option>
@@ -209,7 +209,7 @@
           <button
             :disabled="currentPage <= 1"
             @click="changePage(1)"
-            class="px-2 py-1 rounded bg-[#1E2430] hover:bg-[#283244] disabled:opacity-40 text-gray-200 border border-[#374151] text-[11px]"
+            class="px-2 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] disabled:opacity-40 text-[#1D1D1F] border border-[#E5E5EA] text-[11px]"
             title="首页"
           >
             «
@@ -217,7 +217,7 @@
           <button
             :disabled="currentPage <= 1"
             @click="changePage(currentPage - 1)"
-            class="px-2.5 py-1 rounded bg-[#1E2430] hover:bg-[#283244] disabled:opacity-40 text-gray-200 border border-[#374151] text-[11px]"
+            class="px-2.5 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] disabled:opacity-40 text-[#1D1D1F] border border-[#E5E5EA] text-[11px]"
           >
             ◀ 上一页
           </button>
@@ -228,11 +228,11 @@
               v-for="p in visiblePages"
               :key="`page-${p}`"
               @click="changePage(p)"
-              class="w-7 h-7 rounded text-[11px] font-bold transition-all flex items-center justify-center"
+              class="w-7 h-7 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center"
               :class="
                 currentPage === p
-                  ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30'
-                  : 'bg-[#1A202C] hover:bg-[#283244] text-gray-300 border border-[#2D3748]'
+                  ? 'bg-[#0071E3] text-white shadow-xs'
+                  : 'bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] border border-[#E5E5EA]'
               "
             >
               {{ p }}
@@ -242,14 +242,14 @@
           <button
             :disabled="currentPage >= totalPages"
             @click="changePage(currentPage + 1)"
-            class="px-2.5 py-1 rounded bg-[#1E2430] hover:bg-[#283244] disabled:opacity-40 text-gray-200 border border-[#374151] text-[11px]"
+            class="px-2.5 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] disabled:opacity-40 text-[#1D1D1F] border border-[#E5E5EA] text-[11px]"
           >
             下一页 ▶
           </button>
           <button
             :disabled="currentPage >= totalPages"
             @click="changePage(totalPages)"
-            class="px-2 py-1 rounded bg-[#1E2430] hover:bg-[#283244] disabled:opacity-40 text-gray-200 border border-[#374151] text-[11px]"
+            class="px-2 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] disabled:opacity-40 text-[#1D1D1F] border border-[#E5E5EA] text-[11px]"
             title="末页"
           >
             »
@@ -258,12 +258,12 @@
       </div>
     </div>
 
-    <!-- 底部：全网价格-TPS 性价比散点图 (ECharts) -->
-    <div class="h-40 rounded-xl bg-[#151922] border border-[#232936] p-2.5 flex flex-col">
-      <div class="flex items-center justify-between pb-1 border-b border-[#232936]/60">
-        <div class="flex items-center space-x-2 text-xs font-bold text-white">
+    <!-- 底部：全网价格-TPS 性价比散点图 (ECharts 浅色苹果风格) -->
+    <div class="h-36 rounded-2xl bg-[#FFFFFF] border border-[#E5E5EA] p-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col">
+      <div class="flex items-center justify-between pb-1 border-b border-[#E5E5EA]">
+        <div class="flex items-center space-x-2 text-xs font-bold text-[#1D1D1F]">
           <span>📈 全网性价比散点分布 (当前模型: {{ activeScatterModelId }})</span>
-          <span class="text-[10px] text-gray-400 font-normal">| 越偏左上角（价格低、TPS 高）综合性价比越高</span>
+          <span class="text-[10px] text-[#86868B] font-normal">| 越偏左上角（价格低、TPS 高）综合性价比越高</span>
         </div>
       </div>
       <div class="flex-1 w-full relative min-h-0 mt-0.5">
@@ -417,11 +417,11 @@ const formatPrice = (usd: number, cny: number) => {
 }
 
 const getTypeBadgeClass = (type: string) => {
-  if (type === 'official') return 'bg-slate-700 text-slate-200'
-  if (type === 'cloud') return 'bg-sky-950 text-sky-400 border border-sky-800'
-  if (type === 'newapi') return 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-  if (type === 'sub2api') return 'bg-purple-950 text-purple-300 border border-purple-800'
-  return 'bg-blue-950 text-blue-300'
+  if (type === 'official') return 'bg-[#F2F2F7] text-[#1D1D1F] border border-[#E5E5EA]'
+  if (type === 'cloud') return 'bg-[#E8F2FD] text-[#0071E3] border border-[#CCE4FB]'
+  if (type === 'newapi') return 'bg-[#E6F4EA] text-[#137333] border border-[#CEEAD6]'
+  if (type === 'sub2api') return 'bg-[#F3E8FF] text-[#9333EA] border border-[#E9D5FF]'
+  return 'bg-[#F2F2F7] text-[#1D1D1F]'
 }
 
 const selectRow = (row: ComparisonItem) => {
@@ -438,7 +438,7 @@ const activeScatterModelId = computed(() => {
 
 const initChart = () => {
   if (!scatterChartRef.value) return
-  chartInstance = echarts.init(scatterChartRef.value, 'dark', { renderer: 'canvas' })
+  chartInstance = echarts.init(scatterChartRef.value, undefined, { renderer: 'canvas' })
   updateScatterChart()
 }
 
@@ -459,47 +459,48 @@ const updateScatterChart = () => {
   const option: echarts.EChartsOption = {
     backgroundColor: 'transparent',
     tooltip: {
-      backgroundColor: '#1E2430',
-      borderColor: '#374151',
-      textStyle: { color: '#F3F4F6', fontSize: 11 },
+      backgroundColor: '#FFFFFF',
+      borderColor: '#E5E5EA',
+      textStyle: { color: '#1D1D1F', fontSize: 11 },
+      extraCssText: 'box-shadow: 0 4px 16px rgba(0,0,0,0.08); border-radius: 8px;',
       formatter: (params: any) => {
         const val = params.value
         return `<strong>${val[2]}</strong> (${val[4]})<br/>输入单价: $${val[0]}/1M<br/>实测 TPS: ${val[1]} tps<br/>折扣: ${val[3]}%`
       }
     },
-    grid: { left: '4%', right: '4%', top: '15%', bottom: '15%' },
+    grid: { left: '4%', right: '4%', top: '15%', bottom: '18%' },
     xAxis: {
       name: '输入单价 ($/1M)',
       nameLocation: 'end',
       type: 'value',
       scale: true,
-      splitLine: { lineStyle: { color: '#232936', type: 'dashed' } },
-      axisLabel: { color: '#9CA3AF', fontSize: 10 }
+      splitLine: { lineStyle: { color: '#F2F2F7', type: 'solid' } },
+      axisLabel: { color: '#86868B', fontSize: 10 }
     },
     yAxis: {
       name: '生成速率 (TPS)',
       type: 'value',
       scale: true,
-      splitLine: { lineStyle: { color: '#232936', type: 'dashed' } },
-      axisLabel: { color: '#9CA3AF', fontSize: 10 }
+      splitLine: { lineStyle: { color: '#F2F2F7', type: 'solid' } },
+      axisLabel: { color: '#86868B', fontSize: 10 }
     },
     series: [
       {
         name: '性价比点',
         type: 'scatter',
-        symbolSize: 20,
+        symbolSize: 18,
         data: data,
         itemStyle: {
           color: (params: any) => {
             const type = params.value[4]
-            if (type === 'official') return '#64748B'
-            if (type === 'cloud') return '#38BDF8'
-            if (type === 'newapi') return '#10B981'
-            if (type === 'sub2api') return '#A855F7'
-            return '#3B82F6'
+            if (type === 'official') return '#6E6E73'
+            if (type === 'cloud') return '#0071E3'
+            if (type === 'newapi') return '#34C759'
+            if (type === 'sub2api') return '#AF52DE'
+            return '#0071E3'
           },
-          shadowBlur: 10,
-          shadowColor: 'rgba(0, 0, 0, 0.5)'
+          shadowBlur: 6,
+          shadowColor: 'rgba(0, 0, 0, 0.08)'
         }
       }
     ]

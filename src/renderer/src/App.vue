@@ -1,33 +1,32 @@
 <template>
-  <div class="h-screen w-screen flex flex-col bg-[#0B0E14] text-[#F3F4F6] overflow-hidden select-none">
+  <div class="flex flex-col h-screen w-screen bg-[#F5F5F7] text-[#1D1D1F] overflow-hidden select-none font-sans">
     <!-- 顶部状态栏 -->
     <TopHeader />
 
-    <!-- 中部主容器：左侧导航 + 右侧各工作台 -->
-    <div class="flex-1 flex overflow-hidden">
-      <!-- 侧边栏导航 -->
+    <!-- 主体内容区：左侧导航 + 右侧主工作台 -->
+    <div class="flex flex-1 overflow-hidden">
       <SidebarNav />
 
-      <!-- 主工作区内容 -->
-      <main class="flex-1 p-3 overflow-hidden">
+      <main class="flex-1 p-3 overflow-hidden bg-[#F5F5F7]">
         <component :is="currentView" />
       </main>
     </div>
 
-    <!-- 底部状态微条 -->
-    <footer class="h-6 px-4 bg-[#080A0F] border-t border-[#232936]/60 flex items-center justify-between text-[10px] text-gray-500 font-mono">
+    <!-- 底部极简状态栏 -->
+    <footer class="h-6 bg-[#FFFFFF] border-t border-[#E5E5EA] px-3 flex items-center justify-between text-[11px] text-[#86868B] font-mono">
       <div class="flex items-center space-x-3">
-        <span>后端服务: {{ store.apiUrl }}</span>
+        <span>后端服务: <strong class="text-[#1D1D1F]">http://127.0.0.1:8765</strong></span>
         <span>•</span>
-        <span>存储引擎: SQLite 3 (SQLAlchemy 2.0 异步驱动)</span>
+        <span>引擎: <strong class="text-[#0071E3]">SQLite 3 (WAL 异步引擎)</strong></span>
         <span>•</span>
-        <span>参考规范: models.dev + relaywatch + token-speed-tester</span>
+        <span>数据规范: models.dev + relaywatch + speed-tester</span>
       </div>
       <div class="flex items-center space-x-3">
         <span>WellToken 价格与测评看板 v1.0.0</span>
         <span>•</span>
-        <span :class="store.isConnected ? 'text-emerald-500' : 'text-rose-500'">
-          ● {{ store.isConnected ? 'WebSocket 行情与测速流已就绪' : '连接中断' }}
+        <span class="flex items-center space-x-1">
+          <span class="w-1.5 h-1.5 rounded-full" :class="store.isConnected ? 'bg-[#34C759]' : 'bg-[#FF3B30]'"></span>
+          <span>{{ store.isConnected ? '全网实时连线' : '重连中...' }}</span>
         </span>
       </div>
     </footer>
@@ -36,7 +35,6 @@
 
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
-import { useDashboardStore } from './stores/dashboardStore'
 import TopHeader from './components/TopHeader.vue'
 import SidebarNav from './components/SidebarNav.vue'
 import PriceMatrixView from './views/PriceMatrixView.vue'
@@ -44,6 +42,7 @@ import ChannelManagementView from './views/ChannelManagementView.vue'
 import ModelCatalogView from './views/ModelCatalogView.vue'
 import SpeedTesterView from './views/SpeedTesterView.vue'
 import SyncSettingsView from './views/SyncSettingsView.vue'
+import { useDashboardStore } from './stores/dashboardStore'
 
 const store = useDashboardStore()
 
@@ -64,7 +63,7 @@ const currentView = computed(() => {
   }
 })
 
-onMounted(async () => {
-  await store.init()
+onMounted(() => {
+  store.init()
 })
 </script>

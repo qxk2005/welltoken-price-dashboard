@@ -1,106 +1,81 @@
 <template>
-  <header class="h-14 border-b border-[#232936] bg-[#11151F]/90 backdrop-blur px-4 flex items-center justify-between select-none drag-region">
-    <!-- 左侧：应用标识与状态 -->
-    <div class="flex items-center space-x-3 no-drag">
-      <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
-        <span class="text-white font-bold text-lg font-mono">W</span>
+  <header class="h-12 bg-[#FFFFFF] border-b border-[#E5E5EA] px-4 flex items-center justify-between z-20 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+    <!-- 左侧 Logo 与健康状态 -->
+    <div class="flex items-center space-x-3">
+      <div class="flex items-center space-x-2">
+        <div class="w-7 h-7 rounded-lg bg-[#0071E3] flex items-center justify-center font-black text-white text-sm shadow-sm">
+          W
+        </div>
+        <div>
+          <span class="font-bold text-sm text-[#1D1D1F] tracking-tight">WellToken</span>
+          <span class="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#E8F2FD] text-[#0071E3] border border-[#CCE4FB]">
+            比价与测评
+          </span>
+        </div>
       </div>
-      <div>
-        <div class="flex items-center space-x-2">
-          <span class="font-bold text-sm tracking-wide text-white">WellToken</span>
-          <span class="text-xs px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 font-mono font-medium border border-blue-500/20">比价与测评 Pro</span>
-        </div>
-        <div class="flex items-center space-x-2 text-[11px] text-[#8E9AA8]">
-          <span
-            class="w-1.5 h-1.5 rounded-full"
-            :class="store.isConnected ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50 animate-pulse' : 'bg-rose-500'"
-          ></span>
-          <span>{{ store.isConnected ? '全网行情已同步' : '连接重试中' }}</span>
-          <span class="text-[#4B5563]">•</span>
-          <span>已收录渠道: {{ store.relaySites.length }} 家</span>
-          <span class="text-[#4B5563]">•</span>
-          <span>标准模型: {{ store.modelsCatalog.length }} 款</span>
-        </div>
+
+      <div class="h-4 w-px bg-[#E5E5EA]"></div>
+
+      <!-- 后端健康状态指示 -->
+      <div class="flex items-center space-x-1.5 text-xs">
+        <span
+          class="w-2 h-2 rounded-full transition-colors"
+          :class="store.backendHealthy ? 'bg-[#34C759]' : 'bg-[#FF3B30] animate-pulse'"
+        ></span>
+        <span class="text-[#86868B] text-xs font-mono">
+          {{ store.backendHealthy ? '服务在线' : '连接重试中' }}
+        </span>
+        <span class="text-[#D1D1D6]">•</span>
+        <span class="text-[#6E6E73] text-xs">
+          已收录渠道: <strong class="text-[#1D1D1F] font-mono">{{ store.relaySites.length }}</strong> 家
+        </span>
+        <span class="text-[#D1D1D6]">•</span>
+        <span class="text-[#6E6E73] text-xs">
+          标准模型: <strong class="text-[#1D1D1F] font-mono">{{ store.modelsCatalog.length }}</strong> 款
+        </span>
       </div>
     </div>
 
-    <!-- 中间：全局搜索框 -->
-    <div class="w-80 no-drag">
-      <div class="relative">
-        <input
-          v-model="store.searchQuery"
-          type="text"
-          placeholder="搜索模型 (如 deepseek-r1, gpt-4o) 或中转站..."
-          class="w-full bg-[#1A202C] border border-[#2D3748] rounded-lg px-3 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
-        />
-        <span class="absolute right-2.5 top-2 text-[10px] text-gray-500 font-mono">⌘K</span>
-      </div>
+    <!-- 中间全局搜索框 -->
+    <div class="w-80 relative">
+      <input
+        v-model="store.searchQuery"
+        type="text"
+        placeholder="搜索模型 (如 deepseek-r1, gpt-4o) 或渠道商..."
+        class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-lg px-3 py-1.5 text-xs text-[#1D1D1F] placeholder-[#86868B] transition-all focus:outline-none focus:ring-2 focus:ring-[#0071E3]/15 font-sans"
+      />
+      <span v-if="store.searchQuery" @click="store.searchQuery = ''" class="absolute right-2.5 top-2 text-[#86868B] hover:text-[#1D1D1F] cursor-pointer text-xs">✕</span>
     </div>
 
-    <!-- 右侧：货币切换与全网同步 -->
-    <div class="flex items-center space-x-3 no-drag">
-      <!-- 货币切换按钮 -->
+    <!-- 右侧功能区：实时汇率、货币切换、全量同步、环境标记 -->
+    <div class="flex items-center space-x-2.5 text-xs">
+      <!-- 汇率切换胶囊 -->
       <button
         @click="store.toggleCurrency"
-        class="text-xs px-3 py-1.5 rounded-lg bg-[#1E2430] hover:bg-[#283244] text-gray-200 border border-[#374151] transition-all font-mono font-semibold flex items-center space-x-1.5"
-        title="点击切换 USD / CNY 计价换算"
+        class="px-2.5 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] text-[#1D1D1F] font-mono font-medium transition-all flex items-center space-x-1.5"
+        title="切换 USD 刀 / CNY 人民币定价展示"
       >
-        <span>{{ store.currency === 'USD' ? '💵 USD ($)' : '💴 CNY (￥)' }}</span>
+        <span class="text-xs">{{ store.currency === 'USD' ? '💵 USD ($)' : '💴 CNY (￥)' }}</span>
       </button>
 
-      <!-- 一键全网刷新 -->
+      <!-- 全网同步按钮 -->
       <button
         @click="store.triggerFullSync"
-        class="text-xs px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium shadow-md shadow-blue-600/20 transition-all flex items-center space-x-1.5"
+        class="px-3 py-1 rounded-lg bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] text-white font-medium shadow-sm transition-all flex items-center space-x-1"
       >
         <span>⚡ 一键全网同步</span>
       </button>
 
-      <!-- 窗口控制按钮 (仅 Electron 桌面端显示) -->
-      <div v-if="isElectron" class="flex items-center space-x-1 pl-2 border-l border-[#232936]">
-        <button
-          @click="minimize"
-          class="w-7 h-7 rounded hover:bg-[#232936] text-gray-400 hover:text-white flex items-center justify-center text-xs transition-colors"
-        >
-          ─
-        </button>
-        <button
-          @click="maximize"
-          class="w-7 h-7 rounded hover:bg-[#232936] text-gray-400 hover:text-white flex items-center justify-center text-xs transition-colors"
-        >
-          □
-        </button>
-        <button
-          @click="close"
-          class="w-7 h-7 rounded hover:bg-rose-600/80 text-gray-400 hover:text-white flex items-center justify-center text-xs transition-colors"
-        >
-          ✕
-        </button>
-      </div>
-      <div v-else class="pl-2 border-l border-[#232936] text-[10px] text-gray-400 font-mono">
-        <span class="px-2 py-0.5 rounded bg-[#1E2430] border border-[#2D3748]">🌐 Web 实时调试模式</span>
-      </div>
+      <!-- 模式标记 -->
+      <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-[#F2F2F7] text-[#6E6E73] border border-[#E5E5EA]">
+        Web 实时调试模式
+      </span>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useDashboardStore } from '../stores/dashboardStore'
 
 const store = useDashboardStore()
-const isElectron = computed(() => typeof window !== 'undefined' && !!(window as any).api)
-
-const minimize = () => window.api?.minimizeWindow?.()
-const maximize = () => window.api?.maximizeWindow?.()
-const close = () => window.api?.closeWindow?.()
 </script>
-
-<style scoped>
-.drag-region {
-  -webkit-app-region: drag;
-}
-.no-drag {
-  -webkit-app-region: no-drag;
-}
-</style>

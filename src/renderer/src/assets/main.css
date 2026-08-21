@@ -4,62 +4,88 @@
 
 @layer base {
   body {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    color-scheme: dark;
-    background-color: #0B0E14;
-    color: #F3F4F6;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    color-scheme: light;
+    background-color: #F5F5F7;
+    color: #1D1D1F;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-/* 自定义暗黑质感滚动条 */
+/* 苹果官网极简精致浅灰滚动条 */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0B0E14;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #232936;
-  border-radius: 4px;
+  background: #D1D1D6;
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3B82F6;
+  background: #AEAEB2;
 }
 
-/* 玻璃拟态与发光动画 */
-.glass-panel {
-  background: rgba(21, 25, 34, 0.75);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+/* 苹果高质感毛玻璃与卡片质感 */
+.apple-card {
+  background: #FFFFFF;
+  border: 1px solid #E5E5EA;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03), 0 4px 12px rgba(0, 0, 0, 0.02);
 }
 
-.glow-green {
-  box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+.apple-glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(229, 229, 234, 0.8);
 }
 
-.glow-red {
-  box-shadow: 0 0 15px rgba(239, 68, 68, 0.2);
+.apple-input {
+  background: #F2F2F7;
+  border: 1px solid #E5E5EA;
+  color: #1D1D1F;
+}
+.apple-input:focus {
+  background: #FFFFFF;
+  border-color: #0071E3;
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
 }
 
-/* 价格跳动闪烁动画 */
-@keyframes flash-green {
-  0% { background-color: rgba(16, 185, 129, 0.3); }
-  100% { background-color: transparent; }
+/* 按钮微动效 */
+.apple-btn-primary {
+  background-color: #0071E3;
+  color: #FFFFFF;
+  transition: all 0.15s ease;
+}
+.apple-btn-primary:hover {
+  background-color: #0077ED;
+}
+.apple-btn-primary:active {
+  background-color: #0062C4;
 }
 
-@keyframes flash-red {
-  0% { background-color: rgba(239, 68, 68, 0.3); }
+.apple-btn-secondary {
+  background-color: #F2F2F7;
+  color: #1D1D1F;
+  border: 1px solid #E5E5EA;
+  transition: all 0.15s ease;
+}
+.apple-btn-secondary:hover {
+  background-color: #E5E5EA;
+}
+
+/* 价格跳动微闪烁 */
+@keyframes flash-apple-green {
+  0% { background-color: rgba(52, 199, 89, 0.2); }
   100% { background-color: transparent; }
 }
 
 .flash-up {
-  animation: flash-green 0.8s ease-out;
-}
-
-.flash-down {
-  animation: flash-red 0.8s ease-out;
+  animation: flash-apple-green 0.8s ease-out;
 }

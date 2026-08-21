@@ -1,92 +1,71 @@
 <template>
-  <div class="relative inline-block text-left select-none" ref="dropdownRef">
-    <!-- 触发胶囊按钮 -->
+  <div class="relative inline-block text-left" ref="dropdownRef">
+    <!-- 下拉触发胶囊按钮 (苹果风格) -->
     <button
-      type="button"
       @click="isOpen = !isOpen"
-      class="h-8 px-2.5 rounded-lg border text-xs font-medium flex items-center space-x-1.5 transition-all shadow-sm"
+      type="button"
+      class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all shadow-xs"
       :class="
-        selectedValues.length > 0
-          ? 'bg-blue-600/15 border-blue-500/50 text-blue-300 font-bold'
-          : 'bg-[#1A202C] border-[#2D3748] text-gray-300 hover:border-gray-500 hover:text-white'
+        modelValue.length > 0
+          ? 'bg-[#E8F2FD] border-[#CCE4FB] text-[#0071E3] font-bold'
+          : 'bg-[#FFFFFF] hover:bg-[#F2F2F7] border-[#E5E5EA] text-[#1D1D1F]'
       "
     >
-      <span class="text-xs">{{ icon }}</span>
+      <span>{{ icon }}</span>
       <span>{{ label }}:</span>
-      <span v-if="selectedValues.length === 0" class="text-gray-500 font-normal">全部</span>
-      <span
-        v-else
-        class="px-1.5 py-0.2 rounded bg-blue-500 text-white text-[10px] font-mono font-bold"
-      >
-        {{ selectedValues.length === options.length && options.length > 1 ? '全部' : `${selectedValues.length} 项` }}
+      <span class="font-bold">
+        {{ selectedLabelSummary }}
       </span>
-      <span class="text-[10px] text-gray-400">▼</span>
-      <button
-        v-if="selectedValues.length > 0"
-        @click.stop="clearAll"
-        class="ml-1 text-gray-400 hover:text-rose-400 text-xs px-0.5 rounded"
-        title="清空此维度筛选"
-      >
-        ✕
-      </button>
+      <span class="text-[10px] text-[#86868B]">▼</span>
     </button>
 
-    <!-- 下拉面板 -->
+    <!-- 下拉浮层面板 (苹果毛玻璃/纯白阴影质感) -->
     <div
       v-if="isOpen"
-      class="absolute left-0 top-9 w-64 rounded-xl bg-[#151922] border border-[#2D3748] shadow-2xl z-50 p-2.5 space-y-2 animate-in fade-in zoom-in-95 duration-100"
+      class="absolute left-0 mt-1.5 w-64 rounded-xl bg-[#FFFFFF] border border-[#E5E5EA] shadow-[0_12px_36px_rgba(0,0,0,0.1)] z-50 p-2.5 space-y-2 select-none"
     >
-      <!-- 搜索输入框 -->
+      <!-- 搜索过滤框 -->
       <div class="relative">
         <input
-          v-model="searchTerm"
+          v-model="searchQuery"
           type="text"
-          :placeholder="`搜索 ${label}...`"
-          class="w-full bg-[#0B0E14] border border-[#2D3748] rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 font-sans"
+          :placeholder="`搜索${label}...`"
+          class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-lg px-2.5 py-1 text-xs text-[#1D1D1F] placeholder-[#86868B] focus:outline-none transition-all font-sans"
         />
-        <span v-if="searchTerm" @click="searchTerm = ''" class="absolute right-2 top-1.5 text-gray-500 hover:text-white cursor-pointer text-xs">✕</span>
+        <span v-if="searchQuery" @click="searchQuery = ''" class="absolute right-2 top-1 text-[#86868B] hover:text-[#1D1D1F] cursor-pointer text-xs">✕</span>
       </div>
 
-      <!-- 快捷操作栏 -->
-      <div class="flex items-center justify-between text-[11px] px-1 text-gray-400 border-b border-[#232936] pb-1.5">
-        <div class="space-x-2">
-          <button @click="selectAll" class="text-blue-400 hover:underline">全选</button>
-          <span>•</span>
-          <button @click="clearAll" class="hover:text-white">清空</button>
-          <span>•</span>
-          <button @click="invertSelection" class="text-gray-400 hover:text-white">反选</button>
-        </div>
-        <span class="font-mono text-[10px] text-gray-500">共 {{ filteredOptions.length }} 项</span>
+      <!-- 快速全选 / 清空 -->
+      <div class="flex items-center justify-between text-[11px] px-1 text-[#0071E3]">
+        <button @click="selectAll" class="hover:underline font-medium">全选 ({{ filteredOptions.length }})</button>
+        <button @click="clearAll" class="hover:underline text-[#FF3B30]">清空</button>
       </div>
 
       <!-- 选项列表 -->
-      <div class="max-h-48 overflow-y-auto space-y-0.5 pr-1 divide-y divide-[#232936]/30">
+      <div class="max-h-48 overflow-y-auto space-y-0.5 pr-1">
         <label
           v-for="opt in filteredOptions"
           :key="opt.value"
-          class="flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-[#1A202C] cursor-pointer text-xs group transition-colors"
-          :class="isSelected(opt.value) ? 'text-blue-300 font-medium' : 'text-gray-300'"
+          class="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-[#F2F2F7] cursor-pointer text-xs text-[#1D1D1F] transition-colors"
         >
           <div class="flex items-center space-x-2 truncate">
             <input
               type="checkbox"
-              :checked="isSelected(opt.value)"
+              :value="opt.value"
+              :checked="modelValue.includes(opt.value)"
               @change="toggleOption(opt.value)"
-              class="rounded bg-[#0B0E14] border-gray-600 text-blue-600 focus:ring-0 focus:ring-offset-0"
+              class="w-3.5 h-3.5 rounded border-[#D1D1D6] text-[#0071E3] focus:ring-[#0071E3]"
             />
-            <span class="truncate">{{ opt.label }}</span>
+            <span class="truncate" :title="opt.label">{{ opt.label }}</span>
           </div>
-          <span
-            v-if="opt.count !== undefined"
-            class="text-[10px] font-mono px-1.5 py-0.2 rounded"
-            :class="isSelected(opt.value) ? 'bg-blue-500/20 text-blue-300' : 'bg-[#232936] text-gray-500 group-hover:text-gray-400'"
-          >
+
+          <span v-if="opt.count !== undefined" class="text-[10px] text-[#86868B] font-mono ml-2">
             {{ opt.count }}
           </span>
         </label>
 
-        <div v-if="filteredOptions.length === 0" class="py-4 text-center text-xs text-gray-500">
-          无匹配的{{ label }}
+        <div v-if="filteredOptions.length === 0" class="py-4 text-center text-xs text-[#86868B]">
+          无匹配选项
         </div>
       </div>
     </div>
@@ -110,53 +89,51 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', value: string[]): void
+  (e: 'update:modelValue', val: string[]): void
 }>()
 
 const isOpen = ref(false)
-const searchTerm = ref('')
+const searchQuery = ref('')
 const dropdownRef = ref<HTMLElement | null>(null)
 
-const selectedValues = computed({
-  get: () => props.modelValue,
-  set: (val) => emit('update:modelValue', val)
-})
-
-const isSelected = (val: string) => selectedValues.value.includes(val)
-
-const toggleOption = (val: string) => {
-  const cur = [...selectedValues.value]
-  const idx = cur.indexOf(val)
-  if (idx >= 0) {
-    cur.splice(idx, 1)
-  } else {
-    cur.push(val)
-  }
-  selectedValues.value = cur
-}
-
-const selectAll = () => {
-  selectedValues.value = props.options.map((o) => o.value)
-}
-
-const clearAll = () => {
-  selectedValues.value = []
-}
-
-const invertSelection = () => {
-  const allVals = props.options.map((o) => o.value)
-  selectedValues.value = allVals.filter((v) => !selectedValues.value.includes(v))
-}
-
 const filteredOptions = computed(() => {
-  if (!searchTerm.value.trim()) return props.options
-  const q = searchTerm.value.toLowerCase().trim()
+  if (!searchQuery.value.trim()) return props.options
+  const q = searchQuery.value.toLowerCase().trim()
   return props.options.filter(
-    (o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q)
+    (opt) => opt.label.toLowerCase().includes(q) || opt.value.toLowerCase().includes(q)
   )
 })
 
-// 点击外部关闭
+const selectedLabelSummary = computed(() => {
+  if (props.modelValue.length === 0) return '全部'
+  if (props.modelValue.length === 1) {
+    const matched = props.options.find((o) => o.value === props.modelValue[0])
+    return matched ? matched.label : props.modelValue[0]
+  }
+  return `已选 (${props.modelValue.length})`
+})
+
+const toggleOption = (val: string) => {
+  const current = [...props.modelValue]
+  const idx = current.indexOf(val)
+  if (idx > -1) {
+    current.splice(idx, 1)
+  } else {
+    current.push(val)
+  }
+  emit('update:modelValue', current)
+}
+
+const selectAll = () => {
+  const allVals = filteredOptions.value.map((o) => o.value)
+  const merged = Array.from(new Set([...props.modelValue, ...allVals]))
+  emit('update:modelValue', merged)
+}
+
+const clearAll = () => {
+  emit('update:modelValue', [])
+}
+
 const handleClickOutside = (e: MouseEvent) => {
   if (dropdownRef.value && !dropdownRef.value.contains(e.target as Node)) {
     isOpen.value = false
