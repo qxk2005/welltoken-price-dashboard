@@ -187,16 +187,6 @@
                 <div class="text-[#86868B] text-[11px]">已精准匹配标准模型</div>
                 <div class="text-lg font-bold font-mono text-[#34C759] mt-1">{{ probeResult.matched_count }}</div>
               </div>
-            <!-- 统计指标格 -->
-            <div v-if="probeResult.is_online" class="grid grid-cols-3 gap-3">
-              <div class="p-3 bg-[#F9F9FB] rounded-xl border border-[#E5E5EA] text-center">
-                <div class="text-[#86868B] text-[11px]">发现原始模型数</div>
-                <div class="text-lg font-bold font-mono text-[#1D1D1F] mt-1">{{ probeResult.raw_count }}</div>
-              </div>
-              <div class="p-3 bg-[#F9F9FB] rounded-xl border border-[#E5E5EA] text-center">
-                <div class="text-[#86868B] text-[11px]">已精准匹配标准模型</div>
-                <div class="text-lg font-bold font-mono text-[#34C759] mt-1">{{ probeResult.matched_count }}</div>
-              </div>
               <div class="p-3 bg-[#F9F9FB] rounded-xl border border-[#E5E5EA] text-center">
                 <div class="text-[#86868B] text-[11px]">待确认/未匹配模型</div>
                 <div class="text-lg font-bold font-mono text-[#FF9500] mt-1">{{ probeResult.unmatched_count }}</div>
