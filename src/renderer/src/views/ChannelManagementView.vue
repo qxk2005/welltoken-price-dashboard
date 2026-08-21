@@ -459,14 +459,26 @@
           <table class="w-full text-left text-xs border-collapse min-w-[980px]">
             <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans select-none">
               <tr>
-                <th class="py-2.5 px-3">模型名称 / 标准标识</th>
-                <th class="py-2.5 px-3 text-right">上下文 (Context)</th>
-                <th class="py-2.5 px-3 text-right">最大输出 (Output)</th>
-                <th class="py-2.5 px-3 text-right">输入单价 ({{ store.currency }})</th>
-                <th class="py-2.5 px-3 text-right">输出单价 ({{ store.currency }})</th>
+                <th @click="toggleDetailSort('model_name')" class="py-2.5 px-3 cursor-pointer hover:text-[#0071E3] transition-colors">
+                  模型名称 / 标准标识 <span class="text-[10px] font-mono" :class="detailSortField === 'model_name' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('model_name') }}</span>
+                </th>
+                <th @click="toggleDetailSort('context_window')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#0071E3] transition-colors">
+                  上下文 (Context) <span class="text-[10px] font-mono" :class="detailSortField === 'context_window' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('context_window') }}</span>
+                </th>
+                <th @click="toggleDetailSort('max_output')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#0071E3] transition-colors">
+                  最大输出 (Output) <span class="text-[10px] font-mono" :class="detailSortField === 'max_output' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('max_output') }}</span>
+                </th>
+                <th @click="toggleDetailSort('calculated_input_usd')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#0071E3] transition-colors">
+                  输入单价 ({{ store.currency }}) <span class="text-[10px] font-mono" :class="detailSortField === 'calculated_input_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('calculated_input_usd') }}</span>
+                </th>
+                <th @click="toggleDetailSort('calculated_output_usd')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#0071E3] transition-colors">
+                  输出单价 ({{ store.currency }}) <span class="text-[10px] font-mono" :class="detailSortField === 'calculated_output_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('calculated_output_usd') }}</span>
+                </th>
                 <th class="py-2.5 px-3 text-center">深度推理</th>
                 <th class="py-2.5 px-3 text-center">工具调用</th>
-                <th class="py-2.5 px-3 text-center">实测 TPS</th>
+                <th @click="toggleDetailSort('last_tested_tps')" class="py-2.5 px-3 text-center cursor-pointer hover:text-[#0071E3] transition-colors">
+                  实测 TPS <span class="text-[10px] font-mono" :class="detailSortField === 'last_tested_tps' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('last_tested_tps') }}</span>
+                </th>
                 <th class="py-2.5 px-3 text-center">快捷操作</th>
               </tr>
             </thead>
@@ -878,8 +890,26 @@ const selectProvider = async (site: RelaySite) => {
   }
 }
 
+// 详情页表格排序状态
+const detailSortField = ref<string>('calculated_input_usd')
+const detailSortOrder = ref<'asc' | 'desc'>('asc')
+
+const toggleDetailSort = (field: string) => {
+  if (detailSortField.value === field) {
+    detailSortOrder.value = detailSortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    detailSortField.value = field
+    detailSortOrder.value = field === 'last_tested_tps' || field === 'context_window' || field === 'max_output' ? 'desc' : 'asc'
+  }
+}
+
+const getDetailSortIndicator = (field: string) => {
+  if (detailSortField.value !== field) return '↕'
+  return detailSortOrder.value === 'asc' ? '↑' : '↓'
+}
+
 const filteredProviderModels = computed(() => {
-  let list = providerModelsList.value
+  let list = [...providerModelsList.value]
   if (providerModelSearchQuery.value.trim()) {
     const q = providerModelSearchQuery.value.toLowerCase().trim()
     list = list.filter(
@@ -888,6 +918,22 @@ const filteredProviderModels = computed(() => {
         (m.model_id && m.model_id.toLowerCase().includes(q))
     )
   }
+
+  list.sort((a: any, b: any) => {
+    let valA = a[detailSortField.value]
+    let valB = b[detailSortField.value]
+
+    if (detailSortField.value === 'model_name') {
+      const nameA = a.model_name || a.model_id || ''
+      const nameB = b.model_name || b.model_id || ''
+      return detailSortOrder.value === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA)
+    }
+
+    valA = valA !== undefined && valA !== null ? valA : 0
+    valB = valB !== undefined && valB !== null ? valB : 0
+    return detailSortOrder.value === 'asc' ? valA - valB : valB - valA
+  })
+
   return list
 })
 

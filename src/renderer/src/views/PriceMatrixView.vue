@@ -124,16 +124,34 @@
 
     <!-- 价格对比大矩阵 (数据表格) -->
     <div class="flex-1 flex flex-col bg-[#FFFFFF] rounded-2xl border border-[#E5E5EA] p-3 shadow-[0_1px_3px_rgba(0,0,0,0.02)] overflow-hidden min-h-0">
-      <!-- 表头 -->
-      <div class="grid grid-cols-12 gap-2 text-[11px] text-[#6E6E73] font-bold px-3 py-2 border-b border-[#E5E5EA] bg-[#F9F9FB] rounded-t-xl">
+      <!-- 表头 (支持点击多列排序) -->
+      <div class="grid grid-cols-12 gap-2 text-[11px] text-[#6E6E73] font-bold px-3 py-2 border-b border-[#E5E5EA] bg-[#F9F9FB] rounded-t-xl select-none">
         <div class="col-span-2">模型系列 / 厂商</div>
-        <div class="col-span-3">模型标准标识</div>
-        <div class="col-span-2">渠道 / 供应商</div>
+        <div @click="toggleSort('model_id')" class="col-span-3 cursor-pointer hover:text-[#0071E3] transition-colors flex items-center space-x-1">
+          <span>模型标准标识</span>
+          <span class="text-[10px] font-mono" :class="sortField === 'model_id' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('model_id') }}</span>
+        </div>
+        <div @click="toggleSort('site_name')" class="col-span-2 cursor-pointer hover:text-[#0071E3] transition-colors flex items-center space-x-1">
+          <span>渠道 / 供应商</span>
+          <span class="text-[10px] font-mono" :class="sortField === 'site_name' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('site_name') }}</span>
+        </div>
         <div class="col-span-1">类型</div>
-        <div class="col-span-1 text-right">输入单价 ({{ store.currency }})</div>
-        <div class="col-span-1 text-right">输出单价 ({{ store.currency }})</div>
-        <div class="col-span-1 text-center">倍率</div>
-        <div class="col-span-1 text-right">实测 TPS</div>
+        <div @click="toggleSort('calculated_input_usd')" class="col-span-1 text-right cursor-pointer hover:text-[#0071E3] transition-colors flex items-center justify-end space-x-1">
+          <span>输入单价 ({{ store.currency }})</span>
+          <span class="text-[10px] font-mono" :class="sortField === 'calculated_input_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('calculated_input_usd') }}</span>
+        </div>
+        <div @click="toggleSort('calculated_output_usd')" class="col-span-1 text-right cursor-pointer hover:text-[#0071E3] transition-colors flex items-center justify-end space-x-1">
+          <span>输出单价 ({{ store.currency }})</span>
+          <span class="text-[10px] font-mono" :class="sortField === 'calculated_output_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('calculated_output_usd') }}</span>
+        </div>
+        <div @click="toggleSort('model_ratio')" class="col-span-1 text-center cursor-pointer hover:text-[#0071E3] transition-colors flex items-center justify-center space-x-1">
+          <span>倍率</span>
+          <span class="text-[10px] font-mono" :class="sortField === 'model_ratio' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('model_ratio') }}</span>
+        </div>
+        <div @click="toggleSort('last_tested_tps')" class="col-span-1 text-right cursor-pointer hover:text-[#0071E3] transition-colors flex items-center justify-end space-x-1">
+          <span>实测 TPS</span>
+          <span class="text-[10px] font-mono" :class="sortField === 'last_tested_tps' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('last_tested_tps') }}</span>
+        </div>
       </div>
 
       <!-- 数据行列表 (仅渲染当前页 50 条，极速流畅 60 FPS) -->
@@ -458,6 +476,27 @@ const fetchFilterOptions = async (
   }
 }
 
+// 排序状态
+const sortField = ref<string>('calculated_input_usd')
+const sortOrder = ref<'asc' | 'desc'>('asc')
+
+const toggleSort = (field: string) => {
+  if (sortField.value === field) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortField.value = field
+    // 实测 TPS 默认从高到低排序，价格/倍率默认从低到高排序
+    sortOrder.value = field === 'last_tested_tps' ? 'desc' : 'asc'
+  }
+  currentPage.value = 1
+  fetchPaginatedMatrix()
+}
+
+const getSortIndicator = (field: string) => {
+  if (sortField.value !== field) return '↕'
+  return sortOrder.value === 'asc' ? '↑' : '↓'
+}
+
 // 异步分页拉取比价数据
 const fetchPaginatedMatrix = async () => {
   isLoading.value = true
@@ -474,7 +513,9 @@ const fetchPaginatedMatrix = async () => {
 
     const params: Record<string, any> = {
       page: currentPage.value,
-      page_size: pageSize.value
+      page_size: pageSize.value,
+      sort_by: sortField.value,
+      sort_order: sortOrder.value
     }
     if (selectedProviders.value.length > 0) params.provider = selectedProviders.value
     if (selectedSeries.value.length > 0) params.series = selectedSeries.value

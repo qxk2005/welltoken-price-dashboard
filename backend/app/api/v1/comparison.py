@@ -30,10 +30,12 @@ async def get_paginated_comparison(
     model: Optional[List[str]] = Query(None, description="模型多选"),
     site: Optional[List[str]] = Query(None, description="渠道多选"),
     search: Optional[str] = Query(None, description="全局搜索"),
+    sort_by: str = Query("calculated_input_usd", description="排序字段"),
+    sort_order: str = Query("asc", description="排序顺序 (asc/desc)"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(50, ge=10, le=200, description="每页条数")
 ):
-    """高性能分页查询全网大模型 Token 比价数据，支持多维级联筛选与模糊搜索"""
+    """高性能分页查询全网大模型 Token 比价数据，支持多维级联筛选与多列排序"""
     effective_providers = get_query_list(request, "provider", "providers") or provider
     effective_series = get_query_list(request, "series") or series
     effective_models = get_query_list(request, "model", "models", "model_id") or model
@@ -45,6 +47,8 @@ async def get_paginated_comparison(
         models=effective_models,
         sites=effective_sites,
         search_query=search,
+        sort_field=sort_by,
+        sort_order=sort_order,
         page=page,
         page_size=page_size
     )

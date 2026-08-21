@@ -71,10 +71,12 @@ class DashboardService:
         models: Optional[List[str]] = None,
         sites: Optional[List[str]] = None,
         search_query: Optional[str] = None,
+        sort_field: str = "calculated_input_usd",
+        sort_order: str = "asc",
         page: int = 1,
         page_size: int = 50
     ) -> PaginatedComparisonResponse:
-        """高性能分页查询全网 Token 比价矩阵"""
+        """高性能分页查询全网 Token 比价矩阵 (支持多列升降序排序)"""
         async with AsyncSessionLocal() as session:
             # 基础条件构建
             base_conditions = [RelaySite.is_active == True]
@@ -147,6 +149,23 @@ class DashboardService:
             total = await session.scalar(count_stmt) or 0
             total_pages = math.ceil(total / page_size) if total > 0 else 1
 
+            # 排序构建
+            sort_col_map = {
+                "calculated_input_usd": SiteModelPricing.calculated_input_usd,
+                "input_price": SiteModelPricing.calculated_input_usd,
+                "calculated_output_usd": SiteModelPricing.calculated_output_usd,
+                "output_price": SiteModelPricing.calculated_output_usd,
+                "model_ratio": SiteModelPricing.model_ratio,
+                "last_tested_tps": SiteModelPricing.last_tested_tps,
+                "tps": SiteModelPricing.last_tested_tps,
+                "model_id": ModelMetadata.model_id,
+                "site_name": RelaySite.name,
+                "provider": ModelMetadata.provider,
+                "series": ModelMetadata.series
+            }
+            order_col = sort_col_map.get(sort_field, SiteModelPricing.calculated_input_usd)
+            order_expr = order_col.desc() if sort_order.lower() == "desc" else order_col.asc()
+
             # 分页提取条目
             offset = max(0, (page - 1) * page_size)
             data_stmt = select(SiteModelPricing, RelaySite, ModelMetadata).join(
@@ -154,7 +173,7 @@ class DashboardService:
             ).join(
                 ModelMetadata, SiteModelPricing.model_id == ModelMetadata.model_id
             ).where(*base_conditions).order_by(
-                SiteModelPricing.calculated_input_usd.asc()
+                order_expr
             ).limit(page_size).offset(offset)
 
             res = await session.execute(data_stmt)
