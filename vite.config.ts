@@ -13,6 +13,8 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    host: '127.0.0.1'
+    host: '0.0.0.0', // 监听全部网络接口 (同时兼容 localhost, 127.0.0.1 与局域网 IP)
+    strictPort: true,
+    cors: true
   }
 })
