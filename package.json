@@ -10,6 +10,8 @@
     "dev:browser": "vite",
     "dev:web": "vite",
     "dev:server": "python backend/run_server.py --port 8765 --reload",
+    "wpd": "./bin/wpd",
+    "restart": "./bin/wpd --restart",
     "build": "electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "build:backend": "pyinstaller pyinstaller.spec --distpath resources/bin --clean",
