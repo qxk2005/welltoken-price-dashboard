@@ -558,9 +558,15 @@ class ModelNormalizerService:
             base_out_usd = round(base_out_cny / 7.25, 4)
             base_ca_usd = round(base_ca_cny / 7.25, 4)
 
-            # 多分组价格集合
+            # 多分组价格集合 (包含所有 group_ratios_map 中的分组，以及该模型 enable_groups 中的分组)
+            all_involved_groups = set(group_ratios_map.keys())
+            for eg in enable_groups:
+                if eg:
+                    all_involved_groups.add(eg)
+
             group_pricings = {}
-            for g_name, g_ratio_val in group_ratios_map.items():
+            for g_name in all_involved_groups:
+                g_ratio_val = group_ratios_map.get(g_name, 1.0)
                 in_cny = round(base_in_cny * g_ratio_val, 2)
                 out_cny = round(base_out_cny * g_ratio_val, 2)
                 ca_cny = round(base_ca_cny * g_ratio_val, 3)
@@ -581,12 +587,16 @@ class ModelNormalizerService:
             groups_for_this_model = enable_groups if (enable_groups and len(enable_groups) > 0) else ["default"]
 
             for g_name in groups_for_this_model:
-                g_pricing = group_pricings.get(g_name, {
-                    "input_price_cny": 0.0, "output_price_cny": 0.0, "cache_price_cny": 0.0,
-                    "input_price_usd": 0.0, "output_price_usd": 0.0, "cache_price_usd": 0.0
-                })
                 g_ratio = group_ratios_map.get(g_name, 1.0)
                 final_item_ratio = g_ratio
+
+                in_cny = round(base_in_cny * final_item_ratio, 2)
+                out_cny = round(base_out_cny * final_item_ratio, 2)
+                ca_cny = round(base_ca_cny * final_item_ratio, 3)
+
+                in_usd = round(in_cny / 7.25, 4)
+                out_usd = round(out_cny / 7.25, 4)
+                ca_usd = round(ca_cny / 7.25, 4)
 
                 results.append({
                     "channel_model_name": raw_clean,
@@ -612,12 +622,12 @@ class ModelNormalizerService:
                     "ratio_diff_percent": diff_pct,
                     "applied_ratio_source": "key" if has_diff else "public",
                     "is_selected": bool(matched_standard_id),
-                    "input_price_cny": g_pricing["input_price_cny"],
-                    "output_price_cny": g_pricing["output_price_cny"],
-                    "cache_price_cny": g_pricing["cache_price_cny"],
-                    "input_price_usd": g_pricing["input_price_usd"],
-                    "output_price_usd": g_pricing["output_price_usd"],
-                    "cache_price_usd": g_pricing["cache_price_usd"],
+                    "input_price_cny": in_cny,
+                    "output_price_cny": out_cny,
+                    "cache_price_cny": ca_cny,
+                    "input_price_usd": in_usd,
+                    "output_price_usd": out_usd,
+                    "cache_price_usd": ca_usd,
                     "enable_groups": enable_groups,
                     "group_pricings": group_pricings
                 })
