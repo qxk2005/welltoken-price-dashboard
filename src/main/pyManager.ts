@@ -2,6 +2,8 @@ import { spawn, ChildProcess } from 'child_process'
 import { app } from 'electron'
 import { join } from 'path'
 import http from 'http'
+import fs from 'fs'
+import os from 'os'
 
 export class PythonProcessManager {
   private pyProcess: ChildProcess | null = null
@@ -34,6 +36,27 @@ export class PythonProcessManager {
     })
   }
 
+  private resolvePythonExecutable(): string {
+    const home = os.homedir()
+    const candidates = [
+      // 1. 用户 pyenv WPD 虚拟环境
+      join(home, '.pyenv/versions/WPD/bin/python'),
+      join(home, '.pyenv/versions/WPD/bin/python3'),
+      // 2. 当前激活虚拟环境
+      process.env.VIRTUAL_ENV ? join(process.env.VIRTUAL_ENV, 'bin/python') : '',
+      // 3. 全局 python3 / python
+      'python3',
+      'python'
+    ]
+
+    for (const candidate of candidates) {
+      if (candidate && (candidate === 'python3' || candidate === 'python' || fs.existsSync(candidate))) {
+        return candidate
+      }
+    }
+    return 'python3'
+  }
+
   public async start(): Promise<void> {
     // 首先检查是否已有本地服务在运行（避免重复启动）
     const alreadyRunning = await this.isBackendHealthy()
@@ -56,15 +79,19 @@ export class PythonProcessManager {
         stdio: 'pipe'
       })
     } else {
-      // 开发环境：直接调用 python backend/run_server.py
+      // 开发环境：定位 pyenv WPD 环境调用 python backend/run_server.py
       const projectRoot = join(__dirname, '../../')
       const scriptPath = join(projectRoot, 'backend', 'run_server.py')
+      const pythonExe = this.resolvePythonExecutable()
 
-      console.log(`[PythonManager] Launching Python backend script: ${scriptPath}`)
-      // 优先使用当前环境的 python3 / python
-      this.pyProcess = spawn('python3', [scriptPath, '--host', this.host, '--port', this.port.toString()], {
+      console.log(`[PythonManager] Launching Python backend with: ${pythonExe} -> ${scriptPath}`)
+      this.pyProcess = spawn(pythonExe, [scriptPath, '--host', this.host, '--port', this.port.toString()], {
         cwd: projectRoot,
         detached: false,
+        env: {
+          ...process.env,
+          PYTHONPATH: projectRoot
+        },
         stdio: 'pipe'
       })
     }
@@ -82,9 +109,9 @@ export class PythonProcessManager {
       this.pyProcess = null
     })
 
-    // 等待服务就绪（最多等待 10 秒）
+    // 等待服务就绪（最多等待 15 秒）
     let attempts = 0
-    while (attempts < 20) {
+    while (attempts < 30) {
       await new Promise((r) => setTimeout(r, 500))
       if (await this.isBackendHealthy()) {
         console.log(`[PythonManager] Backend successfully started and healthy!`)

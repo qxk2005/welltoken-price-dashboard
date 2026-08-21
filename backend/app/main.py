@@ -3,24 +3,24 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.config import settings
 from backend.app.database import init_db
-from backend.app.services.price_fetcher import price_service
+from backend.app.services.dashboard_service import dashboard_service
 from backend.app.api import api_v1_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 启动阶段：初始化 SQLite 数据库及基础数据
+    # 启动阶段：初始化 SQLite 数据库、models.dev 标准库与渠道倍率数据
     await init_db()
-    await price_service.initialize()
-    await price_service.start_loop()
-    print(f"[{settings.APP_NAME}] Backend service started at {settings.SERVER_HOST}:{settings.SERVER_PORT}")
+    await dashboard_service.initialize()
+    await dashboard_service.start_loop()
+    print(f"[{settings.APP_NAME}] Backend service started successfully at http://{settings.SERVER_HOST}:{settings.SERVER_PORT}")
     yield
     # 停止阶段：安全关闭后台任务
-    await price_service.stop_loop()
+    await dashboard_service.stop_loop()
     print(f"[{settings.APP_NAME}] Backend service stopped.")
 
 app = FastAPI(
     title=settings.APP_NAME,
-    description="WellToken Price Dashboard High-Performance Backend Service",
+    description="WellToken Price Dashboard - High-Performance LLM Token Aggregator & Speed Tester",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -41,6 +41,7 @@ async def root():
     return {
         "name": settings.APP_NAME,
         "status": "running",
+        "description": "Token 聚合比价与测评工具后端服务",
         "docs": "/docs",
         "api_v1": "/api/v1"
     }
