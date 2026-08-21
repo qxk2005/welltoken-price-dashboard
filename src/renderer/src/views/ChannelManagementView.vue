@@ -195,7 +195,11 @@
 
                 <!-- 6. 综合评分 -->
                 <td class="py-3 px-3 text-center font-mono text-[11px] w-24 whitespace-nowrap">
-                  <span class="text-[#34C759] font-bold">{{ site.score || 95 }} 分</span>
+                  <ScoreBreakdownTooltip
+                    :score="site.score"
+                    :latency-ms="site.last_latency_ms"
+                    align="center"
+                  />
                 </td>
 
                 <!-- 7. 实测延迟 -->
@@ -509,8 +513,16 @@
           </div>
           <div class="p-2.5 rounded-xl bg-[#F9F9FB] border border-[#E5E5EA]">
             <div class="text-[10px] text-[#86868B] font-medium uppercase tracking-wider">实测性能与评分</div>
-            <div class="text-sm font-bold font-mono text-[#34C759] mt-1">
-              {{ selectedProvider.score || 95 }}分 / {{ selectedProvider.last_latency_ms ? selectedProvider.last_latency_ms.toFixed(0) : '35' }}ms
+            <div class="mt-1">
+              <ScoreBreakdownTooltip
+                :score="selectedProvider.score"
+                :latency-ms="selectedProvider.last_latency_ms"
+                align="right"
+              >
+                <span class="text-sm font-bold font-mono text-[#34C759]">
+                  {{ selectedProvider.score || 95 }}分 / {{ selectedProvider.last_latency_ms ? selectedProvider.last_latency_ms.toFixed(0) : '35' }}ms
+                </span>
+              </ScoreBreakdownTooltip>
             </div>
           </div>
         </div>
@@ -802,6 +814,7 @@ import axios from 'axios'
 import { useDashboardStore } from '../stores/dashboardStore'
 import ProviderLogo from '../components/ProviderLogo.vue'
 import AddChannelWizardModal from '../components/AddChannelWizardModal.vue'
+import ScoreBreakdownTooltip from '../components/ScoreBreakdownTooltip.vue'
 import type { RelaySite } from '../types'
 
 const store = useDashboardStore()

@@ -177,9 +177,17 @@
               </span>
               <span v-else-if="benchmarkResult" class="text-[#34C759] font-bold flex items-center space-x-1">
                 <span>✓ 压测完成</span>
-                <span class="text-[10px] bg-[#E6F4EA] text-[#34C759] border border-[#CEEAD6] px-1.5 py-0.2 rounded font-mono">
-                  评级 {{ benchmarkResult.grade }} ({{ benchmarkResult.score }}分)
-                </span>
+                <ScoreBreakdownTooltip
+                  :score="benchmarkResult.score"
+                  :latency-ms="benchmarkResult.avg_ttft_ms"
+                  :avg-tps="benchmarkResult.avg_tps"
+                  :jitter-ms="benchmarkResult.jitter_ms"
+                  align="right"
+                >
+                  <span class="text-[10px] bg-[#E6F4EA] text-[#34C759] border border-[#CEEAD6] px-1.5 py-0.2 rounded font-mono cursor-help">
+                    评级 {{ benchmarkResult.grade }} ({{ benchmarkResult.score }}分)
+                  </span>
+                </ScoreBreakdownTooltip>
               </span>
               <span v-else class="text-[#86868B]">就绪状态 • 等待测试</span>
             </div>
@@ -430,6 +438,7 @@
 import { ref, reactive, onMounted, nextTick, watch } from 'vue'
 import axios from 'axios'
 import { useDashboardStore } from '../stores/dashboardStore'
+import ScoreBreakdownTooltip from '../components/ScoreBreakdownTooltip.vue'
 import type { RelaySite } from '../types'
 
 interface ExecutionLog {
