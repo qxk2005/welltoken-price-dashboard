@@ -178,7 +178,7 @@ async def wizard_create_channel(payload: ChannelWizardCreateRequest, db: AsyncSe
             pricing = SiteModelPricing(
                 site_id=site.id,
                 model_id=std_id,
-                group_name=selected_grp,
+                group_name=item.group_name or selected_grp,
                 site_model_name=item.channel_model_name.strip(),
                 model_ratio=ratio,
                 group_ratio=1.0,

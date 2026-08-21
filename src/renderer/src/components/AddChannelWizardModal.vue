@@ -246,65 +246,80 @@
         </div>
 
         <!-- ==================== Step 3: 智能映射与审核确认 ==================== -->
-        <div v-else-if="currentStep === 3" class="space-y-4 animate-fade-in flex flex-col h-full">
-          <!-- 筛选与统计工具条 -->
+        <div v-else-if="currentStep === 3" class="space-y-3 animate-fade-in flex flex-col h-full">
+          <!-- 筛选与统计工具条 (第一行: 匹配状态 + 全选/清空) -->
           <div class="flex items-center justify-between bg-[#F9F9FB] p-2.5 rounded-xl border border-[#E5E5EA]">
             <div class="flex items-center space-x-2">
-              <span class="text-[#6E6E73] font-medium">筛选视图:</span>
+              <span class="text-[#6E6E73] font-medium">状态筛选:</span>
               <button
                 @click="mappingFilter = 'all'"
                 class="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all"
                 :class="mappingFilter === 'all' ? 'bg-[#0071E3] text-white font-bold' : 'text-[#6E6E73] hover:bg-[#E5E5EA]'"
               >
-                全部 ({{ mappingsList.length }})
+                当前视图 ({{ filteredMappings.length }})
               </button>
               <button
                 @click="mappingFilter = 'matched'"
                 class="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all"
                 :class="mappingFilter === 'matched' ? 'bg-[#34C759] text-white font-bold' : 'text-[#6E6E73] hover:bg-[#E5E5EA]'"
               >
-                已精准匹配 ({{ matchedMappingsCount }})
+                已匹配 ({{ matchedMappingsCount }})
               </button>
               <button
                 @click="mappingFilter = 'unmatched'"
                 class="px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all"
                 :class="mappingFilter === 'unmatched' ? 'bg-[#FF9500] text-white font-bold' : 'text-[#6E6E73] hover:bg-[#E5E5EA]'"
               >
-                待确认/未识别 ({{ unmatchedMappingsCount }})
+                待确认 ({{ unmatchedMappingsCount }})
               </button>
             </div>
 
-            <!-- 分组快速切换与批量操作 -->
-            <div class="flex items-center space-x-3">
-              <div v-if="probeResult.available_groups && probeResult.available_groups.length > 1" class="flex items-center space-x-1.5">
-                <span class="text-[11px] text-[#6E6E73]">分组:</span>
-                <select
-                  v-model="probeResult.selected_group"
-                  @change="onSelectedGroupChange"
-                  class="bg-white border border-[#E5E5EA] rounded-lg px-2 py-0.5 text-[11px] font-bold text-[#0071E3] focus:outline-none"
-                >
-                  <option v-for="g in probeResult.available_groups" :key="g.name" :value="g.name">
-                    {{ g.name }} ({{ g.ratio }}x)
-                  </option>
-                </select>
-              </div>
-
-              <div class="flex items-center space-x-2">
-                <button
-                  @click="toggleSelectAll(true)"
-                  class="text-[11px] text-[#0071E3] hover:underline"
-                >
-                  全选
-                </button>
-                <span class="text-[#D1D1D6]">|</span>
-                <button
-                  @click="toggleSelectAll(false)"
-                  class="text-[11px] text-[#86868B] hover:underline"
-                >
-                  清空
-                </button>
-              </div>
+            <!-- 全选 / 清空当前视图模型 -->
+            <div class="flex items-center space-x-2">
+              <span class="text-[11px] text-[#86868B]">已选收录: <b class="text-[#0071E3] font-mono">{{ selectedMappingsCount }}</b> 款</span>
+              <span class="text-[#D1D1D6]">|</span>
+              <button
+                @click="toggleSelectAll(true)"
+                class="text-[11px] text-[#0071E3] hover:underline"
+              >
+                全选
+              </button>
+              <span class="text-[#D1D1D6]">|</span>
+              <button
+                @click="toggleSelectAll(false)"
+                class="text-[11px] text-[#86868B] hover:underline"
+              >
+                清空
+              </button>
             </div>
+          </div>
+
+          <!-- 分组多选胶囊筛选栏 (第二行: 严格按选中分组过滤) -->
+          <div
+            v-if="probeResult.available_groups && probeResult.available_groups.length > 0"
+            class="flex items-center space-x-1.5 overflow-x-auto pb-1 text-xs"
+          >
+            <span class="text-[#6E6E73] font-medium text-[11px] whitespace-nowrap flex items-center space-x-1">
+              <span>🎯</span>
+              <span>分组多选过滤:</span>
+            </span>
+            <button
+              @click="toggleGroupFilter('all')"
+              class="px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all whitespace-nowrap"
+              :class="selectedGroupFilters.includes('all') ? 'bg-[#1D1D1F] text-white font-bold shadow-2xs' : 'bg-[#F2F2F7] text-[#6E6E73] hover:bg-[#E5E5EA]'"
+            >
+              全部 ({{ mappingsList.length }})
+            </button>
+            <button
+              v-for="g in probeResult.available_groups"
+              :key="g.name"
+              @click="toggleGroupFilter(g.name)"
+              class="px-2.5 py-1 rounded-lg text-[10px] font-mono transition-all whitespace-nowrap flex items-center space-x-1 border"
+              :class="selectedGroupFilters.includes(g.name) ? 'bg-[#0071E3] text-white font-bold border-[#0071E3] shadow-2xs' : 'bg-[#FFFFFF] text-[#6E6E73] border-[#E5E5EA] hover:border-[#0071E3]'"
+            >
+              <span>{{ g.name }}</span>
+              <span class="opacity-80 text-[9px]">({{ getGroupModelCount(g.name) }})</span>
+            </button>
           </div>
 
           <!-- 映射对照数据表格 -->
@@ -313,7 +328,7 @@
               <thead class="bg-[#F2F2F7] sticky top-0 z-10 text-[11px] text-[#6E6E73] border-b border-[#E5E5EA]">
                 <tr>
                   <th class="py-2 px-3 text-center w-10">收录</th>
-                  <th class="py-2 px-3">渠道原始模型名 (Raw Model ID)</th>
+                  <th class="py-2 px-3">渠道原始模型名 & 所属分组</th>
                   <th class="py-2 px-3 text-center w-8">➔</th>
                   <th class="py-2 px-3">对应 models.dev 标准模型</th>
                   <th class="py-2 px-3 text-center w-44">折算实际价格 (每1M Tokens)</th>
@@ -324,7 +339,7 @@
               <tbody class="divide-y divide-[#E5E5EA] text-[11px]">
                 <tr
                   v-for="(item, idx) in filteredMappings"
-                  :key="idx"
+                  :key="item.item_key || idx"
                   class="hover:bg-[#F9F9FB] transition-colors"
                   :class="{'bg-[#FFF9E6]/30': !item.is_matched}"
                 >
@@ -337,9 +352,16 @@
                     />
                   </td>
 
-                  <!-- 2. 原始模型名称 -->
-                  <td class="py-2 px-3 font-mono font-bold text-[#1D1D1F]">
-                    {{ item.channel_model_name }}
+                  <!-- 2. 原始模型名称与所属分组徽章 -->
+                  <td class="py-2 px-3">
+                    <div class="font-mono font-bold text-[#1D1D1F]">
+                      {{ item.channel_model_name }}
+                    </div>
+                    <div class="mt-0.5">
+                      <span class="px-1.5 py-0.2 rounded bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[9px] font-mono font-bold inline-block shadow-2xs">
+                        🎯 {{ item.group_name }}
+                      </span>
+                    </div>
                   </td>
 
                   <!-- 3. 箭头 -->
@@ -565,24 +587,40 @@ const probeResult = reactive({
 })
 
 const mappingsList = ref<any[]>([])
+const selectedGroupFilters = ref<string[]>(['all'])
 
-const matchedMappingsCount = computed(() => mappingsList.value.filter(m => m.is_matched).length)
-const unmatchedMappingsCount = computed(() => mappingsList.value.filter(m => !m.is_matched).length)
+const matchedMappingsCount = computed(() => filteredMappings.value.filter(m => m.is_matched).length)
+const unmatchedMappingsCount = computed(() => filteredMappings.value.filter(m => !m.is_matched).length)
 const selectedMappingsCount = computed(() => mappingsList.value.filter(m => m.is_selected && m.standard_model_id).length)
 const hasSpecialPricingInMappings = computed(() => mappingsList.value.some(m => m.has_ratio_diff))
 
+function getGroupModelCount(gName: string) {
+  return mappingsList.value.filter(m => m.group_name === gName).length
+}
+
+function toggleGroupFilter(gName: string) {
+  if (gName === 'all') {
+    selectedGroupFilters.value = ['all']
+    return
+  }
+  if (selectedGroupFilters.value.includes('all')) {
+    selectedGroupFilters.value = [gName]
+    return
+  }
+  if (selectedGroupFilters.value.includes(gName)) {
+    selectedGroupFilters.value = selectedGroupFilters.value.filter(g => g !== gName)
+    if (selectedGroupFilters.value.length === 0) {
+      selectedGroupFilters.value = ['all']
+    }
+  } else {
+    selectedGroupFilters.value.push(gName)
+  }
+}
+
 function onSelectedGroupChange() {
   const gName = probeResult.selected_group
-  for (const m of mappingsList.value) {
-    if (m.group_pricings && m.group_pricings[gName]) {
-      const p = m.group_pricings[gName]
-      m.input_price_cny = p.input_price_cny
-      m.output_price_cny = p.output_price_cny
-      m.cache_price_cny = p.cache_price_cny
-      m.input_price_usd = p.input_price_usd
-      m.output_price_usd = p.output_price_usd
-      m.cache_price_usd = p.cache_price_usd
-    }
+  if (gName) {
+    selectedGroupFilters.value = [gName]
   }
 }
 
@@ -596,13 +634,21 @@ function batchApplyRatio(source: 'key' | 'public') {
 }
 
 const filteredMappings = computed(() => {
+  let list = mappingsList.value
+
+  // 1. 匹配状态过滤
   if (mappingFilter.value === 'matched') {
-    return mappingsList.value.filter(m => m.is_matched)
+    list = list.filter(m => m.is_matched)
+  } else if (mappingFilter.value === 'unmatched') {
+    list = list.filter(m => !m.is_matched)
   }
-  if (mappingFilter.value === 'unmatched') {
-    return mappingsList.value.filter(m => !m.is_matched)
+
+  // 2. 分组多选过滤 (严格只显示选中分组的模型)
+  if (!selectedGroupFilters.value.includes('all') && selectedGroupFilters.value.length > 0) {
+    list = list.filter(m => selectedGroupFilters.value.includes(m.group_name))
   }
-  return mappingsList.value
+
+  return list
 })
 
 const isNextDisabled = computed(() => {
@@ -643,6 +689,15 @@ async function runProbe() {
     probeResult.error = res.data.error
 
     mappingsList.value = res.data.mappings || []
+
+    // 默认分组筛选器：优先绑定当前令牌所属分组，若无则默认选中目标分组
+    if (probeResult.token_group) {
+      selectedGroupFilters.value = [probeResult.token_group]
+    } else if (probeResult.selected_group) {
+      selectedGroupFilters.value = [probeResult.selected_group]
+    } else {
+      selectedGroupFilters.value = ['all']
+    }
   } catch (e: any) {
     probeResult.is_online = false
     probeResult.fetch_source = ''

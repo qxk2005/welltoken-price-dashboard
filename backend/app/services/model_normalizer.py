@@ -568,39 +568,45 @@ class ModelNormalizerService:
                     "cache_price_usd": round(ca_cny / 7.25, 4),
                 }
 
-            # 当前选中分组的价格
-            curr_pricing = group_pricings.get(selected_group, list(group_pricings.values())[0] if group_pricings else {
-                "input_price_cny": 0.0, "output_price_cny": 0.0, "cache_price_cny": 0.0,
-                "input_price_usd": 0.0, "output_price_usd": 0.0, "cache_price_usd": 0.0
-            })
+            # 确定该模型所属的分组集合 groups_for_this_model
+            # 若 raw_item 中包含 enable_groups 且不为空，则严格只生成属于这些启用分组的条目！
+            groups_for_this_model = enable_groups if (enable_groups and len(enable_groups) > 0) else ["default"]
 
-            results.append({
-                "channel_model_name": raw_clean,
-                "is_matched": bool(matched_standard_id),
-                "match_type": match_type,
-                "confidence": confidence,
-                "standard_model_id": matched_standard_id or "",
-                "standard_model_name": std_meta.name if std_meta else "",
-                "provider": std_meta.provider if std_meta else "",
-                "series": std_meta.series if std_meta else "",
-                "official_input_price": std_meta.official_input_price if std_meta else 0.0,
-                "official_output_price": std_meta.official_output_price if std_meta else 0.0,
-                "custom_ratio": custom_ratio,
-                "public_ratio": p_ratio,
-                "key_ratio": k_ratio,
-                "has_ratio_diff": has_diff,
-                "ratio_diff_percent": diff_pct,
-                "applied_ratio_source": "key" if has_diff else "public",
-                "is_selected": bool(matched_standard_id),
-                "input_price_cny": curr_pricing["input_price_cny"],
-                "output_price_cny": curr_pricing["output_price_cny"],
-                "cache_price_cny": curr_pricing["cache_price_cny"],
-                "input_price_usd": curr_pricing["input_price_usd"],
-                "output_price_usd": curr_pricing["output_price_usd"],
-                "cache_price_usd": curr_pricing["cache_price_usd"],
-                "enable_groups": enable_groups,
-                "group_pricings": group_pricings
-            })
+            for g_name in groups_for_this_model:
+                g_pricing = group_pricings.get(g_name, {
+                    "input_price_cny": 0.0, "output_price_cny": 0.0, "cache_price_cny": 0.0,
+                    "input_price_usd": 0.0, "output_price_usd": 0.0, "cache_price_usd": 0.0
+                })
+
+                results.append({
+                    "channel_model_name": raw_clean,
+                    "group_name": g_name,
+                    "item_key": f"{raw_clean}::{g_name}",
+                    "is_matched": bool(matched_standard_id),
+                    "match_type": match_type,
+                    "confidence": confidence,
+                    "standard_model_id": matched_standard_id or "",
+                    "standard_model_name": std_meta.name if std_meta else "",
+                    "provider": std_meta.provider if std_meta else "",
+                    "series": std_meta.series if std_meta else "",
+                    "official_input_price": std_meta.official_input_price if std_meta else 0.0,
+                    "official_output_price": std_meta.official_output_price if std_meta else 0.0,
+                    "custom_ratio": custom_ratio,
+                    "public_ratio": p_ratio,
+                    "key_ratio": k_ratio,
+                    "has_ratio_diff": has_diff,
+                    "ratio_diff_percent": diff_pct,
+                    "applied_ratio_source": "key" if has_diff else "public",
+                    "is_selected": bool(matched_standard_id),
+                    "input_price_cny": g_pricing["input_price_cny"],
+                    "output_price_cny": g_pricing["output_price_cny"],
+                    "cache_price_cny": g_pricing["cache_price_cny"],
+                    "input_price_usd": g_pricing["input_price_usd"],
+                    "output_price_usd": g_pricing["output_price_usd"],
+                    "cache_price_usd": g_pricing["cache_price_usd"],
+                    "enable_groups": enable_groups,
+                    "group_pricings": group_pricings
+                })
 
         return results
 

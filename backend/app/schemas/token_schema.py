@@ -237,6 +237,8 @@ class ChannelProbeRequest(BaseModel):
 
 class ModelMappingItem(BaseModel):
     channel_model_name: str
+    group_name: str = "default" # 该条目归属的具体渠道分组 (如 deepseek-三方, vip)
+    item_key: str = "" # 唯一键 model_name::group_name
     is_matched: bool = False
     match_type: str = "unmapped" # exact, channel_custom, global_alias, rule_normalized, fuzzy, unmapped
     confidence: float = 0.0
