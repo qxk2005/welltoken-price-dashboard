@@ -209,6 +209,7 @@ class ChannelProbeRequest(BaseModel):
     api_key: Optional[str] = ""
     site_type: str = "newapi"
     models_endpoint: str = "/v1/models"
+    target_group: Optional[str] = None
 
 class ModelMappingItem(BaseModel):
     channel_model_name: str
@@ -228,6 +229,15 @@ class ModelMappingItem(BaseModel):
     ratio_diff_percent: Optional[float] = None
     applied_ratio_source: str = "key" # key, public, custom
     is_selected: bool = True
+    # 实际货币交易金额 (每 1M Tokens，精确计算)
+    input_price_cny: float = 0.0
+    output_price_cny: float = 0.0
+    cache_price_cny: float = 0.0
+    input_price_usd: float = 0.0
+    output_price_usd: float = 0.0
+    cache_price_usd: float = 0.0
+    enable_groups: List[str] = []
+    group_pricings: Dict[str, Any] = {}
 
 class ChannelProbeResponse(BaseModel):
     is_online: bool
@@ -241,6 +251,9 @@ class ChannelProbeResponse(BaseModel):
     token_group_ratio: Optional[float] = None
     has_special_pricing: bool = False
     special_pricing_count: int = 0
+    available_groups: List[Dict[str, Any]] = []
+    selected_group: str = ""
+    currency: str = "CNY"
     error: str = ""
     mappings: List[ModelMappingItem] = []
 
@@ -249,6 +262,7 @@ class ChannelWizardCreateRequest(BaseModel):
     base_url: str
     api_key: Optional[str] = ""
     site_type: str = "newapi"
+    selected_group: Optional[str] = ""
     recharge_rate: float = 1.0
     default_ratio: float = 0.65
     models_endpoint: str = "/v1/models"

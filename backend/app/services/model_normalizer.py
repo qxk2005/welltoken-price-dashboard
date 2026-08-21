@@ -142,14 +142,52 @@ class ModelNormalizerService:
         clean = re.sub(r"/(v1|v1beta|api|v2)$", "", clean)
         return clean.rstrip("/")
 
+    def parse_billing_expr(self, expr: str) -> Dict[str, float]:
+        """解析 NewAPI 的阶梯计费表达式 (billing_expr)，精确提取 p (输入), c (输出), cr (缓存读), cc (缓存写) 系数"""
+        coeffs = {"p": 0.0, "c": 0.0, "cr": 0.0, "cc": 0.0}
+        if not expr:
+            return coeffs
+
+        # 匹配 p * 0.2054794520547 或 p*0.2
+        p_match = re.search(r"p\s*\*\s*([\d\.]+)", expr)
+        if p_match:
+            try:
+                coeffs["p"] = float(p_match.group(1))
+            except ValueError:
+                pass
+
+        c_match = re.search(r"c\s*\*\s*([\d\.]+)", expr)
+        if c_match:
+            try:
+                coeffs["c"] = float(c_match.group(1))
+            except ValueError:
+                pass
+
+        cr_match = re.search(r"cr\s*\*\s*([\d\.]+)", expr)
+        if cr_match:
+            try:
+                coeffs["cr"] = float(cr_match.group(1))
+            except ValueError:
+                pass
+
+        cc_match = re.search(r"cc\s*\*\s*([\d\.]+)", expr)
+        if cc_match:
+            try:
+                coeffs["cc"] = float(cc_match.group(1))
+            except ValueError:
+                pass
+
+        return coeffs
+
     async def probe_and_fetch_models(
         self,
         base_url: str,
         api_key: str = "",
         site_type: str = "newapi",
-        models_endpoint: str = "/v1/models"
+        models_endpoint: str = "/v1/models",
+        target_group: Optional[str] = None
     ) -> Dict[str, Any]:
-        """使用 relay-watch 智能全量探测链：自动提取根域，优先免 Key 请求公开 JSON (/api/pricing, /api/models)，探测令牌分组并提取/比对专属倍率"""
+        """使用 relay-watch 智能全量探测链：解析多分组、提取阶梯表达式精确价格、比对 Key 专属倍率"""
         start_t = time.time()
         is_online = False
         status_code = 0
@@ -162,6 +200,8 @@ class ModelNormalizerService:
 
         token_group = ""
         token_group_ratio = None
+        global_group_ratios: Dict[str, float] = {"default": 1.0}
+        raw_model_items: List[Dict[str, Any]] = []
 
         clean_base = base_url.strip().rstrip("/")
         root_url = self.extract_root_url(clean_base)
@@ -226,13 +266,27 @@ class ModelNormalizerService:
                         is_online = True
                         data = resp.json()
                         raw_list = data if isinstance(data, list) else (data.get("data") or data.get("models") or [])
-                        
-                        # 解析 pricing 格式（带有 model_name, model_ratio, group_ratio）
-                        for item in raw_list:
+                        if isinstance(data, dict) and "group_ratio" in data and isinstance(data["group_ratio"], dict):
+                            for g_k, g_v in data["group_ratio"].items():
+                                try:
+                                    global_group_ratios[str(g_k).strip()] = float(g_v)
+                                except (ValueError, TypeError):
+                                    pass
+
+                        raw_model_items = raw_list if isinstance(raw_list, list) else []
+
+                        for item in raw_model_items:
                             if isinstance(item, dict):
                                 m_name = item.get("model_name") or item.get("id") or item.get("name")
                                 m_ratio = item.get("model_ratio")
-                                group_ratios = item.get("group_ratio") or {}
+                                item_group_ratios = item.get("group_ratio") or {}
+                                if isinstance(item_group_ratios, dict):
+                                    for g_k, g_v in item_group_ratios.items():
+                                        try:
+                                            global_group_ratios[str(g_k).strip()] = float(g_v)
+                                        except (ValueError, TypeError):
+                                            pass
+
                                 if m_ratio is not None:
                                     try:
                                         p_ratio = float(m_ratio)
@@ -240,8 +294,8 @@ class ModelNormalizerService:
                                         raw_public_ratios[m_key] = p_ratio
 
                                         # 计算 Key 专属倍率
-                                        if token_group and isinstance(group_ratios, dict) and token_group in group_ratios:
-                                            g_coeff = float(group_ratios[token_group])
+                                        if token_group and token_group in global_group_ratios:
+                                            g_coeff = global_group_ratios[token_group]
                                             raw_key_ratios[m_key] = round(p_ratio * g_coeff, 4)
                                         else:
                                             raw_key_ratios[m_key] = p_ratio
@@ -282,7 +336,8 @@ class ModelNormalizerService:
                             is_online = True
                             data = resp.json()
                             raw_list = data if isinstance(data, list) else (data.get("data") or data.get("models") or [])
-                            for item in raw_list:
+                            raw_model_items = raw_list if isinstance(raw_list, list) else []
+                            for item in raw_model_items:
                                 if isinstance(item, dict):
                                     m_id = item.get("id") or item.get("name") or item.get("model_name")
                                 elif isinstance(item, str):
@@ -305,6 +360,39 @@ class ModelNormalizerService:
         seen_m = set()
         unique_raw_models = [m for m in raw_models if not (m.lower() in seen_m or seen_m.add(m.lower()))]
 
+        # 汇总全部分组列表 available_groups
+        groups_set: Set[str] = set()
+        for item in raw_model_items:
+            if isinstance(item, dict) and "enable_groups" in item and isinstance(item["enable_groups"], list):
+                for g in item["enable_groups"]:
+                    if g:
+                        groups_set.add(str(g).strip())
+        for g_k in global_group_ratios.keys():
+            if g_k:
+                groups_set.add(g_k)
+
+        available_groups = []
+        for g_name in sorted(list(groups_set)):
+            g_ratio = global_group_ratios.get(g_name, 1.0)
+            # 计算该分组下支持的模型数
+            m_cnt = 0
+            for item in raw_model_items:
+                if isinstance(item, dict):
+                    eg = item.get("enable_groups")
+                    if not eg or (isinstance(eg, list) and (g_name in eg or not eg)):
+                        m_cnt += 1
+                else:
+                    m_cnt += 1
+            available_groups.append({
+                "name": g_name,
+                "ratio": g_ratio,
+                "model_count": m_cnt if m_cnt > 0 else len(unique_raw_models)
+            })
+
+        # 确定当前选中的分组 selected_group
+        selected_group = target_group or token_group or (available_groups[0]["name"] if available_groups else "default")
+        selected_group_ratio = global_group_ratios.get(selected_group, 1.0)
+
         # 统计差异倍率模型数
         special_cnt = 0
         for m in unique_raw_models:
@@ -321,8 +409,13 @@ class ModelNormalizerService:
             "raw_count": len(unique_raw_models),
             "raw_public_ratios": raw_public_ratios,
             "raw_key_ratios": raw_key_ratios,
+            "raw_model_items": raw_model_items,
             "token_group": token_group,
-            "token_group_ratio": token_group_ratio,
+            "token_group_ratio": global_group_ratios.get(token_group),
+            "available_groups": available_groups,
+            "selected_group": selected_group,
+            "selected_group_ratio": selected_group_ratio,
+            "global_group_ratios": global_group_ratios,
             "has_special_pricing": special_cnt > 0,
             "special_pricing_count": special_cnt,
             "fetch_source": fetch_source or ("公开/鉴权端点均无响应" if not is_online else "未获取到模型列表"),
@@ -334,14 +427,28 @@ class ModelNormalizerService:
         raw_model_names: List[str],
         site_id: Optional[int] = None,
         raw_public_ratios: Optional[Dict[str, float]] = None,
-        raw_key_ratios: Optional[Dict[str, float]] = None
+        raw_key_ratios: Optional[Dict[str, float]] = None,
+        raw_model_items: Optional[List[Dict[str, Any]]] = None,
+        selected_group: str = "default",
+        selected_group_ratio: float = 1.0,
+        global_group_ratios: Optional[Dict[str, float]] = None
     ) -> List[Dict[str, Any]]:
-        """为渠道的一批原始模型名称执行两层智能映射匹配，并比对计算 Key 专属倍率与公开基准倍率差异"""
+        """为渠道的一批原始模型名称执行两层智能映射匹配，并精确计算输入/输出/缓存的人民币与美元实际金额"""
         if not self._is_initialized:
             await self.initialize()
 
         public_map = raw_public_ratios or {}
         key_map = raw_key_ratios or {}
+        group_ratios_map = global_group_ratios or {"default": 1.0}
+
+        # 建立 raw_model_name -> item dict 快速索引
+        items_by_name: Dict[str, Dict[str, Any]] = {}
+        if raw_model_items:
+            for it in raw_model_items:
+                if isinstance(it, dict):
+                    k = str(it.get("model_name") or it.get("id") or it.get("name") or "").strip().lower()
+                    if k:
+                        items_by_name[k] = it
 
         # 1. 如果指定了 site_id，先读取该渠道现存的专属映射表
         channel_mappings: Dict[str, ChannelModelMapping] = {}
@@ -356,9 +463,10 @@ class ModelNormalizerService:
         for raw in raw_model_names:
             raw_clean = raw.strip()
             raw_lower = raw_clean.lower()
+            raw_item = items_by_name.get(raw_lower, {})
 
             matched_standard_id: Optional[str] = None
-            match_type = "unmapped"  # exact, channel_custom, global_alias, rule_normalized, fuzzy, unmapped
+            match_type = "unmapped"
             confidence = 0.0
             custom_ratio = None
 
@@ -382,7 +490,7 @@ class ModelNormalizerService:
             if custom_ratio is None:
                 custom_ratio = k_ratio if k_ratio is not None else p_ratio
 
-            # Level 2: 检查全局别名库 (ModelAlias 精确模式或通配符规则，强制将混乱别名归一化到旗舰标准模型)
+            # Level 2: 检查全局别名库 (ModelAlias 精确模式或通配符规则)
             if not matched_standard_id:
                 for alias in self._cached_aliases:
                     pat = alias["pattern"]
@@ -392,16 +500,15 @@ class ModelNormalizerService:
                         confidence = 0.95
                         break
 
-            # Level 3: 检查是否与 models.dev 标准库直接精确一致 (Exact match)
+            # Level 3: 检查是否与 models.dev 标准库直接精确一致
             if not matched_standard_id and raw_lower in self._cached_standard_models:
                 matched_standard_id = raw_lower
                 match_type = "exact"
                 confidence = 1.0
 
-            # Level 4: 规则自动剥离归一化 (Rule Normalization 剥离厂商前缀、日期后缀与标点)
+            # Level 4: 规则自动剥离归一化
             if not matched_standard_id:
                 normalized = self.normalize_string(raw_lower)
-                # 再次检查归一化后的名称是否命中全局别名
                 for alias in self._cached_aliases:
                     pat = alias["pattern"]
                     if pat == normalized or fnmatch.fnmatch(normalized, pat):
@@ -415,7 +522,6 @@ class ModelNormalizerService:
                     match_type = "rule_normalized"
                     confidence = 0.88
                 elif not matched_standard_id:
-                    # Level 5: 尝试前缀包含模糊匹配
                     for std_id in self._cached_standard_models.keys():
                         if std_id in normalized or normalized in std_id:
                             matched_standard_id = std_id
@@ -423,9 +529,51 @@ class ModelNormalizerService:
                             confidence = 0.70
                             break
 
-            # 组装返回条目
             std_meta = self._cached_standard_models.get(matched_standard_id) if matched_standard_id else None
-            
+
+            # ---------------------------------------------------------
+            # 精确计算实际货币金额 (输入、输出、缓存价格)
+            # ---------------------------------------------------------
+            billing_mode = raw_item.get("billing_mode", "")
+            billing_expr = raw_item.get("billing_expr", "")
+            enable_groups = raw_item.get("enable_groups") or []
+            item_completion_ratio = float(raw_item.get("completion_ratio") or 1.0)
+            item_cache_ratio = float(raw_item.get("cache_ratio") or 0.1)
+
+            # 多分组价格集合
+            group_pricings = {}
+            for g_name, g_ratio_val in group_ratios_map.items():
+                if billing_mode == "tiered_expr" and billing_expr:
+                    coeffs = self.parse_billing_expr(billing_expr)
+                    in_cny = round(coeffs["p"] * 7.3 * g_ratio_val, 4)
+                    out_cny = round(coeffs["c"] * 7.3 * g_ratio_val, 4)
+                    ca_cny = round(coeffs["cr"] * 7.3 * g_ratio_val, 4)
+                else:
+                    m_rat = float(raw_item.get("model_ratio") or p_ratio or 1.0)
+                    if m_rat >= 5.0:
+                        in_cny = round(m_rat * g_ratio_val, 4)
+                    else:
+                        in_cny = round(m_rat * 7.3 * g_ratio_val, 4)
+                    out_cny = round(in_cny * item_completion_ratio, 4)
+                    ca_cny = round(in_cny * item_cache_ratio, 4)
+
+                group_pricings[g_name] = {
+                    "group_name": g_name,
+                    "group_ratio": g_ratio_val,
+                    "input_price_cny": in_cny,
+                    "output_price_cny": out_cny,
+                    "cache_price_cny": ca_cny,
+                    "input_price_usd": round(in_cny / 7.25, 4),
+                    "output_price_usd": round(out_cny / 7.25, 4),
+                    "cache_price_usd": round(ca_cny / 7.25, 4),
+                }
+
+            # 当前选中分组的价格
+            curr_pricing = group_pricings.get(selected_group, list(group_pricings.values())[0] if group_pricings else {
+                "input_price_cny": 0.0, "output_price_cny": 0.0, "cache_price_cny": 0.0,
+                "input_price_usd": 0.0, "output_price_usd": 0.0, "cache_price_usd": 0.0
+            })
+
             results.append({
                 "channel_model_name": raw_clean,
                 "is_matched": bool(matched_standard_id),
@@ -443,7 +591,15 @@ class ModelNormalizerService:
                 "has_ratio_diff": has_diff,
                 "ratio_diff_percent": diff_pct,
                 "applied_ratio_source": "key" if has_diff else "public",
-                "is_selected": bool(matched_standard_id) # 已匹配的默认勾选，未匹配的默认不勾选
+                "is_selected": bool(matched_standard_id),
+                "input_price_cny": curr_pricing["input_price_cny"],
+                "output_price_cny": curr_pricing["output_price_cny"],
+                "cache_price_cny": curr_pricing["cache_price_cny"],
+                "input_price_usd": curr_pricing["input_price_usd"],
+                "output_price_usd": curr_pricing["output_price_usd"],
+                "cache_price_usd": curr_pricing["cache_price_usd"],
+                "enable_groups": enable_groups,
+                "group_pricings": group_pricings
             })
 
         return results

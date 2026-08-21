@@ -72,12 +72,13 @@ async def get_channel_models(site_id: int):
 
 @router.post("/probe", response_model=ChannelProbeResponse)
 async def probe_channel_and_models(payload: ChannelProbeRequest):
-    """【向导第2步】真实发起 HTTP 请求探测中转站连通性，并执行智能模型归一化映射推断"""
+    """【向导第2步】真实发起 HTTP 请求探测中转站连通性，并执行智能模型归一化映射与多分组价格折算"""
     probe_res = await model_normalizer.probe_and_fetch_models(
         base_url=payload.base_url,
         api_key=payload.api_key or "",
         site_type=payload.site_type,
-        models_endpoint=payload.models_endpoint
+        models_endpoint=payload.models_endpoint,
+        target_group=payload.target_group
     )
 
     mappings_data = []
@@ -85,7 +86,11 @@ async def probe_channel_and_models(payload: ChannelProbeRequest):
         raw_mappings = await model_normalizer.match_models_for_channel(
             raw_model_names=probe_res["raw_models"],
             raw_public_ratios=probe_res.get("raw_public_ratios"),
-            raw_key_ratios=probe_res.get("raw_key_ratios")
+            raw_key_ratios=probe_res.get("raw_key_ratios"),
+            raw_model_items=probe_res.get("raw_model_items"),
+            selected_group=probe_res.get("selected_group", "default"),
+            selected_group_ratio=probe_res.get("selected_group_ratio", 1.0),
+            global_group_ratios=probe_res.get("global_group_ratios")
         )
         for m in raw_mappings:
             mappings_data.append(ModelMappingItem(**m))
@@ -105,6 +110,9 @@ async def probe_channel_and_models(payload: ChannelProbeRequest):
         token_group_ratio=probe_res.get("token_group_ratio"),
         has_special_pricing=probe_res.get("has_special_pricing", False),
         special_pricing_count=probe_res.get("special_pricing_count", 0),
+        available_groups=probe_res.get("available_groups", []),
+        selected_group=probe_res.get("selected_group", ""),
+        currency="CNY",
         error=probe_res["error"],
         mappings=mappings_data
     )

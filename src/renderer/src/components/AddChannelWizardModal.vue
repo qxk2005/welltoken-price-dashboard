@@ -187,9 +187,48 @@
                 <div class="text-[#86868B] text-[11px]">已精准匹配标准模型</div>
                 <div class="text-lg font-bold font-mono text-[#34C759] mt-1">{{ probeResult.matched_count }}</div>
               </div>
+            <!-- 统计指标格 -->
+            <div v-if="probeResult.is_online" class="grid grid-cols-3 gap-3">
+              <div class="p-3 bg-[#F9F9FB] rounded-xl border border-[#E5E5EA] text-center">
+                <div class="text-[#86868B] text-[11px]">发现原始模型数</div>
+                <div class="text-lg font-bold font-mono text-[#1D1D1F] mt-1">{{ probeResult.raw_count }}</div>
+              </div>
+              <div class="p-3 bg-[#F9F9FB] rounded-xl border border-[#E5E5EA] text-center">
+                <div class="text-[#86868B] text-[11px]">已精准匹配标准模型</div>
+                <div class="text-lg font-bold font-mono text-[#34C759] mt-1">{{ probeResult.matched_count }}</div>
+              </div>
               <div class="p-3 bg-[#F9F9FB] rounded-xl border border-[#E5E5EA] text-center">
                 <div class="text-[#86868B] text-[11px]">待确认/未匹配模型</div>
                 <div class="text-lg font-bold font-mono text-[#FF9500] mt-1">{{ probeResult.unmatched_count }}</div>
+              </div>
+            </div>
+
+            <!-- 目标结算分组选择器 (Group-based Pricing 支持) -->
+            <div
+              v-if="probeResult.available_groups && probeResult.available_groups.length > 0"
+              class="p-3.5 bg-[#F2F2F7] rounded-xl border border-[#E5E5EA] space-y-2 animate-fade-in"
+            >
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-1.5 text-xs font-bold text-[#1D1D1F]">
+                  <span>🎯</span>
+                  <span>选择目标结算分组 (Group)</span>
+                </div>
+                <span class="text-[11px] text-[#86868B]">共发现 {{ probeResult.available_groups.length }} 个定价分组</span>
+              </div>
+              <div class="flex items-center space-x-3">
+                <select
+                  v-model="probeResult.selected_group"
+                  @change="onSelectedGroupChange"
+                  class="flex-1 bg-white border border-[#E5E5EA] rounded-xl px-3 py-2 text-xs font-medium text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                >
+                  <option
+                    v-for="g in probeResult.available_groups"
+                    :key="g.name"
+                    :value="g.name"
+                  >
+                    {{ g.name }} (倍率: {{ g.ratio }}x, 覆盖 {{ g.model_count }} 款模型)
+                  </option>
+                </select>
               </div>
             </div>
 
@@ -245,23 +284,19 @@
               </button>
             </div>
 
-            <!-- 批量操作与 Key 特权倍率快捷决策 -->
+            <!-- 分组快速切换与批量操作 -->
             <div class="flex items-center space-x-3">
-              <div v-if="hasSpecialPricingInMappings" class="flex items-center space-x-1.5">
-                <button
-                  @click="batchApplyRatio('key')"
-                  class="px-2 py-1 rounded-lg bg-[#E8F2FD] text-[#0071E3] border border-[#CCE4FB] text-[10px] font-bold hover:bg-[#D4E8FC] transition-colors"
-                  title="将所有存在差异的模型一键切换为优惠的 Key 特权倍率"
+              <div v-if="probeResult.available_groups && probeResult.available_groups.length > 1" class="flex items-center space-x-1.5">
+                <span class="text-[11px] text-[#6E6E73]">分组:</span>
+                <select
+                  v-model="probeResult.selected_group"
+                  @change="onSelectedGroupChange"
+                  class="bg-white border border-[#E5E5EA] rounded-lg px-2 py-0.5 text-[11px] font-bold text-[#0071E3] focus:outline-none"
                 >
-                  ⚡ 一键应用 Key 优惠倍率
-                </button>
-                <button
-                  @click="batchApplyRatio('public')"
-                  class="px-2 py-1 rounded-lg bg-[#F2F2F7] text-[#6E6E73] border border-[#E5E5EA] text-[10px] font-medium hover:bg-[#E5E5EA] transition-colors"
-                  title="将所有模型一键还原为公开基准倍率"
-                >
-                  🌐 一键还原公开倍率
-                </button>
+                  <option v-for="g in probeResult.available_groups" :key="g.name" :value="g.name">
+                    {{ g.name }} ({{ g.ratio }}x)
+                  </option>
+                </select>
               </div>
 
               <div class="flex items-center space-x-2">
@@ -291,7 +326,7 @@
                   <th class="py-2 px-3">渠道原始模型名 (Raw Model ID)</th>
                   <th class="py-2 px-3 text-center w-8">➔</th>
                   <th class="py-2 px-3">对应 models.dev 标准模型</th>
-                  <th class="py-2 px-2 text-center w-36">折算倍率 (Key / 公开)</th>
+                  <th class="py-2 px-3 text-center w-44">折算实际价格 (每1M Tokens)</th>
                   <th class="py-2 px-3 text-center w-18">机制</th>
                   <th class="py-2 px-3 text-center w-16">操作</th>
                 </tr>
@@ -339,43 +374,25 @@
                     </select>
                   </td>
 
-                  <!-- 5. 渠道倍率决策双轨选择器 (Key 特权 vs 公开基准) -->
-                  <td class="py-2 px-2 text-center">
-                    <div v-if="item.has_ratio_diff" class="inline-flex flex-col items-center space-y-1">
-                      <div class="inline-flex items-center bg-[#F2F2F7] p-0.5 rounded-lg border border-[#E5E5EA]">
-                        <button
-                          type="button"
-                          @click="item.custom_ratio = item.key_ratio; item.applied_ratio_source = 'key'"
-                          class="px-1.5 py-0.5 rounded-md text-[10px] font-mono transition-all"
-                          :class="item.applied_ratio_source === 'key' ? 'bg-[#34C759] text-white font-bold shadow-2xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
-                          :title="`选用 Key 专属特权倍率: ${item.key_ratio}x (享受 ${item.ratio_diff_percent}% 折扣)`"
-                        >
-                          🔑 {{ item.key_ratio }}x
-                        </button>
-                        <button
-                          type="button"
-                          @click="item.custom_ratio = item.public_ratio; item.applied_ratio_source = 'public'"
-                          class="px-1.5 py-0.5 rounded-md text-[10px] font-mono transition-all"
-                          :class="item.applied_ratio_source === 'public' ? 'bg-[#0071E3] text-white font-bold shadow-2xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
-                          :title="`选用全站公开基准倍率: ${item.public_ratio}x`"
-                        >
-                          🌐 {{ item.public_ratio }}x
-                        </button>
+                  <!-- 5. 实际交易货币金额直观卡片 (根据顶部货币设置 USD / CNY) -->
+                  <td class="py-2 px-3 text-center">
+                    <div class="inline-flex flex-col items-center bg-[#F9F9FB] px-2.5 py-1 rounded-lg border border-[#E5E5EA] w-full text-[11px] font-mono">
+                      <div class="flex items-center justify-between w-full space-x-2">
+                        <span class="text-[#86868B]">入:</span>
+                        <span class="font-bold text-[#1D1D1F]">
+                          {{ store.currency === 'USD' ? `$${item.input_price_usd.toFixed(3)}` : `¥${item.input_price_cny.toFixed(2)}` }}
+                        </span>
                       </div>
-                      <span class="text-[9px] text-[#34C759] font-mono font-bold" v-if="item.ratio_diff_percent < 0">
-                        特权减免 {{ Math.abs(item.ratio_diff_percent) }}%
-                      </span>
-                    </div>
-                    <div v-else class="flex justify-center">
-                      <input
-                        v-model.number="item.custom_ratio"
-                        type="number"
-                        step="0.01"
-                        placeholder="默认"
-                        class="w-16 bg-[#FFFFFF] border border-[#E5E5EA] focus:border-[#0071E3] rounded px-1.5 py-0.5 text-center font-mono text-[11px] text-[#1D1D1F]"
-                        :class="{'border-[#CCE4FB] text-[#0071E3] font-bold bg-[#E8F2FD]/30': item.custom_ratio !== null && item.custom_ratio !== undefined}"
-                        :title="item.custom_ratio !== null ? `已从中转站配置提取原生倍率: ${item.custom_ratio}x` : '未单独设定，将继承第4步全局默认倍率'"
-                      />
+                      <div class="flex items-center justify-between w-full space-x-2">
+                        <span class="text-[#86868B]">出:</span>
+                        <span class="font-bold text-[#0071E3]">
+                          {{ store.currency === 'USD' ? `$${item.output_price_usd.toFixed(3)}` : `¥${item.output_price_cny.toFixed(2)}` }}
+                        </span>
+                      </div>
+                      <div v-if="item.cache_price_cny > 0" class="flex items-center justify-between w-full space-x-2 text-[10px] text-[#34C759]">
+                        <span>缓:</span>
+                        <span>{{ store.currency === 'USD' ? `$${item.cache_price_usd.toFixed(4)}` : `¥${item.cache_price_cny.toFixed(3)}` }}</span>
+                      </div>
                     </div>
                   </td>
 
@@ -419,6 +436,10 @@
                 <span class="font-bold text-[#1D1D1F] ml-2">{{ form.name }}</span>
               </div>
               <div>
+                <span class="text-[#6E6E73]">目标结算分组:</span>
+                <span class="font-bold font-mono text-[#0071E3] ml-2">{{ probeResult.selected_group || '默认' }}</span>
+              </div>
+              <div>
                 <span class="text-[#6E6E73]">确认收录模型数:</span>
                 <span class="font-bold font-mono text-[#34C759] ml-2">{{ selectedMappingsCount }} 款</span>
               </div>
@@ -427,8 +448,8 @@
                 <span class="font-bold font-mono text-[#1D1D1F] ml-2">{{ form.recharge_rate }}x</span>
               </div>
               <div>
-                <span class="text-[#6E6E73]">全局默认模型倍率:</span>
-                <span class="font-bold font-mono text-[#0071E3] ml-2">{{ form.default_ratio }}x ({{ (form.default_ratio * 10).toFixed(1) }}折)</span>
+                <span class="text-[#6E6E73]">全局兜底模型倍率:</span>
+                <span class="font-bold font-mono text-[#1D1D1F] ml-2">{{ form.default_ratio }}x ({{ (form.default_ratio * 10).toFixed(1) }}折)</span>
               </div>
             </div>
           </div>
@@ -548,6 +569,8 @@ const probeResult = reactive({
   token_group: '',
   has_special_pricing: false,
   special_pricing_count: 0,
+  available_groups: [] as any[],
+  selected_group: '',
   error: ''
 })
 
@@ -557,6 +580,21 @@ const matchedMappingsCount = computed(() => mappingsList.value.filter(m => m.is_
 const unmatchedMappingsCount = computed(() => mappingsList.value.filter(m => !m.is_matched).length)
 const selectedMappingsCount = computed(() => mappingsList.value.filter(m => m.is_selected && m.standard_model_id).length)
 const hasSpecialPricingInMappings = computed(() => mappingsList.value.some(m => m.has_ratio_diff))
+
+function onSelectedGroupChange() {
+  const gName = probeResult.selected_group
+  for (const m of mappingsList.value) {
+    if (m.group_pricings && m.group_pricings[gName]) {
+      const p = m.group_pricings[gName]
+      m.input_price_cny = p.input_price_cny
+      m.output_price_cny = p.output_price_cny
+      m.cache_price_cny = p.cache_price_cny
+      m.input_price_usd = p.input_price_usd
+      m.output_price_usd = p.output_price_usd
+      m.cache_price_usd = p.cache_price_usd
+    }
+  }
+}
 
 function batchApplyRatio(source: 'key' | 'public') {
   for (const m of mappingsList.value) {
@@ -597,7 +635,8 @@ async function runProbe() {
     const res = await axios.post(`${store.apiUrl}/api/v1/channels/probe`, {
       base_url: form.base_url,
       api_key: form.api_key,
-      site_type: form.site_type
+      site_type: form.site_type,
+      target_group: probeResult.selected_group || undefined
     })
     probeResult.is_online = res.data.is_online
     probeResult.status_code = res.data.status_code
@@ -609,6 +648,8 @@ async function runProbe() {
     probeResult.token_group = res.data.token_group || ''
     probeResult.has_special_pricing = res.data.has_special_pricing || false
     probeResult.special_pricing_count = res.data.special_pricing_count || 0
+    probeResult.available_groups = res.data.available_groups || []
+    probeResult.selected_group = res.data.selected_group || (probeResult.available_groups[0]?.name || '')
     probeResult.error = res.data.error
 
     mappingsList.value = res.data.mappings || []
@@ -618,6 +659,8 @@ async function runProbe() {
     probeResult.token_group = ''
     probeResult.has_special_pricing = false
     probeResult.special_pricing_count = 0
+    probeResult.available_groups = []
+    probeResult.selected_group = ''
     probeResult.error = e.response?.data?.detail || e.message || '网络连接超时'
   } finally {
     isProbing.value = false
@@ -708,6 +751,7 @@ async function submitWizard() {
       base_url: form.base_url,
       api_key: form.api_key,
       site_type: form.site_type,
+      selected_group: probeResult.selected_group,
       recharge_rate: form.recharge_rate,
       default_ratio: form.default_ratio,
       notes: form.notes,
