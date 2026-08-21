@@ -56,7 +56,7 @@ const store = useDashboardStore()
 
 const navItems = computed(() => [
   { id: 'price-matrix', label: '全网聚合比价', icon: '📊', badge: store.comparisonMatrix.length },
-  { id: 'channels', label: 'Token 渠道大全', icon: '🌐', badge: store.relaySites.length },
+  { id: 'channels', label: '供应商与渠道', icon: '🌐', badge: store.relaySites.length },
   { id: 'models', label: '厂商与模型标准库', icon: '🤖', badge: store.modelsCatalog.length },
   { id: 'speed-tester', label: '渠道性能实测', icon: '⏱️', badge: store.isSpeedTesting ? '测速中' : '' },
   { id: 'settings', label: '数据同步与设置', icon: '⚙️' }

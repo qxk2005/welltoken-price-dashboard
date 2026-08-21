@@ -10,6 +10,7 @@ from backend.app.schemas.token_schema import (
     SpeedTestRequest,
     SpeedTestStreamEvent,
     SpeedTestResultSchema,
+    SyncLogSchema,
     SyncStatusSchema,
     ExchangeRateUpdate,
     SystemHealthResponse
@@ -27,6 +28,7 @@ __all__ = [
     "SpeedTestRequest",
     "SpeedTestStreamEvent",
     "SpeedTestResultSchema",
+    "SyncLogSchema",
     "SyncStatusSchema",
     "ExchangeRateUpdate",
     "SystemHealthResponse"

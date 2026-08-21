@@ -25,6 +25,7 @@ export const useDashboardStore = defineStore('dashboard', {
     modelsCatalog: [] as ModelMetadata[],
     speedTestHistory: [] as SpeedTestResult[],
     syncStatus: null as SyncStatus | null,
+    syncLogs: [] as SyncLog[],
     
     // 测速状态
     isSpeedTesting: false,
@@ -125,6 +126,9 @@ export const useDashboardStore = defineStore('dashboard', {
       try {
         const res = await axios.get<SyncStatus>(`${this.apiUrl}/api/v1/settings/status`)
         this.syncStatus = res.data
+        if (res.data.recent_sync_logs) {
+          this.syncLogs = res.data.recent_sync_logs
+        }
       } catch (e) {
         console.error('Fetch sync status failed:', e)
       }

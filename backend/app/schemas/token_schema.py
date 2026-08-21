@@ -1,15 +1,14 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
-# ================================
-# 1. 大模型元数据 Schema
-# ================================
+# --- 模型元数据相关 ---
 class ModelMetadataBase(BaseModel):
     model_id: str
     name: str
     provider: str
     series: str = ""
+    family: str = ""
     context_window: int = 128000
     max_output: int = 4096
     official_input_price: float = 0.0
@@ -17,8 +16,10 @@ class ModelMetadataBase(BaseModel):
     official_cache_price: float = 0.0
     modalities: str = "text"
     capabilities: str = "tool_calling"
+    open_weights: bool = False
+    release_date: str = ""
     is_featured: bool = False
-    description: Optional[str] = ""
+    description: str = ""
 
 class ModelMetadataCreate(ModelMetadataBase):
     pass
@@ -27,28 +28,30 @@ class ModelMetadataSchema(ModelMetadataBase):
     id: int
     created_at: datetime
     updated_at: datetime
-    active_relay_count: Optional[int] = 0
-    lowest_price_usd: Optional[float] = 0.0
+    active_relay_count: int = 0
+    lowest_price_usd: float = 0.0
 
     class Config:
         from_attributes = True
 
-# ================================
-# 2. 中转渠道站点 Schema
-# ================================
+# --- 供应商与渠道相关 ---
 class RelaySiteBase(BaseModel):
+    provider_id: Optional[str] = ""
     name: str
     base_url: str
-    api_key: Optional[str] = ""
-    site_type: str = "newapi"
+    site_type: str = "official" # official, cloud, newapi, sub2api, oneapi, custom
     recharge_rate: float = 1.0
-    models_endpoint: str = "/api/models"
-    status_endpoint: str = "/api/status"
+    models_endpoint: str = "/v1/models"
+    status_endpoint: str = ""
+    website: Optional[str] = ""
+    doc_url: Optional[str] = ""
+    env_vars: Optional[str] = ""
+    is_official_catalog: bool = False
     is_active: bool = True
     notes: Optional[str] = ""
 
 class RelaySiteCreate(RelaySiteBase):
-    pass
+    api_key: Optional[str] = ""
 
 class RelaySiteUpdate(BaseModel):
     name: Optional[str] = None
@@ -58,6 +61,9 @@ class RelaySiteUpdate(BaseModel):
     recharge_rate: Optional[float] = None
     models_endpoint: Optional[str] = None
     status_endpoint: Optional[str] = None
+    website: Optional[str] = None
+    doc_url: Optional[str] = None
+    env_vars: Optional[str] = None
     is_active: Optional[bool] = None
     notes: Optional[str] = None
 
@@ -68,14 +74,12 @@ class RelaySiteSchema(RelaySiteBase):
     last_sync_time: datetime
     score: float
     created_at: datetime
-    model_count: Optional[int] = 0
+    model_count: int = 0
 
     class Config:
         from_attributes = True
 
-# ================================
-# 3. 聚合比价矩阵 Schema
-# ================================
+# --- 聚合比价矩阵条目 ---
 class ComparisonItemSchema(BaseModel):
     id: int
     model_id: str
@@ -99,25 +103,25 @@ class ComparisonItemSchema(BaseModel):
     last_latency_ms: float
     updated_at: datetime
 
-# ================================
-# 4. 性能实测 Schema (token-speed-tester)
-# ================================
+    class Config:
+        from_attributes = True
+
+# --- 测速请求与结果 ---
 class SpeedTestRequest(BaseModel):
-    site_ids: List[int] = Field(..., description="测试目标渠道 ID 列表")
-    model_id: str = Field("deepseek-v3", description="测试模型 ID")
-    prompt_type: str = Field("standard", description="standard / reasoning / code / probe")
-    custom_prompt: Optional[str] = None
-    rounds: int = Field(1, ge=1, le=5, description="测试轮数")
+    site_ids: List[int]
+    model_id: str = "deepseek-v3"
+    prompt_type: str = "standard" # standard, reasoning, code
+    rounds: int = 1
 
 class SpeedTestStreamEvent(BaseModel):
-    event: str  # start, token, metric_update, done, error
+    event: str # start, token, done, error
     site_id: int
     site_name: str
     model_id: str
-    current_token_count: int
-    current_ttft_ms: float
-    current_tps: float
-    instant_tps: float
+    current_token_count: int = 0
+    current_ttft_ms: float = 0.0
+    current_tps: float = 0.0
+    instant_tps: float = 0.0
     content_delta: Optional[str] = ""
     is_authentic: Optional[bool] = True
 
@@ -135,15 +139,31 @@ class SpeedTestResultSchema(BaseModel):
     prompt_tokens: int
     completion_tokens: int
     is_success: bool
-    error_message: Optional[str] = ""
+    error_message: str = ""
     is_authentic: bool
     jitter_rate: float
     score: float
-    grade: str  # S, A, B, C, F
+    grade: str
 
-# ================================
-# 5. 同步与设置 Schema
-# ================================
+    class Config:
+        from_attributes = True
+
+# --- 同步日志与设置 ---
+class SyncLogSchema(BaseModel):
+    id: int
+    source: str
+    sync_type: str
+    status: str
+    models_count: int
+    providers_count: int
+    pricings_count: int
+    duration_ms: float
+    error_message: str = ""
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 class SyncStatusSchema(BaseModel):
     models_dev_last_sync: Optional[datetime] = None
     models_dev_total_models: int = 0
@@ -152,6 +172,7 @@ class SyncStatusSchema(BaseModel):
     total_pricings_cached: int = 0
     usd_to_cny_rate: float = 7.30
     db_size_mb: float = 0.0
+    recent_sync_logs: List[SyncLogSchema] = []
 
 class ExchangeRateUpdate(BaseModel):
     usd_to_cny_rate: float
@@ -162,4 +183,3 @@ class SystemHealthResponse(BaseModel):
     version: str = "1.0.0"
     uptime_seconds: float
     database_connected: bool
-

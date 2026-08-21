@@ -24,6 +24,7 @@ export interface ComparisonItem {
 
 export interface RelaySite {
   id: number
+  provider_id?: string
   name: string
   base_url: string
   api_key: string
@@ -31,6 +32,10 @@ export interface RelaySite {
   recharge_rate: number
   models_endpoint: string
   status_endpoint: string
+  website?: string
+  doc_url?: string
+  env_vars?: string
+  is_official_catalog: boolean
   is_active: boolean
   last_status: string
   last_latency_ms: number
@@ -47,6 +52,7 @@ export interface ModelMetadata {
   name: string
   provider: string
   series: string
+  family?: string
   context_window: number
   max_output: number
   official_input_price: number
@@ -54,6 +60,8 @@ export interface ModelMetadata {
   official_cache_price: number
   modalities: string
   capabilities: string
+  open_weights?: boolean
+  release_date?: string
   is_featured: boolean
   description: string
   created_at: string
@@ -96,6 +104,19 @@ export interface SpeedTestStreamEvent {
   is_authentic?: boolean
 }
 
+export interface SyncLog {
+  id: number
+  source: string
+  sync_type: string
+  status: string
+  models_count: number
+  providers_count: number
+  pricings_count: number
+  duration_ms: number
+  error_message: string
+  created_at: string
+}
+
 export interface SyncStatus {
   models_dev_last_sync: string | null
   models_dev_total_models: number
@@ -104,4 +125,5 @@ export interface SyncStatus {
   total_pricings_cached: number
   usd_to_cny_rate: number
   db_size_mb: number
+  recent_sync_logs: SyncLog[]
 }
