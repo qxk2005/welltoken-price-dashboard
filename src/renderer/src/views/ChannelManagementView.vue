@@ -112,8 +112,18 @@
                       <ProviderLogo :provider-id="site.provider_id || site.name" custom-class="w-5 h-5" />
                     </div>
                     <div>
-                      <div class="font-bold text-xs text-[#1D1D1F] group-hover:text-[#0071E3] transition-colors">
-                        {{ site.name }}
+                      <div class="flex items-center space-x-1.5">
+                        <span class="font-bold text-xs text-[#1D1D1F] group-hover:text-[#0071E3] transition-colors">
+                          {{ site.name }}
+                        </span>
+                        <span
+                          v-if="site.group_name"
+                          class="px-1.5 py-0.2 rounded-md bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[10px] font-mono font-bold inline-flex items-center space-x-0.5 shadow-2xs"
+                          :title="`结算分组: ${site.group_name}`"
+                        >
+                          <span>🎯</span>
+                          <span>{{ site.group_name }}</span>
+                        </span>
                       </div>
                       <div class="text-[11px] text-[#86868B] font-mono mt-0.5">
                         {{ site.provider_id || `site-${site.id}` }}
@@ -395,6 +405,13 @@
                   :class="getCategoryBadgeClass(selectedProvider)"
                 >
                   {{ getCategoryLabel(selectedProvider) }}
+                </span>
+                <span
+                  v-if="selectedProvider.group_name"
+                  class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] flex items-center space-x-1 shadow-2xs"
+                >
+                  <span>🎯 结算分组:</span>
+                  <span>{{ selectedProvider.group_name }}</span>
                 </span>
                 <button
                   @click="store.toggleFavoriteSite(selectedProvider.id)"

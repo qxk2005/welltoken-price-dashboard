@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, func
+from sqlalchemy import select, delete, func, update
 from sqlalchemy.orm import selectinload
 from backend.app.database import get_db, AsyncSessionLocal
 from backend.app.models.token_price import RelaySite, SiteModelPricing, ModelMetadata, ChannelModelMapping, ModelAlias
@@ -120,12 +120,15 @@ async def probe_channel_and_models(payload: ChannelProbeRequest):
 @router.post("/wizard-create")
 async def wizard_create_channel(payload: ChannelWizardCreateRequest, db: AsyncSession = Depends(get_db)):
     """【向导第4步】完成渠道创建、写入渠道模型映射，并初始化生成模型定价记录"""
+    selected_grp = payload.selected_group or ""
+
     # 1. 创建渠道主体
     site = RelaySite(
         name=payload.name,
         base_url=payload.base_url.rstrip("/"),
         api_key=payload.api_key or "",
         site_type=payload.site_type,
+        group_name=selected_grp,
         recharge_rate=payload.recharge_rate,
         models_endpoint=payload.models_endpoint,
         status_endpoint=payload.status_endpoint or "",
@@ -161,14 +164,21 @@ async def wizard_create_channel(payload: ChannelWizardCreateRequest, db: AsyncSe
         std_meta = standard_models.get(std_id)
         if std_meta:
             ratio = item.custom_ratio if item.custom_ratio is not None else payload.default_ratio
-            calc_in = round(std_meta.official_input_price * ratio * site.recharge_rate, 4)
-            calc_out = round(std_meta.official_output_price * ratio * site.recharge_rate, 4)
-            calc_cache = round(std_meta.official_cache_price * ratio * site.recharge_rate, 4)
+            if item.input_price_usd > 0:
+                calc_in = item.input_price_usd
+                calc_out = item.output_price_usd
+                calc_cache = item.cache_price_usd
+            else:
+                calc_in = round(std_meta.official_input_price * ratio * site.recharge_rate, 4)
+                calc_out = round(std_meta.official_output_price * ratio * site.recharge_rate, 4)
+                calc_cache = round(std_meta.official_cache_price * ratio * site.recharge_rate, 4)
+
             discount = round(((calc_in - std_meta.official_input_price) / std_meta.official_input_price * 100), 1) if std_meta.official_input_price > 0 else 0.0
 
             pricing = SiteModelPricing(
                 site_id=site.id,
                 model_id=std_id,
+                group_name=selected_grp,
                 site_model_name=item.channel_model_name.strip(),
                 model_ratio=ratio,
                 group_ratio=1.0,
@@ -189,6 +199,7 @@ async def wizard_create_channel(payload: ChannelWizardCreateRequest, db: AsyncSe
         "status": "success",
         "site_id": site.id,
         "site_name": site.name,
+        "group_name": site.group_name,
         "imported_models_count": created_models_count
     }
 
@@ -261,6 +272,97 @@ async def update_channel_mappings(site_id: int, payload: ChannelMappingsBatchUpd
 
     await db.commit()
     return {"status": "success", "site_id": site_id, "updated_models_count": count}
+
+@router.post("/{site_id}/change-group")
+async def change_channel_group(site_id: int, payload: ChannelChangeGroupRequest, db: AsyncSession = Depends(get_db)):
+    """在渠道详情中切换绑定结算分组，并一键重新计算和更新全量模型价格"""
+    stmt = select(RelaySite).where(RelaySite.id == site_id)
+    res = await db.execute(stmt)
+    site = res.scalar_one_or_none()
+    if not site:
+        raise HTTPException(status_code=404, detail="渠道不存在")
+
+    site.group_name = payload.group_name.strip()
+    db.add(site)
+    await db.execute(
+        update(RelaySite)
+        .where(RelaySite.id == site.id)
+        .values(group_name=site.group_name)
+    )
+
+    # 重新触发 probe 探测该分组
+    probe_res = await model_normalizer.probe_and_fetch_models(
+        base_url=site.base_url,
+        api_key=site.api_key or "",
+        site_type=site.site_type,
+        models_endpoint=site.models_endpoint,
+        target_group=site.group_name
+    )
+
+    if probe_res["raw_models"]:
+        raw_mappings = await model_normalizer.match_models_for_channel(
+            raw_model_names=probe_res["raw_models"],
+            site_id=site.id,
+            raw_public_ratios=probe_res.get("raw_public_ratios"),
+            raw_key_ratios=probe_res.get("raw_key_ratios"),
+            raw_model_items=probe_res.get("raw_model_items"),
+            selected_group=site.group_name,
+            selected_group_ratio=probe_res.get("selected_group_ratio", 1.0),
+            global_group_ratios=probe_res.get("global_group_ratios")
+        )
+
+        await db.execute(
+            update(SiteModelPricing)
+            .where(SiteModelPricing.site_id == site.id)
+            .values(group_name=site.group_name)
+        )
+
+        pricing_stmt = select(SiteModelPricing).where(SiteModelPricing.site_id == site.id)
+        p_res = await db.execute(pricing_stmt)
+        existing_pricings = {p.model_id: p for p in p_res.scalars().all()}
+        for p in existing_pricings.values():
+            p.group_name = site.group_name
+            db.add(p)
+
+        m_res = await db.execute(select(ModelMetadata))
+        standard_models = {m.model_id: m for m in m_res.scalars().all()}
+
+        for m_item in raw_mappings:
+            std_id = m_item.get("standard_model_id")
+            if std_id and std_id in standard_models:
+                std_meta = standard_models[std_id]
+                in_usd = m_item.get("input_price_usd", 0.0)
+                out_usd = m_item.get("output_price_usd", 0.0)
+                ca_usd = m_item.get("cache_price_usd", 0.0)
+                discount = round(((in_usd - std_meta.official_input_price) / std_meta.official_input_price * 100), 1) if std_meta.official_input_price > 0 else 0.0
+
+                if std_id in existing_pricings:
+                    p = existing_pricings[std_id]
+                    p.group_name = site.group_name
+                    p.calculated_input_usd = in_usd
+                    p.calculated_output_usd = out_usd
+                    p.calculated_cache_usd = ca_usd
+                    p.discount_percent = discount
+                    p.model_ratio = m_item.get("custom_ratio") or 1.0
+                else:
+                    new_p = SiteModelPricing(
+                        site_id=site.id,
+                        model_id=std_id,
+                        group_name=site.group_name,
+                        site_model_name=m_item.get("channel_model_name", ""),
+                        model_ratio=m_item.get("custom_ratio") or 1.0,
+                        group_ratio=1.0,
+                        calculated_input_usd=in_usd,
+                        calculated_output_usd=out_usd,
+                        calculated_cache_usd=ca_usd,
+                        discount_percent=discount,
+                        is_available=True,
+                        last_tested_tps=50.0
+                    )
+                    db.add(new_p)
+
+    await db.commit()
+    return {"status": "success", "group_name": site.group_name, "message": f"已成功切换为 [{site.group_name}] 结算分组并更新模型价格"}
 
 @router.post("/promote-alias")
 async def promote_to_global_alias(payload: PromoteAliasRequest, db: AsyncSession = Depends(get_db)):

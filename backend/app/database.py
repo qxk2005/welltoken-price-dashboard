@@ -26,6 +26,15 @@ async def init_db():
         await conn.exec_driver_sql("PRAGMA busy_timeout=30000;")
         await conn.exec_driver_sql("PRAGMA synchronous=NORMAL;")
         await conn.run_sync(Base.metadata.create_all)
+        # 自动迁移检查：若表存在但无 group_name 则自动补齐
+        try:
+            await conn.exec_driver_sql("ALTER TABLE relay_sites ADD COLUMN group_name VARCHAR(100) DEFAULT '';")
+        except Exception:
+            pass
+        try:
+            await conn.exec_driver_sql("ALTER TABLE site_model_pricings ADD COLUMN group_name VARCHAR(100) DEFAULT '';")
+        except Exception:
+            pass
 
 async def get_db():
     async with AsyncSessionLocal() as session:

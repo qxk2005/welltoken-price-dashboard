@@ -193,6 +193,7 @@ class DashboardService:
                         series=model.series or "通用系列",
                         site_id=site.id,
                         site_name=site.name,
+                        group_name=getattr(site, "group_name", "") or p.group_name or "",
                         site_type=site.site_type,
                         is_official=site.site_type == "official",
                         model_ratio=p.model_ratio,

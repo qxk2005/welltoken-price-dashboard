@@ -193,7 +193,16 @@
               <span v-if="isSiteNameFavorite(row.site_name)" class="text-[#FF9500]">⭐</span>
               <span v-else class="text-[#AEAEB2] hover:text-[#FF9500]">☆</span>
             </button>
-            <span class="font-semibold text-[#1D1D1F] truncate text-xs" :title="row.site_name">{{ row.site_name }}</span>
+            <div class="flex items-center space-x-1 truncate">
+              <span class="font-semibold text-[#1D1D1F] truncate text-xs" :title="row.site_name">{{ row.site_name }}</span>
+              <span
+                v-if="row.group_name"
+                class="px-1 py-0.2 rounded bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[9px] font-mono font-bold truncate flex-shrink-0 shadow-2xs"
+                :title="`结算分组: ${row.group_name}`"
+              >
+                {{ row.group_name }}
+              </span>
+            </div>
           </div>
 
           <!-- 类型徽标 -->

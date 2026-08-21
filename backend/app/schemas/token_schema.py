@@ -40,6 +40,7 @@ class RelaySiteBase(BaseModel):
     name: str
     base_url: str
     site_type: str = "official" # official, cloud, newapi, sub2api, oneapi, custom
+    group_name: Optional[str] = "" # 渠道绑定的结算分组 (如 deepseek-三方, vip)
     recharge_rate: float = 1.0
     models_endpoint: str = "/v1/models"
     status_endpoint: str = ""
@@ -58,6 +59,7 @@ class RelaySiteUpdate(BaseModel):
     base_url: Optional[str] = None
     api_key: Optional[str] = None
     site_type: Optional[str] = None
+    group_name: Optional[str] = None
     recharge_rate: Optional[float] = None
     models_endpoint: Optional[str] = None
     status_endpoint: Optional[str] = None
@@ -66,6 +68,27 @@ class RelaySiteUpdate(BaseModel):
     env_vars: Optional[str] = None
     is_active: Optional[bool] = None
     notes: Optional[str] = None
+
+class ChannelChangeGroupRequest(BaseModel):
+    group_name: str
+
+class SiteModelPricingSchema(BaseModel):
+    id: int
+    site_id: int
+    model_id: str
+    group_name: Optional[str] = ""
+    site_model_name: Optional[str] = ""
+    model_ratio: float
+    group_ratio: float
+    calculated_input_usd: float
+    calculated_output_usd: float
+    calculated_cache_usd: float
+    discount_percent: float
+    is_available: bool
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
 
 class RelaySiteSchema(RelaySiteBase):
     id: int
@@ -88,6 +111,7 @@ class ComparisonItemSchema(BaseModel):
     series: str = ""
     site_id: int
     site_name: str
+    group_name: Optional[str] = ""
     site_type: str
     is_official: bool
     model_ratio: float

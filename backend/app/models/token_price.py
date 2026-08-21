@@ -13,6 +13,7 @@ class RelaySite(Base):
     base_url = Column(String(255), nullable=False)
     api_key = Column(String(255), default="")
     site_type = Column(String(30), default="official")  # official, cloud, newapi, sub2api, oneapi, custom
+    group_name = Column(String(100), default="")        # 渠道绑定的结算分组 (如 deepseek-三方, vip)
     recharge_rate = Column(Float, default=1.0)  # 充值汇率比，例如 1元=1刀为1.0
     models_endpoint = Column(String(255), default="/v1/models")
     status_endpoint = Column(String(255), default="")
@@ -67,6 +68,7 @@ class SiteModelPricing(Base):
     id = Column(Integer, primary_key=True, index=True)
     site_id = Column(Integer, ForeignKey("relay_sites.id"), index=True, nullable=False)
     model_id = Column(String(150), ForeignKey("model_metadata.model_id"), index=True, nullable=False)
+    group_name = Column(String(100), default="")       # 价格所属分组 (如 deepseek-三方, vip)
     site_model_name = Column(String(150), default="")  # 站点别名
     model_ratio = Column(Float, default=1.0)          # 模型费率倍率
     group_ratio = Column(Float, default=1.0)          # 分组倍率
