@@ -38,6 +38,8 @@ async def get_sync_and_db_status():
         total_active_sites=s_cnt or 0,
         total_pricings_cached=p_cnt or 0,
         usd_to_cny_rate=dashboard_service.usd_to_cny_rate,
+        exchange_rate_source=dashboard_service.exchange_rate_source,
+        exchange_rate_updated_at=dashboard_service.exchange_rate_updated_at,
         db_size_mb=db_size,
         recent_sync_logs=[SyncLogSchema.model_validate(l) for l in logs]
     )
@@ -53,10 +55,29 @@ async def get_all_sync_logs():
 
 @router.post("/exchange-rate")
 async def update_exchange_rate(payload: ExchangeRateUpdate):
-    """更新 USD / CNY 基准换算汇率"""
+    """更新 USD / CNY 基准换算汇率与源网址"""
     dashboard_service.usd_to_cny_rate = payload.usd_to_cny_rate
+    if payload.exchange_rate_source:
+        dashboard_service.exchange_rate_source = payload.exchange_rate_source
+    dashboard_service.exchange_rate_updated_at = datetime.utcnow()
     await dashboard_service.broadcast_market_update()
-    return {"status": "updated", "rate": payload.usd_to_cny_rate}
+    return {
+        "status": "updated",
+        "rate": payload.usd_to_cny_rate,
+        "source": dashboard_service.exchange_rate_source,
+        "updated_at": dashboard_service.exchange_rate_updated_at
+    }
+
+@router.post("/exchange-rate/fetch-online")
+async def fetch_online_exchange_rate(payload: Optional[dict] = None):
+    """从在线权威外汇源实时抓取最新 USD / CNY 汇率"""
+    source_url = payload.get("source_url") if payload else None
+    try:
+        res = await dashboard_service.fetch_online_exchange_rate(source_url)
+        await dashboard_service.broadcast_market_update()
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"抓取在线汇率失败: {str(e)}")
 
 @router.post("/full-sync")
 async def trigger_full_system_sync():

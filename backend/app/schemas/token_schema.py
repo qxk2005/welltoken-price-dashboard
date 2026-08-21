@@ -274,11 +274,14 @@ class SyncStatusSchema(BaseModel):
     total_active_sites: int = 0
     total_pricings_cached: int = 0
     usd_to_cny_rate: float = 7.30
+    exchange_rate_source: str = "https://open.er-api.com/v6/latest/USD"
+    exchange_rate_updated_at: Optional[datetime] = None
     db_size_mb: float = 0.0
     recent_sync_logs: List[SyncLogSchema] = []
 
 class ExchangeRateUpdate(BaseModel):
     usd_to_cny_rate: float
+    exchange_rate_source: Optional[str] = None
 
 class SystemHealthResponse(BaseModel):
     status: str = "ok"

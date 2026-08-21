@@ -123,25 +123,77 @@
     <div class="grid grid-cols-2 gap-3">
       <!-- 实时汇率 -->
       <div class="p-4 rounded-2xl bg-[#FFFFFF] border border-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-3">
-        <div class="border-b border-[#E5E5EA] pb-2 font-bold text-xs text-[#1D1D1F]">
-          💱 全球外汇汇率实时折算
-        </div>
-        <div class="flex items-center space-x-2 text-xs">
-          <div class="flex-1">
-            <label class="block text-[#86868B] text-[10px] mb-1">USD / CNY 换算基准汇率</label>
-            <input
-              v-model.number="customRate"
-              type="number"
-              step="0.01"
-              class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-3 py-1.5 text-[#1D1D1F] font-mono font-bold text-sm focus:outline-none"
-            />
+        <div class="flex items-center justify-between border-b border-[#E5E5EA] pb-2">
+          <div class="flex items-center space-x-1.5 font-bold text-xs text-[#1D1D1F]">
+            <span>💱</span>
+            <span>全球外汇汇率实时折算</span>
           </div>
-          <button
-            @click="saveRate"
-            class="mt-4 px-3.5 py-1.5 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] text-white font-medium text-xs shadow-sm"
-          >
-            更新汇率
-          </button>
+          <span class="text-[10px] px-1.5 py-0.2 rounded bg-[#E6F4EA] text-[#34C759] border border-[#CEEAD6] font-mono font-bold">
+            实时外汇源已接入
+          </span>
+        </div>
+
+        <div class="space-y-2.5 text-xs">
+          <!-- 汇率数值与源网址 -->
+          <div class="grid grid-cols-12 gap-2">
+            <div class="col-span-5 space-y-1">
+              <label class="block text-[#86868B] text-[10.5px]">USD / CNY 换算基准</label>
+              <input
+                v-model.number="customRate"
+                type="number"
+                step="0.001"
+                class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-2.5 py-1.5 text-[#1D1D1F] font-mono font-bold text-sm focus:outline-none"
+              />
+            </div>
+            <div class="col-span-7 space-y-1">
+              <label class="block text-[#86868B] text-[10.5px] flex items-center justify-between">
+                <span>汇率获取源网址 (Source URL)</span>
+                <a
+                  :href="rateSourceUrl"
+                  target="_blank"
+                  class="text-[#0071E3] hover:underline text-[10px]"
+                  title="在新窗口查看外汇源返回"
+                >
+                  验证源 ↗
+                </a>
+              </label>
+              <input
+                v-model="rateSourceUrl"
+                type="text"
+                class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-2.5 py-1.5 text-[#1D1D1F] font-mono text-[11px] focus:outline-none truncate"
+              />
+            </div>
+          </div>
+
+          <!-- 最后一次获取时间信息 -->
+          <div class="p-2 rounded-xl bg-[#F9F9FB] border border-[#E5E5EA] flex items-center justify-between text-[11px]">
+            <div class="text-[#86868B] flex items-center space-x-1">
+              <span>🕒</span>
+              <span>最后一次获取汇率时间:</span>
+            </div>
+            <div class="font-mono text-[#1D1D1F] font-bold">
+              {{ formatFullTime(store.syncStatus?.exchange_rate_updated_at) }}
+            </div>
+          </div>
+
+          <!-- 操作按钮组 -->
+          <div class="flex items-center space-x-2 pt-1">
+            <button
+              :disabled="isFetchingRate"
+              @click="fetchOnlineRate"
+              class="flex-1 py-1.5 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] disabled:opacity-40 text-white font-medium text-xs shadow-sm transition-all flex items-center justify-center space-x-1.5"
+            >
+              <span v-if="isFetchingRate" class="animate-spin text-xs">🌀</span>
+              <span v-else>⚡</span>
+              <span>{{ isFetchingRate ? '正在连接外汇源抓取...' : '联网抓取最新汇率' }}</span>
+            </button>
+            <button
+              @click="saveRate"
+              class="px-3.5 py-1.5 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] active:bg-[#D1D1D6] text-[#1D1D1F] border border-[#E5E5EA] font-medium text-xs transition-all"
+            >
+              💾 保存配置
+            </button>
+          </div>
         </div>
       </div>
 
@@ -172,28 +224,55 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import axios from 'axios'
 import { useDashboardStore } from '../stores/dashboardStore'
 
 const store = useDashboardStore()
-const customRate = ref(7.30)
+const customRate = ref(7.25)
+const rateSourceUrl = ref('https://open.er-api.com/v6/latest/USD')
+const isFetchingRate = ref(false)
 
 const formatFullTime = (timeStr?: string | null) => {
-  if (!timeStr) return '刚刚'
+  if (!timeStr) return '刚刚 (实时同步)'
   const d = new Date(timeStr)
   return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`
 }
 
+// 联网抓取最新汇率
+const fetchOnlineRate = async () => {
+  isFetchingRate.value = true
+  try {
+    const res = await axios.post(`${store.apiUrl}/api/v1/settings/exchange-rate/fetch-online`, {
+      source_url: rateSourceUrl.value
+    })
+    customRate.value = res.data.rate
+    rateSourceUrl.value = res.data.source
+    await store.fetchComparisonMatrix()
+    await store.fetchSyncStatus()
+    alert(`✓ 成功从外汇源获取最新汇率: 1 USD = ${res.data.rate} CNY`)
+  } catch (e: any) {
+    console.error('Fetch online rate failed:', e)
+    const errDetail = e.response?.data?.detail || e.message
+    alert(`❌ 抓取在线汇率失败: ${errDetail}`)
+  } finally {
+    isFetchingRate.value = false
+  }
+}
+
+// 手动保存自定义汇率
 const saveRate = async () => {
   try {
     await axios.post(`${store.apiUrl}/api/v1/settings/exchange-rate`, {
-      usd_to_cny_rate: customRate.value
+      usd_to_cny_rate: customRate.value,
+      exchange_rate_source: rateSourceUrl.value
     })
     await store.fetchComparisonMatrix()
     await store.fetchSyncStatus()
-  } catch (e) {
+    alert(`✓ 汇率设置已成功保存: 1 USD = ${customRate.value} CNY`)
+  } catch (e: any) {
     console.error('Save rate failed:', e)
+    alert(`❌ 保存汇率失败: ${e.message}`)
   }
 }
 
@@ -207,9 +286,20 @@ const exportJson = () => {
   downloadAnchor.remove()
 }
 
-onMounted(() => {
+const syncDataFromStore = () => {
   if (store.syncStatus?.usd_to_cny_rate) {
     customRate.value = store.syncStatus.usd_to_cny_rate
   }
+  if (store.syncStatus?.exchange_rate_source) {
+    rateSourceUrl.value = store.syncStatus.exchange_rate_source
+  }
+}
+
+onMounted(() => {
+  syncDataFromStore()
 })
+
+watch(() => store.syncStatus, () => {
+  syncDataFromStore()
+}, { deep: true })
 </script>

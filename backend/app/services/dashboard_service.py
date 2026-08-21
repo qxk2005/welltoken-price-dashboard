@@ -1,5 +1,7 @@
 import math
+from datetime import datetime
 from typing import List, Optional, Dict, Any
+import httpx
 from sqlalchemy import select, func, or_, and_, distinct
 from sqlalchemy.orm import selectinload
 from backend.app.database import AsyncSessionLocal
@@ -19,9 +21,79 @@ OFFICIAL_LAB_KEYS = [
     "meituan", "poolside", "sakana", "sarvam", "thinkingmachines"
 ]
 
+from fastapi import WebSocket
+
 class DashboardService:
     def __init__(self):
         self.usd_to_cny_rate = 7.25
+        self.exchange_rate_source = "https://open.er-api.com/v6/latest/USD"
+        self.exchange_rate_updated_at = datetime.utcnow()
+        self.active_websockets: set = set()
+
+    async def connect_ws(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_websockets.add(websocket)
+
+    def disconnect_ws(self, websocket: WebSocket):
+        self.active_websockets.discard(websocket)
+
+    async def broadcast(self, payload: dict):
+        if not self.active_websockets:
+            return
+        dead = []
+        for ws in list(self.active_websockets):
+            try:
+                await ws.send_json(payload)
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            self.active_websockets.discard(ws)
+
+    async def broadcast_market_update(self):
+        if not self.active_websockets:
+            return
+        matrix = await self.get_comparison_matrix()
+        await self.broadcast({
+            "type": "update",
+            "data": [m.model_dump(mode="json") for m in matrix],
+            "usd_to_cny_rate": self.usd_to_cny_rate,
+            "exchange_rate_source": self.exchange_rate_source,
+            "exchange_rate_updated_at": self.exchange_rate_updated_at.isoformat()
+        })
+
+    async def fetch_online_exchange_rate(self, source_url: Optional[str] = None) -> Dict[str, Any]:
+        """从在线权威外汇源抓取最新 USD/CNY 实时汇率"""
+        target_url = source_url.strip() if source_url and source_url.strip() else self.exchange_rate_source
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(target_url)
+            if resp.status_code != 200:
+                raise Exception(f"在线外汇源返回异常状态码: {resp.status_code}")
+            
+            data = resp.json()
+            rates = data.get("rates") or data.get("conversion_rates") or {}
+            cny_rate = rates.get("CNY") or rates.get("cny")
+            
+            if not cny_rate or not isinstance(cny_rate, (int, float)):
+                raise Exception("未能从返回数据中解析到有效的 CNY 人民币汇率字段")
+            
+            self.usd_to_cny_rate = round(float(cny_rate), 4)
+            self.exchange_rate_source = target_url
+            self.exchange_rate_updated_at = datetime.utcnow()
+            
+            await self.broadcast({
+                "type": "EXCHANGE_RATE_UPDATE",
+                "rate": self.usd_to_cny_rate,
+                "source": self.exchange_rate_source,
+                "updated_at": self.exchange_rate_updated_at.isoformat()
+            })
+            
+            return {
+                "status": "success",
+                "rate": self.usd_to_cny_rate,
+                "source": self.exchange_rate_source,
+                "updated_at": self.exchange_rate_updated_at
+            }
 
     async def get_overview_statistics(self) -> Dict[str, Any]:
         """获取仪表盘概览统计指标"""

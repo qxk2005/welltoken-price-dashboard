@@ -130,6 +130,8 @@ export interface SyncStatus {
   total_active_sites: number
   total_pricings_cached: number
   usd_to_cny_rate: number
+  exchange_rate_source?: string
+  exchange_rate_updated_at?: string | null
   db_size_mb: number
   recent_sync_logs: SyncLog[]
 }
