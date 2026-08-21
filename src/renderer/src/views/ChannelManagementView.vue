@@ -144,7 +144,7 @@
                     class="px-2.5 py-0.5 rounded-full bg-[#E6F4EA] text-[#137333] border border-[#CEEAD6] font-mono font-bold text-xs cursor-pointer hover:bg-[#CEEAD6] transition-colors inline-block"
                     title="点击查看该供应商完整模型价格与详情"
                   >
-                    {{ site.model_count || getSiteModels(site.id).length || 12 }} 款
+                    {{ site.model_count || 12 }} 款
                   </span>
                 </td>
 
@@ -416,7 +416,7 @@
           <div class="p-2.5 rounded-xl bg-[#F9F9FB] border border-[#E5E5EA]">
             <div class="text-[10px] text-[#86868B] font-medium uppercase tracking-wider">提供可用模型数</div>
             <div class="text-lg font-bold font-mono text-[#0071E3] mt-0.5">
-              {{ providerModelsList.length }} 款模型
+              {{ isDetailLoading ? '...' : `${providerModelsList.length} 款模型` }}
             </div>
           </div>
           <div class="p-2.5 rounded-xl bg-[#F9F9FB] border border-[#E5E5EA]">
@@ -456,7 +456,14 @@
           </div>
         </div>
 
-        <div class="flex-1 overflow-x-auto overflow-y-auto pr-1 mt-1">
+        <div class="flex-1 overflow-x-auto overflow-y-auto pr-1 mt-1 relative">
+          <div v-if="isDetailLoading" class="absolute inset-0 bg-white/70 backdrop-blur-xs flex items-center justify-center z-10">
+            <div class="text-xs text-[#0071E3] font-medium flex items-center space-x-2">
+              <span class="animate-spin">🌀</span>
+              <span>正在从后端数据库加载模型定价...</span>
+            </div>
+          </div>
+
           <table class="w-full text-left text-xs border-collapse min-w-[980px]">
             <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans select-none">
               <tr>
@@ -536,7 +543,7 @@
                 </td>
               </tr>
 
-              <tr v-if="filteredProviderModels.length === 0">
+              <tr v-if="!isDetailLoading && filteredProviderModels.length === 0">
                 <td colspan="9" class="py-12 text-center text-xs text-[#86868B]">
                   该供应商暂无更多已收录模型
                 </td>
@@ -641,13 +648,15 @@ import { ref, computed, watch } from 'vue'
 import axios from 'axios'
 import { useDashboardStore } from '../stores/dashboardStore'
 import ProviderLogo from '../components/ProviderLogo.vue'
-import type { RelaySite, ComparisonItem } from '../types'
+import type { RelaySite } from '../types'
 
 const store = useDashboardStore()
 const searchKey = ref('')
 const activeCategory = ref('all')
 const selectedProvider = ref<RelaySite | null>(null)
 const providerModelSearchQuery = ref('')
+const providerModelsList = ref<any[]>([])
+const isDetailLoading = ref(false)
 
 // 分页状态
 const currentPage = ref(1)
@@ -857,28 +866,36 @@ const toggleSiteActive = async (site: RelaySite) => {
   }
 }
 
-// 选中供应商并进入详情空间 (参考 models.dev/providers/bailing/)
-const selectProvider = (site: RelaySite) => {
+// 选中供应商并动态从后端查询该供应商全部模型价格 (解决详情为空的问题)
+const selectProvider = async (site: RelaySite) => {
   selectedProvider.value = site
   providerModelSearchQuery.value = ''
-}
+  providerModelsList.value = []
+  isDetailLoading.value = true
 
-const getSiteModels = (siteId: number): ComparisonItem[] => {
-  const site = store.relaySites.find((s) => s.id === siteId)
-  if (!site) return []
-  return store.comparisonMatrix.filter((item) => item.site_name === site.name || (site.provider_id && item.site_name.toLowerCase().includes(site.provider_id.toLowerCase())))
+  try {
+    const res = await axios.get(`${store.apiUrl}/api/v1/channels/${site.id}/models`)
+    providerModelsList.value = res.data || []
+  } catch (e) {
+    console.error('Fetch provider models failed:', e)
+    // 降级使用本地
+    providerModelsList.value = store.comparisonMatrix.filter(
+      (m) => m.site_name.toLowerCase() === site.name.toLowerCase()
+    )
+  } finally {
+    isDetailLoading.value = false
+  }
 }
-
-const providerModelsList = computed<ComparisonItem[]>(() => {
-  if (!selectedProvider.value) return []
-  return getSiteModels(selectedProvider.value.id)
-})
 
 const filteredProviderModels = computed(() => {
   let list = providerModelsList.value
   if (providerModelSearchQuery.value.trim()) {
     const q = providerModelSearchQuery.value.toLowerCase().trim()
-    list = list.filter((m) => m.model_name.toLowerCase().includes(q) || m.model_id.toLowerCase().includes(q))
+    list = list.filter(
+      (m) =>
+        (m.model_name && m.model_name.toLowerCase().includes(q)) ||
+        (m.model_id && m.model_id.toLowerCase().includes(q))
+    )
   }
   return list
 })
@@ -889,7 +906,7 @@ const formatContextWindow = (ctx?: number) => {
 }
 
 const isReasoningModel = (modelId: string) => {
-  const m = modelId.toLowerCase()
+  const m = (modelId || '').toLowerCase()
   return m.includes('r1') || m.includes('reasoner') || m.includes('thinking') || m.includes('o1') || m.includes('o3')
 }
 

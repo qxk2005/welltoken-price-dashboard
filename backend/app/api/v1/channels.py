@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends
-from typing import List
+from typing import List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, func
+from sqlalchemy.orm import selectinload
 from backend.app.database import get_db, AsyncSessionLocal
-from backend.app.models.token_price import RelaySite, SiteModelPricing
+from backend.app.models.token_price import RelaySite, SiteModelPricing, ModelMetadata
 from backend.app.schemas.token_schema import RelaySiteSchema, RelaySiteCreate, RelaySiteUpdate
 from backend.app.services.relay_fetcher import relay_fetcher
 
@@ -28,6 +29,39 @@ async def list_all_relay_channels():
             schema_data = RelaySiteSchema.model_validate(site)
             schema_data.model_count = model_cnt
             result.append(schema_data)
+        return result
+
+@router.get("/{site_id}/models")
+async def get_channel_models(site_id: int):
+    """高速查询指定供应商/渠道所提供的所有模型与实时定价列表"""
+    async with AsyncSessionLocal() as session:
+        stmt = (
+            select(SiteModelPricing)
+            .where(SiteModelPricing.site_id == site_id)
+            .options(selectinload(SiteModelPricing.model))
+            .order_by(SiteModelPricing.calculated_input_usd.asc())
+        )
+        res = await session.execute(stmt)
+        pricings = res.scalars().all()
+
+        result = []
+        for p in pricings:
+            m = p.model
+            result.append({
+                "id": p.id,
+                "model_id": p.model_id,
+                "model_name": m.name if m else p.model_id,
+                "provider": m.provider if m else "other",
+                "series": m.series if m else "通用系列",
+                "context_window": m.context_window if m else 128000,
+                "max_output": m.max_output if m else 8192,
+                "calculated_input_usd": p.calculated_input_usd,
+                "calculated_output_usd": p.calculated_output_usd,
+                "calculated_cache_usd": p.calculated_cache_usd,
+                "discount_percent": p.discount_percent,
+                "last_tested_tps": p.last_tested_tps,
+                "is_available": p.is_available
+            })
         return result
 
 @router.post("", response_model=RelaySiteSchema)
