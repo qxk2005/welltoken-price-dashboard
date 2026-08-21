@@ -82,7 +82,10 @@ async def probe_channel_and_models(payload: ChannelProbeRequest):
 
     mappings_data = []
     if probe_res["raw_models"]:
-        raw_mappings = await model_normalizer.match_models_for_channel(probe_res["raw_models"])
+        raw_mappings = await model_normalizer.match_models_for_channel(
+            raw_model_names=probe_res["raw_models"],
+            raw_ratios=probe_res.get("raw_ratios")
+        )
         for m in raw_mappings:
             mappings_data.append(ModelMappingItem(**m))
 
@@ -96,6 +99,7 @@ async def probe_channel_and_models(payload: ChannelProbeRequest):
         raw_count=probe_res["raw_count"],
         matched_count=matched_cnt,
         unmatched_count=unmatched_cnt,
+        fetch_source=probe_res.get("fetch_source", ""),
         error=probe_res["error"],
         mappings=mappings_data
     )

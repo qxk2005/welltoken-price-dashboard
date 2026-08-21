@@ -154,8 +154,14 @@
                   {{ probeResult.is_online ? '✓' : '✕' }}
                 </div>
                 <div>
-                  <div class="font-bold text-xs" :class="probeResult.is_online ? 'text-[#137333]' : 'text-[#C5221F]'">
-                    {{ probeResult.is_online ? '端点连接正常 (Online)' : '端点连通失败 / 鉴权错误' }}
+                  <div class="font-bold text-xs flex items-center space-x-2" :class="probeResult.is_online ? 'text-[#137333]' : 'text-[#C5221F]'">
+                    <span>{{ probeResult.is_online ? '端点连接正常 (Online)' : '端点连通失败 / 鉴权错误' }}</span>
+                    <span
+                      v-if="probeResult.fetch_source"
+                      class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#E8F2FD] text-[#0071E3] border border-[#CCE4FB]"
+                    >
+                      ⚡ {{ probeResult.fetch_source }}
+                    </span>
                   </div>
                   <div class="text-[11px] text-[#6E6E73] mt-0.5 font-mono">
                     HTTP 状态码: {{ probeResult.status_code || 'N/A' }} | 实时延迟: {{ probeResult.latency_ms }} ms
@@ -248,8 +254,9 @@
                   <th class="py-2 px-3">渠道原始模型名 (Raw Model ID)</th>
                   <th class="py-2 px-3 text-center w-8">➔</th>
                   <th class="py-2 px-3">对应 models.dev 标准模型</th>
-                  <th class="py-2 px-3 text-center w-24">识别机制</th>
-                  <th class="py-2 px-3 text-center w-24">操作</th>
+                  <th class="py-2 px-2 text-center w-20">原生倍率</th>
+                  <th class="py-2 px-3 text-center w-20">机制</th>
+                  <th class="py-2 px-3 text-center w-20">操作</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-[#E5E5EA] text-[11px]">
@@ -295,7 +302,20 @@
                     </select>
                   </td>
 
-                  <!-- 5. 识别机制与置信度 -->
+                  <!-- 5. 渠道原生倍率输入与展示 -->
+                  <td class="py-2 px-2 text-center">
+                    <input
+                      v-model.number="item.custom_ratio"
+                      type="number"
+                      step="0.01"
+                      placeholder="默认"
+                      class="w-16 bg-[#FFFFFF] border border-[#E5E5EA] focus:border-[#0071E3] rounded px-1.5 py-0.5 text-center font-mono text-[11px] text-[#1D1D1F]"
+                      :class="{'border-[#CCE4FB] text-[#0071E3] font-bold bg-[#E8F2FD]/30': item.custom_ratio !== null && item.custom_ratio !== undefined}"
+                      :title="item.custom_ratio !== null ? `已从中转站配置提取原生倍率: ${item.custom_ratio}x` : '未单独设定，将继承第4步全局默认倍率'"
+                    />
+                  </td>
+
+                  <!-- 6. 识别机制与置信度 -->
                   <td class="py-2 px-3 text-center whitespace-nowrap">
                     <span
                       class="px-2 py-0.5 rounded-full text-[10px] font-mono border inline-block"
@@ -305,7 +325,7 @@
                     </span>
                   </td>
 
-                  <!-- 6. 固化为全局规则 -->
+                  <!-- 7. 固化为全局规则 -->
                   <td class="py-2 px-3 text-center whitespace-nowrap">
                     <button
                       v-if="item.standard_model_id"
@@ -313,7 +333,7 @@
                       class="text-[10px] px-2 py-0.5 rounded bg-[#F2F2F7] hover:bg-[#0071E3] hover:text-white text-[#0071E3] border border-[#E5E5EA] transition-all"
                       title="将此映射固化为全局智能别名库规则，未来所有渠道自动生效"
                     >
-                      ⭐ 固化别名
+                      ⭐ 固化
                     </button>
                   </td>
                 </tr>
@@ -364,6 +384,15 @@
                 (示例: 0.65 代表官方基准价的 65%，即 6.5 折)
               </span>
             </div>
+          </div>
+
+          <div class="p-3 bg-[#F2F2F7] rounded-xl text-[11px] text-[#6E6E73] space-y-1 border border-[#E5E5EA]">
+            <div class="font-bold text-[#1D1D1F] flex items-center space-x-1">
+              <span>💡</span>
+              <span>倍率折算优先级规则：</span>
+            </div>
+            <div>• 优先采用第 3 步中从中转站公开接口（/api/pricing）提取或手动设定的「原生独立倍率」；</div>
+            <div>• 未提供独立倍率的模型，将统一按照上述「全局默认模型倍率」进行价格折算入库。</div>
           </div>
         </div>
 
@@ -451,6 +480,7 @@ const probeResult = reactive({
   raw_count: 0,
   matched_count: 0,
   unmatched_count: 0,
+  fetch_source: '',
   error: ''
 })
 
@@ -498,11 +528,13 @@ async function runProbe() {
     probeResult.raw_count = res.data.raw_count
     probeResult.matched_count = res.data.matched_count
     probeResult.unmatched_count = res.data.unmatched_count
+    probeResult.fetch_source = res.data.fetch_source || ''
     probeResult.error = res.data.error
 
     mappingsList.value = res.data.mappings || []
   } catch (e: any) {
     probeResult.is_online = false
+    probeResult.fetch_source = ''
     probeResult.error = e.response?.data?.detail || e.message || '网络连接超时'
   } finally {
     isProbing.value = false

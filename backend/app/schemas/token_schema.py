@@ -231,6 +231,7 @@ class ChannelProbeResponse(BaseModel):
     raw_count: int
     matched_count: int
     unmatched_count: int
+    fetch_source: str = ""
     error: str = ""
     mappings: List[ModelMappingItem] = []
 

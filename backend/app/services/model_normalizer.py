@@ -135,6 +135,13 @@ class ModelNormalizerService:
 
         return name
 
+    def extract_root_url(self, url: str) -> str:
+        """从用户输入的 Base URL 中自动提取纯根域名 (如 https://domain.com/v1 -> https://domain.com)"""
+        clean = url.strip().rstrip("/")
+        # 剥离常见的 /v1, /api, /v1beta 等后缀
+        clean = re.sub(r"/(v1|v1beta|api|v2)$", "", clean)
+        return clean.rstrip("/")
+
     async def probe_and_fetch_models(
         self,
         base_url: str,
@@ -142,41 +149,47 @@ class ModelNormalizerService:
         site_type: str = "newapi",
         models_endpoint: str = "/v1/models"
     ) -> Dict[str, Any]:
-        """真实发起 HTTP 请求探测中转站的连通性、实时 RTT 延迟并抓取原始模型列表"""
+        """使用 relay-watch 智能全量探测链：自动提取根域，优先免 Key 请求公开 JSON (/api/pricing, /api/models)，提取全量模型与真实倍率"""
         start_t = time.time()
         is_online = False
         status_code = 0
         real_latency_ms = 0.0
         raw_models: List[str] = []
+        raw_ratios: Dict[str, float] = {}
+        fetch_source = ""
         error_msg = ""
 
-        # 针对不同架构自动智能补全 models 端点
-        clean_base = base_url.rstrip("/")
-        candidates_endpoints = []
-        if models_endpoint:
-            candidates_endpoints.append(models_endpoint)
-        if site_type == "sub2api":
-            candidates_endpoints.extend(["/api/user/models", "/api/models", "/v1/models", "/models"])
-        elif site_type == "newapi" or site_type == "oneapi":
-            candidates_endpoints.extend(["/api/models", "/v1/models", "/models"])
-        else:
-            candidates_endpoints.extend(["/v1/models", "/models", "/api/models"])
+        clean_base = base_url.strip().rstrip("/")
+        root_url = self.extract_root_url(clean_base)
 
-        # 去重保留顺序
-        seen_ep = set()
-        endpoints_to_try = [x for x in candidates_endpoints if not (x in seen_ep or seen_ep.add(x))]
-
-        headers = {
+        headers_no_auth = {
+            "User-Agent": "WellToken-Dashboard/1.0.0 (Relay-Probe; +https://models.dev)"
+        }
+        headers_with_auth = {
             "User-Agent": "WellToken-Dashboard/1.0.0 (Relay-Probe; +https://models.dev)"
         }
         if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
+            headers_with_auth["Authorization"] = f"Bearer {api_key}"
 
-        async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
-            for ep in endpoints_to_try:
-                target_url = f"{clean_base}{ep}"
+        # -------------------------------------------------------------
+        # Phase 1: 优先探测公开端点 (免 Key，获取未受限全量模型及官方倍率)
+        # -------------------------------------------------------------
+        public_probe_targets = [
+            # 1. NewAPI / OneAPI 全量定价接口 (最权威：包含全量模型与真实倍率 model_ratio)
+            {"url": f"{root_url}/api/pricing", "auth": False, "source": "/api/pricing (免Key全量定价)"},
+            # 2. NewAPI / OneAPI 公开模型列表接口
+            {"url": f"{root_url}/api/models", "auth": False, "source": "/api/models (免Key公开模型)"},
+            # 3. Sub2API 公开模型端点
+            {"url": f"{root_url}/api/user/models", "auth": False, "source": "/api/user/models (Sub2API公开)"},
+            {"url": f"{root_url}/api/public/models", "auth": False, "source": "/api/public/models (Sub2API公开)"},
+            # 4. Status 接口
+            {"url": f"{root_url}/api/status", "auth": False, "source": "/api/status (公开状态)"}
+        ]
+
+        async with httpx.AsyncClient(timeout=6.0, follow_redirects=True) as client:
+            for target in public_probe_targets:
                 try:
-                    resp = await client.get(target_url, headers=headers)
+                    resp = await client.get(target["url"], headers=headers_no_auth)
                     status_code = resp.status_code
                     real_latency_ms = round((time.time() - start_t) * 1000, 1)
 
@@ -184,24 +197,70 @@ class ModelNormalizerService:
                         is_online = True
                         data = resp.json()
                         raw_list = data if isinstance(data, list) else (data.get("data") or data.get("models") or [])
+                        
+                        # 解析 pricing 格式（带有 model_name 与 model_ratio）
                         for item in raw_list:
                             if isinstance(item, dict):
-                                m_id = item.get("id") or item.get("name")
+                                m_name = item.get("model_name") or item.get("id") or item.get("name")
+                                m_ratio = item.get("model_ratio")
+                                if m_ratio is not None:
+                                    try:
+                                        raw_ratios[str(m_name).strip().lower()] = float(m_ratio)
+                                    except (ValueError, TypeError):
+                                        pass
                             elif isinstance(item, str):
-                                m_id = item
+                                m_name = item
                             else:
-                                m_id = None
-                            if m_id and isinstance(m_id, str):
-                                raw_models.append(m_id.strip())
+                                m_name = None
+
+                            if m_name and isinstance(m_name, str):
+                                raw_models.append(m_name.strip())
+
                         if raw_models:
-                            break # 成功获取模型列表
-                    elif resp.status_code == 401:
-                        # 401 说明网络与服务可达，只是鉴权 Key 需要配置
-                        is_online = True
-                        error_msg = "端点可达，但需要有效的 API Key (HTTP 401)"
+                            fetch_source = target["source"]
+                            break # 成功免 Key 获取到全量模型
                 except Exception as e:
-                    error_msg = str(e)
-                    real_latency_ms = round((time.time() - start_t) * 1000, 1)
+                    pass
+
+        # -------------------------------------------------------------
+        # Phase 2: 若公开端点无法获取，回退探测鉴权端点 (需要有效的 API Key)
+        # -------------------------------------------------------------
+        if not raw_models:
+            auth_probe_targets = [
+                {"url": f"{clean_base}/models", "auth": True, "source": f"{clean_base}/models (令牌权限)"},
+                {"url": f"{clean_base}/v1/models" if not clean_base.endswith("/v1") else f"{clean_base}/models", "auth": True, "source": "/v1/models (令牌权限)"},
+                {"url": f"{root_url}/v1/models", "auth": True, "source": "/v1/models (令牌权限)"}
+            ]
+
+            async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
+                for target in auth_probe_targets:
+                    try:
+                        resp = await client.get(target["url"], headers=headers_with_auth)
+                        status_code = resp.status_code
+                        real_latency_ms = round((time.time() - start_t) * 1000, 1)
+
+                        if resp.status_code == 200:
+                            is_online = True
+                            data = resp.json()
+                            raw_list = data if isinstance(data, list) else (data.get("data") or data.get("models") or [])
+                            for item in raw_list:
+                                if isinstance(item, dict):
+                                    m_id = item.get("id") or item.get("name") or item.get("model_name")
+                                elif isinstance(item, str):
+                                    m_id = item
+                                else:
+                                    m_id = None
+                                if m_id and isinstance(m_id, str):
+                                    raw_models.append(m_id.strip())
+                            if raw_models:
+                                fetch_source = target["source"]
+                                break
+                        elif resp.status_code == 401:
+                            is_online = True
+                            error_msg = "端点连通，但公开端点未开放，且 API Key 无效或未提供 (HTTP 401)"
+                    except Exception as e:
+                        error_msg = str(e)
+                        real_latency_ms = round((time.time() - start_t) * 1000, 1)
 
         # 去重模型列表
         seen_m = set()
@@ -213,17 +272,22 @@ class ModelNormalizerService:
             "latency_ms": real_latency_ms,
             "raw_models": unique_raw_models,
             "raw_count": len(unique_raw_models),
+            "raw_ratios": raw_ratios,
+            "fetch_source": fetch_source or ("公开/鉴权端点均无响应" if not is_online else "未获取到模型列表"),
             "error": error_msg
         }
 
     async def match_models_for_channel(
         self,
         raw_model_names: List[str],
-        site_id: Optional[int] = None
+        site_id: Optional[int] = None,
+        raw_ratios: Optional[Dict[str, float]] = None
     ) -> List[Dict[str, Any]]:
-        """为渠道的一批原始模型名称执行两层智能映射匹配"""
+        """为渠道的一批原始模型名称执行两层智能映射匹配，并自动应用提取到的原生模型倍率"""
         if not self._is_initialized:
             await self.initialize()
+
+        raw_ratios_map = raw_ratios or {}
 
         # 1. 如果指定了 site_id，先读取该渠道现存的专属映射表
         channel_mappings: Dict[str, ChannelModelMapping] = {}
@@ -251,6 +315,10 @@ class ModelNormalizerService:
                 match_type = "channel_custom"
                 confidence = 1.0
                 custom_ratio = cm.custom_ratio
+
+            # 如果渠道没有私有指定倍率，尝试从探测到的公开原生倍率中提取
+            if custom_ratio is None and raw_lower in raw_ratios_map:
+                custom_ratio = raw_ratios_map[raw_lower]
 
             # Level 2: 检查全局别名库 (ModelAlias 精确模式或通配符规则，强制将混乱别名归一化到旗舰标准模型)
             if not matched_standard_id:
