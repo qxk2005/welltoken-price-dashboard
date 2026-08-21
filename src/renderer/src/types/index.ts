@@ -48,6 +48,8 @@ export interface RelaySite {
   notes: string
   created_at: string
   model_count: number
+  groups?: string[]
+  group_count?: number
 }
 
 export interface ModelMetadata {

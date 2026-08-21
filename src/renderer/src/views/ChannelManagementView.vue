@@ -116,8 +116,25 @@
                         <span class="font-bold text-xs text-[#1D1D1F] group-hover:text-[#0071E3] transition-colors">
                           {{ site.name }}
                         </span>
+                        <!-- 智能动态分组徽章 -->
                         <span
-                          v-if="site.group_name"
+                          v-if="site.groups && site.groups.length > 1"
+                          class="px-1.5 py-0.2 rounded-md bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[10px] font-mono font-bold inline-flex items-center space-x-0.5 shadow-2xs cursor-help"
+                          :title="`包含 ${site.groups.length} 个分组: ${site.groups.join(', ')}`"
+                        >
+                          <span>🎯</span>
+                          <span>{{ site.groups.length }}个分组</span>
+                        </span>
+                        <span
+                          v-else-if="site.groups && site.groups.length === 1"
+                          class="px-1.5 py-0.2 rounded-md bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[10px] font-mono font-bold inline-flex items-center space-x-0.5 shadow-2xs"
+                          :title="`结算分组: ${site.groups[0]}`"
+                        >
+                          <span>🎯</span>
+                          <span>{{ site.groups[0] }}</span>
+                        </span>
+                        <span
+                          v-else-if="site.group_name"
                           class="px-1.5 py-0.2 rounded-md bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[10px] font-mono font-bold inline-flex items-center space-x-0.5 shadow-2xs"
                           :title="`结算分组: ${site.group_name}`"
                         >
@@ -406,8 +423,23 @@
                 >
                   {{ getCategoryLabel(selectedProvider) }}
                 </span>
+                <!-- 智能动态分组徽章 -->
                 <span
-                  v-if="selectedProvider.group_name"
+                  v-if="detailAvailableGroups.length > 1"
+                  class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] flex items-center space-x-1 shadow-2xs cursor-help"
+                  :title="`包含 ${detailAvailableGroups.length} 个分组: ${detailAvailableGroups.map(g => g.name).join(', ')}`"
+                >
+                  <span>🎯 包含 {{ detailAvailableGroups.length }} 个分组</span>
+                </span>
+                <span
+                  v-else-if="detailAvailableGroups.length === 1"
+                  class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] flex items-center space-x-1 shadow-2xs"
+                >
+                  <span>🎯 结算分组:</span>
+                  <span>{{ detailAvailableGroups[0].name }}</span>
+                </span>
+                <span
+                  v-else-if="selectedProvider.group_name"
                   class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] flex items-center space-x-1 shadow-2xs"
                 >
                   <span>🎯 结算分组:</span>

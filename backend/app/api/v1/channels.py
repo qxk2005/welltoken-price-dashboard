@@ -18,7 +18,7 @@ router = APIRouter(prefix="/channels", tags=["Relay Channels & Providers"])
 
 @router.get("", response_model=List[RelaySiteSchema])
 async def list_all_relay_channels():
-    """获取所有供应商与中转渠道列表"""
+    """获取所有供应商与中转渠道列表 (包含多分组聚合信息)"""
     async with AsyncSessionLocal() as session:
         stmt = select(
             RelaySite,
@@ -29,11 +29,30 @@ async def list_all_relay_channels():
 
         res = await session.execute(stmt)
         rows = res.all()
-        
+
+        # 聚合每个 site_id 下的去重分组列表
+        g_stmt = (
+            select(SiteModelPricing.site_id, SiteModelPricing.group_name)
+            .where(SiteModelPricing.group_name.isnot(None), SiteModelPricing.group_name != "")
+            .distinct()
+        )
+        g_res = await session.execute(g_stmt)
+        groups_by_site: Dict[int, List[str]] = {}
+        for s_id, g_name in g_res.all():
+            if s_id not in groups_by_site:
+                groups_by_site[s_id] = []
+            if g_name and g_name not in groups_by_site[s_id]:
+                groups_by_site[s_id].append(g_name)
+
         result = []
         for site, model_cnt in rows:
             schema_data = RelaySiteSchema.model_validate(site)
             schema_data.model_count = model_cnt
+            site_groups = groups_by_site.get(site.id, [])
+            if not site_groups and site.group_name:
+                site_groups = [site.group_name]
+            schema_data.groups = site_groups
+            schema_data.group_count = len(site_groups)
             result.append(schema_data)
         return result
 

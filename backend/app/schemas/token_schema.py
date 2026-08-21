@@ -100,6 +100,8 @@ class RelaySiteSchema(RelaySiteBase):
     score: float
     created_at: datetime
     model_count: int = 0
+    groups: List[str] = []
+    group_count: int = 0
 
     class Config:
         from_attributes = True
