@@ -481,7 +481,8 @@
               @click="goToSpeedTestWithSite(selectedProvider.id)"
               class="px-3.5 py-1.5 rounded-xl bg-[#34C759] hover:bg-[#2FB34F] text-white text-xs font-bold shadow-sm flex items-center space-x-1"
             >
-              <span>⚡ 一键并发测速</span>
+              <span>⚡</span>
+              <span>一键测速</span>
             </button>
           </div>
         </div>
@@ -1198,8 +1199,7 @@ const goToMatrixWithSite = (siteId: number) => {
 }
 
 const goToSpeedTestWithSite = (siteId: number) => {
-  store.activeTab = 'speed-tester'
-  store.runSpeedTest([siteId], 'deepseek-v3')
+  store.navigateToSpeedTest(siteId)
 }
 
 const goToMatrixWithModel = (modelId: string) => {
@@ -1208,10 +1208,7 @@ const goToMatrixWithModel = (modelId: string) => {
 }
 
 const goToSpeedTestWithModel = (modelId: string) => {
-  store.activeTab = 'speed-tester'
-  if (selectedProvider.value) {
-    store.runSpeedTest([selectedProvider.value.id], modelId)
-  }
+  store.navigateToSpeedTest(selectedProvider.value?.id, modelId)
 }
 
 const openAddModal = () => {

@@ -37,6 +37,8 @@ export const useDashboardStore = defineStore('dashboard', {
     isSpeedTesting: false,
     currentSpeedStream: {} as Record<number, SpeedTestStreamEvent>,
     speedLogMessages: [] as string[],
+    speedTestTargetSiteId: null as number | null,
+    speedTestTargetModelId: null as string | null,
     
     // 系统连接状态
     isConnected: false,
@@ -210,6 +212,16 @@ export const useDashboardStore = defineStore('dashboard', {
       } catch (e) {
         console.error('Full sync failed:', e)
       }
+    },
+
+    navigateToSpeedTest(siteId?: number, modelId?: string) {
+      if (siteId !== undefined && siteId !== null) {
+        this.speedTestTargetSiteId = siteId
+      }
+      if (modelId) {
+        this.speedTestTargetModelId = modelId
+      }
+      this.activeTab = 'speed-tester'
     },
 
     async runSpeedTest(siteIds: number[], modelId = 'deepseek-v3', promptType = 'standard') {

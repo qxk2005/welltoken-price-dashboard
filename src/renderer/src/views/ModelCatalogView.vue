@@ -275,7 +275,7 @@
                     @click="goToSpeedTest(model.model_id)"
                     class="text-[#34C759] hover:underline transition-colors font-bold"
                   >
-                    [流式实测]
+                    [一键测速]
                   </button>
                 </td>
               </tr>
@@ -669,8 +669,6 @@ const goToMatrix = (modelId: string) => {
 }
 
 const goToSpeedTest = (modelId: string) => {
-  store.activeTab = 'speed-tester'
-  const siteIds = store.activeSites.slice(0, 3).map((s) => s.id)
-  store.runSpeedTest(siteIds, modelId)
+  store.navigateToSpeedTest(undefined, modelId)
 }
 </script>

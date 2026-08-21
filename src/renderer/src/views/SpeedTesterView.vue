@@ -486,22 +486,48 @@ const getLogClass = (type: string) => {
   }
 }
 
-onMounted(async () => {
+const initSpeedTestContext = async () => {
   if (store.activeSites.length === 0) {
     await store.fetchRelaySites()
   }
 
-  // 默认选中第一个渠道或之前选中的渠道
-  if (store.selectedSiteId && store.activeSites.some((s) => s.id === store.selectedSiteId)) {
+  // 1. 优先使用外部一键测速传入的渠道 ID，其次是 store.selectedSiteId，最后是第 1 个可用渠道
+  if (store.speedTestTargetSiteId && store.activeSites.some((s) => s.id === store.speedTestTargetSiteId)) {
+    selectedSiteId.value = store.speedTestTargetSiteId
+  } else if (store.selectedSiteId && store.activeSites.some((s) => s.id === store.selectedSiteId)) {
     selectedSiteId.value = store.selectedSiteId
   } else if (store.activeSites.length > 0) {
     selectedSiteId.value = store.activeSites[0].id
   }
 
-  if (selectedSiteId.value) {
-    handleSiteChange()
+  // 2. 优先使用外部一键测速传入的模型 ID
+  if (store.speedTestTargetModelId) {
+    form.modelId = store.speedTestTargetModelId
   }
+
+  if (selectedSiteId.value) {
+    await handleSiteChange()
+    if (store.speedTestTargetModelId) {
+      form.modelId = store.speedTestTargetModelId
+      const targetSite = store.activeSites.find((s) => s.id === selectedSiteId.value)
+      appendLog('info', '🎯', `已从快捷入口进入，已为您自动选定渠道【${targetSite?.name}】与测试模型【${store.speedTestTargetModelId}】`)
+    }
+  }
+}
+
+onMounted(async () => {
+  await initSpeedTestContext()
 })
+
+// 监听从其他页面触发的一键测速跳转
+watch(
+  () => [store.speedTestTargetSiteId, store.speedTestTargetModelId],
+  async ([newSiteId, newModelId]) => {
+    if (newSiteId || newModelId) {
+      await initSpeedTestContext()
+    }
+  }
+)
 
 // 切换渠道时自动填充配置并拉取模型列表
 const handleSiteChange = async () => {
