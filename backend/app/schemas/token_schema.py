@@ -161,6 +161,61 @@ class SpeedTestRequest(BaseModel):
     prompt_type: str = "standard" # standard, reasoning, code
     rounds: int = 1
 
+# --- 渠道单点高精度性能压测 (Benchmark) ---
+class ChannelBenchmarkRequest(BaseModel):
+    site_id: int
+    model_id: str
+    custom_api_key: Optional[str] = ""
+    custom_base_url: Optional[str] = ""
+    rounds: int = 3
+    concurrency: int = 1
+    prompt_type: str = "standard"
+
+class ExecutionDetailItem(BaseModel):
+    round_index: int
+    thread_id: str
+    status_code: int = 200
+    ttfb_ms: float = 0.0
+    ttft_ms: float = 0.0
+    itl_ms: float = 0.0 # Inter-Token Latency (毫秒)
+    total_duration_s: float = 0.0 # 秒
+    tps: float = 0.0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    response_content: str = ""
+    is_success: bool = True
+    error_msg: str = ""
+
+class ChannelBenchmarkResponse(BaseModel):
+    site_id: int
+    site_name: str
+    model_id: str
+    total_rounds: int
+    concurrency: int
+    # 核心聚合统计 (Avg / Max / Min)
+    avg_ttft_ms: float
+    max_ttft_ms: float
+    min_ttft_ms: float
+    avg_ttfb_ms: float
+    max_ttfb_ms: float
+    min_ttfb_ms: float
+    avg_tps: float
+    max_tps: float
+    min_tps: float
+    avg_itl_ms: float
+    max_itl_ms: float
+    min_itl_ms: float
+    avg_duration_s: float
+    max_duration_s: float
+    min_duration_s: float
+    total_prompt_tokens: int
+    total_completion_tokens: int
+    total_tokens: int
+    jitter_ms: float
+    score: float
+    grade: str
+    details: List[ExecutionDetailItem] = []
+
 class SpeedTestStreamEvent(BaseModel):
     event: str # start, token, done, error
     site_id: int

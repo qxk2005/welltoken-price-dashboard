@@ -1,10 +1,26 @@
 from fastapi import APIRouter, Query, BackgroundTasks
 from typing import List, Dict, Any
-from backend.app.schemas.token_schema import SpeedTestRequest, SpeedTestResultSchema
+from backend.app.schemas.token_schema import (
+    SpeedTestRequest, SpeedTestResultSchema,
+    ChannelBenchmarkRequest, ChannelBenchmarkResponse
+)
 from backend.app.services.speed_tester import speed_tester
 from backend.app.services.dashboard_service import dashboard_service
 
 router = APIRouter(prefix="/speed-test", tags=["Speed Tester"])
+
+@router.post("/benchmark", response_model=ChannelBenchmarkResponse)
+async def benchmark_single_channel(payload: ChannelBenchmarkRequest):
+    """对单个渠道进行多轮并发高精度性能压测，采集 TTFT/TTFB/TPS/ITL/RTM 并自动回写元数据"""
+    return await speed_tester.run_channel_benchmark(
+        site_id=payload.site_id,
+        model_id=payload.model_id,
+        custom_api_key=payload.custom_api_key or "",
+        custom_base_url=payload.custom_base_url or "",
+        rounds=payload.rounds,
+        concurrency=payload.concurrency,
+        prompt_type=payload.prompt_type
+    )
 
 @router.post("/run", response_model=List[SpeedTestResultSchema])
 async def execute_speed_test(payload: SpeedTestRequest):
