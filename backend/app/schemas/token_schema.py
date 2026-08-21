@@ -293,6 +293,7 @@ class ChannelProbeResponse(BaseModel):
     mappings: List[ModelMappingItem] = []
 
 class ChannelWizardCreateRequest(BaseModel):
+    site_id: Optional[int] = None # 若提供则原地更新已有渠道配置与模型映射
     name: str
     base_url: str
     api_key: Optional[str] = ""

@@ -46,7 +46,7 @@
             <span>🔄 同步官方库</span>
           </button>
           <button
-            @click="showWizardModal = true"
+            @click="openWizardForAdd"
             class="text-xs px-3 py-1.5 rounded-lg bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] text-white font-medium shadow-sm transition-all flex items-center space-x-1 whitespace-nowrap"
           >
             <span>✨ 添加渠道向导 (Relay-Watch)</span>
@@ -698,10 +698,11 @@
       </div>
     </template>
 
-    <!-- 4 步向导式添加自建渠道 Modal (Relay-Watch & 智能模型归一化) -->
+    <!-- 4 步向导式添加/重新探测自建渠道 Modal (Relay-Watch & 智能模型归一化) -->
     <AddChannelWizardModal
       v-if="showWizardModal"
-      @close="showWizardModal = false"
+      :initial-channel="wizardInitialChannel"
+      @close="showWizardModal = false; wizardInitialChannel = null"
       @success="onWizardSuccess"
     />
 
@@ -866,14 +867,29 @@ const pageSize = ref(20)
 const sortField = ref<string>('score')
 const sortOrder = ref<'asc' | 'desc'>('desc')
 
-const onWizardSuccess = async (res: any) => {
-  await store.fetchRelaySites()
-  await store.fetchComparisonMatrix()
-  alert(`🎉 恭喜！中转渠道「${res.site_name}」添加成功，已精准规整并收录 ${res.imported_models_count} 款模型！`)
+const wizardInitialChannel = ref<any>(null)
+
+const openWizardForAdd = () => {
+  wizardInitialChannel.value = null
+  showWizardModal.value = true
 }
 
 const openSyncModalForCurrent = () => {
+  wizardInitialChannel.value = selectedProvider.value
   showWizardModal.value = true
+}
+
+const onWizardSuccess = async (res: any) => {
+  await store.fetchRelaySites()
+  await store.fetchComparisonMatrix()
+  if (selectedProvider.value && selectedProvider.value.id === res.site_id) {
+    const updated = store.relaySites.find((s: any) => s.id === res.site_id)
+    if (updated) {
+      selectedProvider.value = updated
+    }
+    await selectProvider(selectedProvider.value)
+  }
+  alert(`🎉 恭喜！中转渠道「${res.site_name}」配置与模型同步成功，已精准收录 ${res.imported_models_count} 款模型！`)
 }
 
 // 真正的官方直连母厂 ID 集合 (大模型原创研发母厂一手 API)

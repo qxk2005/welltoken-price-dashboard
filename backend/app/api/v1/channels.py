@@ -163,26 +163,43 @@ async def wizard_create_channel(payload: ChannelWizardCreateRequest, db: AsyncSe
     """【向导第4步】完成渠道创建、写入渠道模型映射，并初始化生成模型定价记录"""
     selected_grp = payload.selected_group or ""
 
-    # 1. 创建渠道主体
-    site = RelaySite(
-        name=payload.name,
-        base_url=payload.base_url.rstrip("/"),
-        api_key=payload.api_key or "",
-        site_type=payload.site_type,
-        group_name=selected_grp,
-        currency=payload.currency or "CNY",
-        recharge_rate=payload.recharge_rate,
-        models_endpoint=payload.models_endpoint,
-        status_endpoint=payload.status_endpoint or "",
-        is_official_catalog=False,
-        is_active=True,
-        notes=payload.notes or "",
-        last_latency_ms=45.0
-    )
-    db.add(site)
+    # 1. 创建或获取已有渠道主体
+    site = None
+    if payload.site_id:
+        s_res = await db.execute(select(RelaySite).where(RelaySite.id == payload.site_id))
+        site = s_res.scalar_one_or_none()
+
+    if site:
+        site.name = payload.name
+        site.base_url = payload.base_url.rstrip("/")
+        site.api_key = payload.api_key or ""
+        site.site_type = payload.site_type
+        site.group_name = selected_grp
+        site.currency = payload.currency or "CNY"
+        site.recharge_rate = payload.recharge_rate
+        if payload.notes:
+            site.notes = payload.notes
+    else:
+        site = RelaySite(
+            name=payload.name,
+            base_url=payload.base_url.rstrip("/"),
+            api_key=payload.api_key or "",
+            site_type=payload.site_type,
+            group_name=selected_grp,
+            currency=payload.currency or "CNY",
+            recharge_rate=payload.recharge_rate,
+            models_endpoint=payload.models_endpoint,
+            status_endpoint=payload.status_endpoint or "",
+            is_official_catalog=False,
+            is_active=True,
+            notes=payload.notes or "",
+            last_latency_ms=45.0
+        )
+        db.add(site)
+
     await db.flush()
 
-    # 防卫性确保全新 site_id 下不存在历史残留孤立定价
+    # 清理该渠道旧的定价与映射记录，由向导重新写入
     await db.execute(delete(SiteModelPricing).where(SiteModelPricing.site_id == site.id))
     await db.execute(delete(ChannelModelMapping).where(ChannelModelMapping.site_id == site.id))
 

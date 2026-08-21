@@ -5,9 +5,10 @@
       <!-- 1. 弹窗顶部：标题与关闭按钮 -->
       <div class="px-6 py-4 border-b border-[#E5E5EA] flex items-center justify-between bg-[#F9F9FB]">
         <div class="flex items-center space-x-2">
-          <span class="text-base">🚀</span>
+          <span class="text-base">{{ props.initialChannel ? '📡' : '🚀' }}</span>
           <h3 class="font-bold text-sm text-[#1D1D1F]">
-            添加供应商与中转渠道向导 (Relay-Watch & Smart Mapping)
+            <span v-if="props.initialChannel">重新探测与同步模型 ({{ props.initialChannel.name }})</span>
+            <span v-else>添加供应商与中转渠道向导 (Relay-Watch & Smart Mapping)</span>
           </h3>
         </div>
         <button
@@ -633,6 +634,10 @@ import { ref, reactive, computed } from 'vue'
 import axios from 'axios'
 import { useDashboardStore } from '../stores/dashboardStore'
 
+const props = defineProps<{
+  initialChannel?: any
+}>()
+
 const emit = defineEmits(['close', 'success'])
 const store = useDashboardStore()
 
@@ -649,14 +654,14 @@ const steps = [
 ]
 
 const form = reactive({
-  name: '',
-  base_url: '',
-  site_type: 'newapi',
-  currency: 'CNY',
-  recharge_rate: 1.0,
+  name: props.initialChannel?.name || '',
+  base_url: props.initialChannel?.base_url || '',
+  site_type: props.initialChannel?.site_type || 'newapi',
+  currency: props.initialChannel?.currency || 'CNY',
+  recharge_rate: props.initialChannel?.recharge_rate || 1.0,
   default_ratio: 0.65,
-  api_key: '',
-  notes: ''
+  api_key: props.initialChannel?.api_key || '',
+  notes: props.initialChannel?.notes || ''
 })
 
 const probeResult = reactive({
@@ -897,6 +902,7 @@ async function submitWizard() {
   isSubmitting.value = true
   try {
     const res = await axios.post(`${store.apiUrl}/api/v1/channels/wizard-create`, {
+      site_id: props.initialChannel?.id || undefined,
       name: form.name,
       base_url: form.base_url,
       api_key: form.api_key,
