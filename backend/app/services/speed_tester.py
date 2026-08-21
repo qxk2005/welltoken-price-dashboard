@@ -236,8 +236,8 @@ class SpeedTesterService:
                 SiteModelPricing.model_id == model_id
             )
             p_res = await session.execute(p_stmt)
-            p_obj = p_res.scalar_one_or_none()
-            if p_obj:
+            p_objs = p_res.scalars().all()
+            for p_obj in p_objs:
                 p_obj.last_tested_tps = avg_tps
 
             await session.commit()
@@ -477,8 +477,8 @@ class SpeedTesterService:
                 SiteModelPricing.model_id == model_id
             )
             p_res = await session.execute(p_stmt)
-            p_obj = p_res.scalar_one_or_none()
-            if p_obj:
+            p_objs = p_res.scalars().all()
+            for p_obj in p_objs:
                 p_obj.last_tested_tps = avg_tps
 
             # 2. 回写渠道站点评分与延迟
