@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from typing import List, Optional
 from backend.app.schemas.token_schema import (
     ComparisonItemSchema,
@@ -9,25 +9,39 @@ from backend.app.services.dashboard_service import dashboard_service
 
 router = APIRouter(prefix="/comparison", tags=["Comparison Matrix"])
 
+def get_query_list(request: Request, *keys: str) -> Optional[List[str]]:
+    """从请求中鲁棒提取数组参数 (自动兼容 key, key[], key[0] 等格式)"""
+    results = []
+    for k in keys:
+        values = request.query_params.getlist(k)
+        if values:
+            results.extend(values)
+        # 兼容 key[]
+        values_bracket = request.query_params.getlist(f"{k}[]")
+        if values_bracket:
+            results.extend(values_bracket)
+    return list(set(results)) if results else None
+
 @router.get("/paginated", response_model=PaginatedComparisonResponse)
 async def get_paginated_comparison(
+    request: Request,
     provider: Optional[List[str]] = Query(None, description="厂商多选"),
     series: Optional[List[str]] = Query(None, description="系列多选"),
     model: Optional[List[str]] = Query(None, description="模型多选"),
-    model_id: Optional[List[str]] = Query(None, description="模型多选(兼容)"),
     site: Optional[List[str]] = Query(None, description="渠道多选"),
-    site_name: Optional[List[str]] = Query(None, description="渠道多选(兼容)"),
     search: Optional[str] = Query(None, description="全局搜索"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(50, ge=10, le=200, description="每页条数")
 ):
     """高性能分页查询全网大模型 Token 比价数据，支持多维级联筛选与模糊搜索"""
-    effective_models = model or model_id or None
-    effective_sites = site or site_name or None
+    effective_providers = get_query_list(request, "provider", "providers") or provider
+    effective_series = get_query_list(request, "series") or series
+    effective_models = get_query_list(request, "model", "models", "model_id") or model
+    effective_sites = get_query_list(request, "site", "sites", "site_name") or site
 
     return await dashboard_service.get_paginated_comparison_matrix(
-        providers=provider,
-        series=series,
+        providers=effective_providers,
+        series=effective_series,
         models=effective_models,
         sites=effective_sites,
         search_query=search,
@@ -37,20 +51,21 @@ async def get_paginated_comparison(
 
 @router.get("/filter-options", response_model=ComparisonFilterOptionsResponse)
 async def get_filter_options(
+    request: Request,
     provider: Optional[List[str]] = Query(None, description="已选厂商"),
     series: Optional[List[str]] = Query(None, description="已选系列"),
     model: Optional[List[str]] = Query(None, description="已选模型"),
-    model_id: Optional[List[str]] = Query(None, description="已选模型(兼容)"),
-    site: Optional[List[str]] = Query(None, description="已选渠道"),
-    site_name: Optional[List[str]] = Query(None, description="已选渠道(兼容)")
+    site: Optional[List[str]] = Query(None, description="已选渠道")
 ):
     """轻量级获取筛选器候选选项及统计条数 (支持四级联动收敛)"""
-    effective_models = model or model_id or None
-    effective_sites = site or site_name or None
+    effective_providers = get_query_list(request, "provider", "providers") or provider
+    effective_series = get_query_list(request, "series") or series
+    effective_models = get_query_list(request, "model", "models", "model_id") or model
+    effective_sites = get_query_list(request, "site", "sites", "site_name") or site
 
     return await dashboard_service.get_filter_options(
-        selected_providers=provider,
-        selected_series=series,
+        selected_providers=effective_providers,
+        selected_series=effective_series,
         selected_models=effective_models,
         selected_sites=effective_sites
     )

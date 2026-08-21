@@ -37,7 +37,8 @@
             label="渠道中转站"
             icon="🌐"
             :options="siteOptions"
-            v-model="selectedSites"
+            :model-value="selectedSites"
+            @update:model-value="handleSiteChange"
           />
 
           <!-- 5. 仅看已收藏渠道快捷胶囊 -->
@@ -225,6 +226,7 @@
             <span>每页</span>
             <select
               v-model="pageSize"
+              @change="handlePageSizeChange"
               class="bg-[#F2F2F7] border border-[#E5E5EA] rounded-md px-1.5 py-0.5 text-[#1D1D1F] font-mono text-xs focus:outline-none focus:border-[#0071E3]"
             >
               <option :value="20">20 条</option>
@@ -304,7 +306,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import * as echarts from 'echarts'
 import { useDashboardStore } from '../stores/dashboardStore'
@@ -386,16 +388,40 @@ const scatterChartRef = ref<HTMLElement | null>(null)
 let chartInstance: echarts.ECharts | null = null
 const selectedRow = ref<ComparisonItem | null>(null)
 
+// 构造标准的 URLSearchParams 请求参数，彻底解决 Axios 数组带 [] 导致 FastAPI 忽略参数的问题
+const buildSearchParams = (paramsObj: Record<string, any>): URLSearchParams => {
+  const sp = new URLSearchParams()
+  for (const [k, v] of Object.entries(paramsObj)) {
+    if (Array.isArray(v)) {
+      for (const item of v) {
+        if (item) sp.append(k, item)
+      }
+    } else if (v !== undefined && v !== null && v !== '') {
+      sp.append(k, String(v))
+    }
+  }
+  return sp
+}
+
 // 异步获取筛选器候选选项 (根据已选维度进行四级级联联动收敛)
-const fetchFilterOptions = async () => {
+const fetchFilterOptions = async (
+  customProviders?: string[],
+  customSeries?: string[],
+  customModels?: string[]
+) => {
   try {
-    const params: any = {}
-    if (selectedProviders.value.length > 0) params.provider = selectedProviders.value
-    if (selectedSeries.value.length > 0) params.series = selectedSeries.value
-    if (selectedModels.value.length > 0) params.model = selectedModels.value
+    const providersToUse = customProviders !== undefined ? customProviders : selectedProviders.value
+    const seriesToUse = customSeries !== undefined ? customSeries : selectedSeries.value
+    const modelsToUse = customModels !== undefined ? customModels : selectedModels.value
+
+    const params: Record<string, any> = {}
+    if (providersToUse.length > 0) params.provider = providersToUse
+    if (seriesToUse.length > 0) params.series = seriesToUse
+    if (modelsToUse.length > 0) params.model = modelsToUse
     if (selectedSites.value.length > 0) params.site = selectedSites.value
 
-    const res = await axios.get(`${store.apiUrl}/api/v1/comparison/filter-options`, { params })
+    const sp = buildSearchParams(params)
+    const res = await axios.get(`${store.apiUrl}/api/v1/comparison/filter-options?${sp.toString()}`)
     rawProviderOptions.value = res.data.providers || []
     seriesOptions.value = res.data.series || []
     modelOptions.value = res.data.models || []
@@ -419,7 +445,7 @@ const fetchPaginatedMatrix = async () => {
       }
     }
 
-    const params: any = {
+    const params: Record<string, any> = {
       page: currentPage.value,
       page_size: pageSize.value
     }
@@ -428,10 +454,11 @@ const fetchPaginatedMatrix = async () => {
     if (selectedModels.value.length > 0) params.model = selectedModels.value
     if (effectiveSites.length > 0) params.site = effectiveSites
 
-    const res = await axios.get(`${store.apiUrl}/api/v1/comparison/paginated`, { params })
+    const sp = buildSearchParams(params)
+    const res = await axios.get(`${store.apiUrl}/api/v1/comparison/paginated?${sp.toString()}`)
     pagedItems.value = res.data.items || []
     totalRecords.value = res.data.total || 0
-    totalPages.value = res.data.pages || 1
+    totalPages.value = res.data.total_pages || res.data.pages || 1
     currentPage.value = res.data.page || 1
 
     if (pagedItems.value.length > 0 && !selectedRow.value) {
@@ -453,7 +480,7 @@ const handleProviderChange = async (newProviders: string[]) => {
   currentPage.value = 1
 
   // 刷新级联候选项
-  await fetchFilterOptions()
+  await fetchFilterOptions(newProviders, [], [])
 
   // 若已选系列不在新候选池中，清空系列
   if (selectedSeries.value.length > 0) {
@@ -474,7 +501,7 @@ const handleSeriesChange = async (newSeries: string[]) => {
   selectedSeries.value = newSeries
   currentPage.value = 1
 
-  await fetchFilterOptions()
+  await fetchFilterOptions(selectedProviders.value, newSeries, [])
 
   if (selectedModels.value.length > 0) {
     const validModels = new Set(modelOptions.value.map((m) => m.value))
@@ -494,9 +521,21 @@ const handleModelChange = async (newModels: string[]) => {
     selectedProviders.value = []
     selectedSeries.value = []
     // 恢复全量系列与模型候选
-    await fetchFilterOptions()
+    await fetchFilterOptions([], [], newModels)
   }
 
+  fetchPaginatedMatrix()
+}
+
+// 4. 渠道变更
+const handleSiteChange = (newSites: string[]) => {
+  selectedSites.value = newSites
+  currentPage.value = 1
+  fetchPaginatedMatrix()
+}
+
+const handlePageSizeChange = () => {
+  currentPage.value = 1
   fetchPaginatedMatrix()
 }
 
@@ -517,12 +556,6 @@ const toggleFavoriteByName = (siteName: string) => {
     store.toggleFavoriteSite(site.id)
   }
 }
-
-// 监听渠道与分页条数变化
-watch([selectedSites, pageSize], () => {
-  currentPage.value = 1
-  fetchPaginatedMatrix()
-})
 
 const changePage = (page: number) => {
   if (page < 1 || page > totalPages.value) return
@@ -586,6 +619,7 @@ const removeModel = (m: string) => {
 
 const removeSite = (st: string) => {
   selectedSites.value = selectedSites.value.filter((item) => item !== st)
+  handleSiteChange(selectedSites.value)
 }
 
 const selectRow = (row: ComparisonItem) => {
