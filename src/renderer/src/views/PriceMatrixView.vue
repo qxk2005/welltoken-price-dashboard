@@ -130,8 +130,8 @@
         <div class="col-span-3">模型标准标识</div>
         <div class="col-span-2">渠道 / 供应商</div>
         <div class="col-span-1">类型</div>
-        <div class="col-span-1 text-right">输入单价</div>
-        <div class="col-span-1 text-right">输出单价</div>
+        <div class="col-span-1 text-right">输入单价 ({{ store.currency }})</div>
+        <div class="col-span-1 text-right">输出单价 ({{ store.currency }})</div>
         <div class="col-span-1 text-center">倍率</div>
         <div class="col-span-1 text-right">实测 TPS</div>
       </div>
@@ -650,8 +650,13 @@ const formatPrice = (usd: number, cny: number) => {
   if (store.currency === 'USD') {
     return `$${usd.toFixed(3)}`
   }
-  return `¥${cny.toFixed(3)}`
+  return `¥${(cny || usd * (store.usdToCnyRate || 7.25)).toFixed(3)}`
 }
+
+// 监听全局货币切换，实时重绘散点图
+watch(() => store.currency, () => {
+  updateScatterChart()
+})
 
 const getTypeBadgeClass = (type: string) => {
   if (type === 'official') return 'bg-[#E8F2FD] text-[#0071E3] border border-[#CCE4FB]'

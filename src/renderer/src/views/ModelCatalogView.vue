@@ -181,10 +181,10 @@
                 <th class="py-2.5 px-3 text-center">工具调用</th>
                 <th class="py-2.5 px-3 text-center">结构化输出</th>
                 <th @click="toggleSort('official_input_price')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors">
-                  官方单价 (输入/输出) <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('official_input_price') }}</span>
+                  官方单价 (输入/输出) ({{ store.currency }}) <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('official_input_price') }}</span>
                 </th>
                 <th @click="toggleSort('lowest_price_usd')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors">
-                  全网最低 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('lowest_price_usd') }}</span>
+                  全网最低 ({{ store.currency }}) <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('lowest_price_usd') }}</span>
                 </th>
                 <th class="py-2.5 px-3 text-center">快捷操作</th>
               </tr>
@@ -253,14 +253,14 @@
                   <span class="text-[#34C759] font-bold">是</span>
                 </td>
 
-                <!-- 9. 官方输入/输出单价 -->
+                <!-- 9. 官方输入/输出单价 (响应全局货币切换) -->
                 <td class="py-2.5 px-3 text-right font-mono font-medium text-[#1D1D1F]">
-                  ${{ model.official_input_price }} / ${{ model.official_output_price }}
+                  {{ store.formatDualCurrency(model.official_input_price, model.official_output_price) }}
                 </td>
 
-                <!-- 10. 全网最低单价 -->
+                <!-- 10. 全网最低单价 (响应全局货币切换) -->
                 <td class="py-2.5 px-3 text-right font-mono font-bold text-[#34C759]">
-                  ${{ model.lowest_price_usd }}/1M
+                  {{ store.formatCurrency(model.lowest_price_usd) }}/1M
                 </td>
 
                 <!-- 11. 快捷操作 -->

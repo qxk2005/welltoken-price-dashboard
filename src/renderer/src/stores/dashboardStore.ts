@@ -16,6 +16,7 @@ export const useDashboardStore = defineStore('dashboard', {
     wsUrl: 'ws://127.0.0.1:8765/api/v1/price/ws',
     activeTab: 'price-matrix' as 'price-matrix' | 'channels' | 'models' | 'speed-tester' | 'settings',
     currency: 'USD' as 'USD' | 'CNY',
+    usdToCnyRate: 7.25,
     searchQuery: '',
     selectedProvider: 'all',
     selectedModelId: 'all',
@@ -75,6 +76,28 @@ export const useDashboardStore = defineStore('dashboard', {
   },
 
   actions: {
+    // 全局通用货币格式化方法 (响应 currency 切换：USD 显示 $, CNY 自动按汇率换算并显示 ¥)
+    formatCurrency(usdPrice: number | null | undefined, digits: number = 3): string {
+      if (usdPrice === null || usdPrice === undefined || isNaN(usdPrice)) return '-'
+      if (usdPrice === 0) return this.currency === 'USD' ? '$0.000' : '¥0.000'
+
+      if (this.currency === 'USD') {
+        const str = usdPrice < 0.001 ? usdPrice.toFixed(4) : usdPrice.toFixed(digits)
+        return `$${str}`
+      } else {
+        const cny = usdPrice * (this.usdToCnyRate || 7.25)
+        const str = cny < 0.001 ? cny.toFixed(4) : cny.toFixed(digits)
+        return `¥${str}`
+      }
+    },
+
+    // 官方输入/输出双单价格式化
+    formatDualCurrency(inputUsd: number | null | undefined, outputUsd: number | null | undefined, digits: number = 3): string {
+      const inStr = this.formatCurrency(inputUsd, digits)
+      const outStr = this.formatCurrency(outputUsd, digits)
+      return `${inStr} / ${outStr}`
+    },
+
     isSiteFavorite(siteId: number): boolean {
       return this.favoriteSiteIds.includes(siteId)
     },

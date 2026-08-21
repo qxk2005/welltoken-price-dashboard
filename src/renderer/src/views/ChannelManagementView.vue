@@ -460,8 +460,8 @@
                 <th class="py-2.5 px-3">模型名称 / 标准标识</th>
                 <th class="py-2.5 px-3 text-right">上下文 (Context)</th>
                 <th class="py-2.5 px-3 text-right">最大输出 (Output)</th>
-                <th class="py-2.5 px-3 text-right">输入单价 (Input)</th>
-                <th class="py-2.5 px-3 text-right">输出单价 (Output)</th>
+                <th class="py-2.5 px-3 text-right">输入单价 ({{ store.currency }})</th>
+                <th class="py-2.5 px-3 text-right">输出单价 ({{ store.currency }})</th>
                 <th class="py-2.5 px-3 text-center">深度推理</th>
                 <th class="py-2.5 px-3 text-center">工具调用</th>
                 <th class="py-2.5 px-3 text-center">实测 TPS</th>
@@ -490,14 +490,14 @@
                   {{ item.max_output ? Number(item.max_output).toLocaleString() : '8,192' }}
                 </td>
 
-                <!-- 输入单价 -->
+                <!-- 输入单价 (响应全局货币切换) -->
                 <td class="py-2.5 px-3 text-right font-mono font-bold text-[#34C759]">
-                  ${{ item.calculated_input_usd.toFixed(3) }}
+                  {{ store.formatCurrency(item.calculated_input_usd) }}
                 </td>
 
-                <!-- 输出单价 -->
+                <!-- 输出单价 (响应全局货币切换) -->
                 <td class="py-2.5 px-3 text-right font-mono text-[#1D1D1F]">
-                  ${{ item.calculated_output_usd.toFixed(3) }}
+                  {{ store.formatCurrency(item.calculated_output_usd) }}
                 </td>
 
                 <!-- 深度推理 -->
