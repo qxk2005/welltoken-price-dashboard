@@ -79,7 +79,7 @@
                 </th>
                 <th class="py-3 px-3 text-center w-24">实测延迟</th>
                 <th class="py-3 px-3 text-center w-20">状态</th>
-                <th class="py-3 px-3 text-center w-48">快捷操作</th>
+                <th class="py-3 px-3 text-center w-28">操作</th>
               </tr>
             </thead>
 
@@ -189,49 +189,75 @@
                   </label>
                 </td>
 
-                <!-- 9. 快捷操作 -->
-                <td class="py-3 px-3 text-center font-mono text-[11px] w-48 whitespace-nowrap">
+                <!-- 9. 快捷操作 (下拉操作气泡菜单) -->
+                <td class="py-3 px-3 text-center w-28 whitespace-nowrap relative">
+                  <!-- 主操作胶囊按钮 -->
                   <button
-                    @click="selectProvider(site)"
-                    class="text-[#0071E3] hover:underline mr-2 font-bold"
+                    @click.stop="toggleActionDropdown(site.id)"
+                    class="px-2.5 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] active:bg-[#D1D1D6] text-[#1D1D1F] border border-[#E5E5EA] text-[11px] font-medium transition-all inline-flex items-center space-x-1"
+                    :class="{'bg-[#E8F2FD] border-[#CCE4FB] text-[#0071E3] font-bold': activeActionDropdownSiteId === site.id}"
                   >
-                    [详情]
+                    <span>操作</span>
+                    <span class="text-[9px] text-[#86868B] transition-transform duration-150" :class="{'rotate-180': activeActionDropdownSiteId === site.id}">▾</span>
                   </button>
-                  <button
-                    @click="goToMatrixWithSite(site.id)"
-                    class="text-[#0071E3] hover:underline mr-2 font-medium"
+
+                  <!-- 浮层下拉气泡菜单 (Apple 高级灰白质感) -->
+                  <div
+                    v-if="activeActionDropdownSiteId === site.id"
+                    class="absolute right-3 top-10 w-36 bg-[#FFFFFF] border border-[#E5E5EA] rounded-xl shadow-[0_12px_30px_rgba(0,0,0,0.12)] z-30 py-1 text-left animate-fade-in text-xs divide-y divide-[#F2F2F7]"
+                    @click.stop
                   >
-                    [比价]
-                  </button>
-                  <button
-                    @click="goToSpeedTestWithSite(site.id)"
-                    class="text-[#34C759] hover:underline mr-2 font-bold"
-                  >
-                    [测速]
-                  </button>
-                  <a
-                    v-if="site.doc_url"
-                    :href="site.doc_url"
-                    target="_blank"
-                    class="text-[#AF52DE] hover:underline mr-2"
-                    title="打开官方文档"
-                  >
-                    [文档]
-                  </a>
-                  <button
-                    v-if="isCustomSite(site)"
-                    @click="openEditModal(site)"
-                    class="text-[#FF9500] hover:underline mr-2 font-medium"
-                  >
-                    [编辑]
-                  </button>
-                  <button
-                    v-if="isCustomSite(site)"
-                    @click="deleteSite(site.id)"
-                    class="text-[#FF3B30] hover:underline font-medium"
-                  >
-                    [删除]
-                  </button>
+                    <div class="py-1">
+                      <button
+                        @click="selectProvider(site); closeAllDropdowns()"
+                        class="w-full px-3 py-1.5 hover:bg-[#F2F2F7] flex items-center space-x-2 text-[#1D1D1F] transition-colors"
+                      >
+                        <span>📊</span>
+                        <span>供应商详情</span>
+                      </button>
+                      <button
+                        @click="goToMatrixWithSite(site.id); closeAllDropdowns()"
+                        class="w-full px-3 py-1.5 hover:bg-[#F2F2F7] flex items-center space-x-2 text-[#0071E3] transition-colors"
+                      >
+                        <span>⚖️</span>
+                        <span>全网比价</span>
+                      </button>
+                      <button
+                        @click="goToSpeedTestWithSite(site.id); closeAllDropdowns()"
+                        class="w-full px-3 py-1.5 hover:bg-[#F2F2F7] flex items-center space-x-2 text-[#34C759] font-medium transition-colors"
+                      >
+                        <span>⚡</span>
+                        <span>一键测速</span>
+                      </button>
+                      <a
+                        v-if="site.doc_url"
+                        :href="site.doc_url"
+                        target="_blank"
+                        @click="closeAllDropdowns()"
+                        class="w-full px-3 py-1.5 hover:bg-[#F2F2F7] flex items-center space-x-2 text-[#AF52DE] transition-colors"
+                      >
+                        <span>📖</span>
+                        <span>官方文档 ↗</span>
+                      </a>
+                    </div>
+
+                    <div v-if="isCustomSite(site)" class="py-1">
+                      <button
+                        @click="openEditModal(site); closeAllDropdowns()"
+                        class="w-full px-3 py-1.5 hover:bg-[#F2F2F7] flex items-center space-x-2 text-[#FF9500] transition-colors"
+                      >
+                        <span>✏️</span>
+                        <span>编辑配置</span>
+                      </button>
+                      <button
+                        @click="deleteSite(site.id); closeAllDropdowns()"
+                        class="w-full px-3 py-1.5 hover:bg-[#FDE8E8] flex items-center space-x-2 text-[#FF3B30] transition-colors"
+                      >
+                        <span>🗑️</span>
+                        <span>删除渠道</span>
+                      </button>
+                    </div>
+                  </div>
                 </td>
               </tr>
 
@@ -538,20 +564,38 @@
                   {{ item.last_tested_tps }} tps
                 </td>
 
-                <!-- 快捷操作 -->
-                <td class="py-2.5 px-3 text-center font-mono text-[11px]">
+                <!-- 快捷操作 (下拉操作气泡菜单) -->
+                <td class="py-2.5 px-3 text-center w-28 whitespace-nowrap relative">
                   <button
-                    @click="goToMatrixWithModel(item.model_id)"
-                    class="text-[#0071E3] hover:underline mr-2 font-medium"
+                    @click.stop="toggleModelActionDropdown(item.id || item.model_id)"
+                    class="px-2.5 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] active:bg-[#D1D1D6] text-[#1D1D1F] border border-[#E5E5EA] text-[11px] font-medium transition-all inline-flex items-center space-x-1"
+                    :class="{'bg-[#E8F2FD] border-[#CCE4FB] text-[#0071E3] font-bold': activeActionDropdownModelId === (item.id || item.model_id)}"
                   >
-                    [全网比价]
+                    <span>操作</span>
+                    <span class="text-[9px] text-[#86868B] transition-transform duration-150" :class="{'rotate-180': activeActionDropdownModelId === (item.id || item.model_id)}">▾</span>
                   </button>
-                  <button
-                    @click="goToSpeedTestWithModel(item.model_id)"
-                    class="text-[#34C759] hover:underline font-bold"
+
+                  <!-- 浮层下拉气泡菜单 -->
+                  <div
+                    v-if="activeActionDropdownModelId === (item.id || item.model_id)"
+                    class="absolute right-3 top-9 w-32 bg-[#FFFFFF] border border-[#E5E5EA] rounded-xl shadow-[0_12px_30px_rgba(0,0,0,0.12)] z-30 py-1 text-left animate-fade-in text-xs"
+                    @click.stop
                   >
-                    [测速]
-                  </button>
+                    <button
+                      @click="goToMatrixWithModel(item.model_id); closeAllDropdowns()"
+                      class="w-full px-3 py-1.5 hover:bg-[#F2F2F7] flex items-center space-x-2 text-[#0071E3] transition-colors"
+                    >
+                      <span>⚖️</span>
+                      <span>全网比价</span>
+                    </button>
+                    <button
+                      @click="goToSpeedTestWithModel(item.model_id); closeAllDropdowns()"
+                      class="w-full px-3 py-1.5 hover:bg-[#F2F2F7] flex items-center space-x-2 text-[#34C759] font-medium transition-colors"
+                    >
+                      <span>⚡</span>
+                      <span>一键测速</span>
+                    </button>
+                  </div>
                 </td>
               </tr>
 
@@ -663,7 +707,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import { useDashboardStore } from '../stores/dashboardStore'
 import ProviderLogo from '../components/ProviderLogo.vue'
@@ -677,6 +721,41 @@ const selectedProvider = ref<RelaySite | null>(null)
 const providerModelSearchQuery = ref('')
 const providerModelsList = ref<any[]>([])
 const isDetailLoading = ref(false)
+
+// 下拉操作菜单激活状态 (互斥打开)
+const activeActionDropdownSiteId = ref<number | null>(null)
+const activeActionDropdownModelId = ref<any | null>(null)
+
+const toggleActionDropdown = (siteId: number) => {
+  if (activeActionDropdownSiteId.value === siteId) {
+    activeActionDropdownSiteId.value = null
+  } else {
+    activeActionDropdownSiteId.value = siteId
+    activeActionDropdownModelId.value = null
+  }
+}
+
+const toggleModelActionDropdown = (modelId: any) => {
+  if (activeActionDropdownModelId.value === modelId) {
+    activeActionDropdownModelId.value = null
+  } else {
+    activeActionDropdownModelId.value = modelId
+    activeActionDropdownSiteId.value = null
+  }
+}
+
+const closeAllDropdowns = () => {
+  activeActionDropdownSiteId.value = null
+  activeActionDropdownModelId.value = null
+}
+
+onMounted(() => {
+  window.addEventListener('click', closeAllDropdowns)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('click', closeAllDropdowns)
+})
 
 // 向导与弹窗状态
 const showWizardModal = ref(false)
