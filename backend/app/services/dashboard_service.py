@@ -3,12 +3,13 @@ import time
 from datetime import datetime
 from typing import List, Dict, Any, Set
 from fastapi import WebSocket
-from sqlalchemy import select, desc
+from sqlalchemy import select
 from backend.app.database import AsyncSessionLocal
 from backend.app.models.token_price import RelaySite, ModelMetadata, SiteModelPricing
 from backend.app.schemas.token_schema import ComparisonItemSchema
 from backend.app.services.models_dev_sync import models_dev_sync
 from backend.app.services.relay_fetcher import relay_fetcher
+from backend.app.services.exchange_rate import exchange_rate_service
 
 class TokenDashboardService:
     def __init__(self):
@@ -18,12 +19,17 @@ class TokenDashboardService:
         self._loop_task: asyncio.Task | None = None
 
     async def initialize(self):
-        """系统启动时全量初始化：加载 models.dev 标准库与中转渠道初始数据"""
-        print("[DashboardService] Initializing models catalog from models.dev...")
-        await models_dev_sync.init_default_models()
-        print("[DashboardService] Initializing relay sites & pricing matrix...")
+        """系统启动时全量真实初始化：拉取外汇汇率、models.dev 标准库与渠道倍率数据"""
+        print("[DashboardService] Fetching real USD/CNY exchange rate...")
+        self.usd_to_cny_rate = await exchange_rate_service.fetch_real_rate()
+
+        print("[DashboardService] Initializing models catalog from models.dev (online & offline)...")
+        await models_dev_sync.sync_from_models_dev()
+
+        print("[DashboardService] Initializing relay sites & real probe matrix...")
         await relay_fetcher.init_default_sites()
-        print("[DashboardService] System ready with full market database.")
+        
+        print(f"[DashboardService] System ready! Exchange rate: 1 USD = {self.usd_to_cny_rate} CNY")
 
     async def start_loop(self):
         """启动后台定时扫描与行情广播循环"""
@@ -42,7 +48,6 @@ class TokenDashboardService:
         """后台轮询更新中转站状态与广播行情"""
         while self.is_running:
             try:
-                # 每 30 秒广播一次最新状态
                 await asyncio.sleep(30)
                 await self.broadcast_market_update()
             except asyncio.CancelledError:
