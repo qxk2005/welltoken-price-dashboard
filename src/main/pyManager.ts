@@ -109,9 +109,9 @@ export class PythonProcessManager {
       this.pyProcess = null
     })
 
-    // 等待服务就绪（最多等待 15 秒）
+    // 等待服务就绪（最多等待 20 秒）
     let attempts = 0
-    while (attempts < 30) {
+    while (attempts < 40) {
       await new Promise((r) => setTimeout(r, 500))
       if (await this.isBackendHealthy()) {
         console.log(`[PythonManager] Backend successfully started and healthy!`)

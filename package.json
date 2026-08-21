@@ -7,7 +7,8 @@
   "homepage": "https://github.com/qxk2005/welltoken-price-dashboard",
   "scripts": {
     "dev": "electron-vite dev --watch",
-    "dev:browser": "vite src/renderer --port 5173",
+    "dev:browser": "vite",
+    "dev:web": "vite",
     "dev:server": "python backend/run_server.py --port 8765 --reload",
     "build": "electron-vite build",
     "postinstall": "electron-builder install-app-deps",

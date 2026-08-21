@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,13 +9,25 @@ from backend.app.api import api_v1_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 启动阶段：初始化 SQLite 数据库、models.dev 标准库与渠道倍率数据
+    # 启动阶段 1：瞬间完成 SQLite 数据库引擎与表结构初始化 (毫秒级完成，确保 /health 立即 200 OK)
     await init_db()
-    await dashboard_service.initialize()
-    await dashboard_service.start_loop()
-    print(f"[{settings.APP_NAME}] Backend service started successfully at http://{settings.SERVER_HOST}:{settings.SERVER_PORT}")
+    
+    # 启动阶段 2：非阻塞异步在后台加载 models.dev 真实全网大数据库与启动广播轮询
+    async def async_boot():
+        try:
+            await dashboard_service.initialize()
+            await dashboard_service.start_loop()
+        except Exception as e:
+            print(f"[Lifespan Boot Error]: {e}")
+
+    boot_task = asyncio.create_task(async_boot())
+    print(f"[{settings.APP_NAME}] Backend service instantly ready at http://{settings.SERVER_HOST}:{settings.SERVER_PORT}")
+    
     yield
+    
     # 停止阶段：安全关闭后台任务
+    if not boot_task.done():
+        boot_task.cancel()
     await dashboard_service.stop_loop()
     print(f"[{settings.APP_NAME}] Backend service stopped.")
 
@@ -25,7 +38,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# 允许跨域 (Electron Renderer 访问)
+# 允许跨域 (Web 浏览器 & Electron Renderer 访问)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
