@@ -11,6 +11,14 @@ from backend.app.schemas.token_schema import (
     FilterItemOption
 )
 
+OFFICIAL_LAB_KEYS = [
+    "alibaba", "openai", "google", "anthropic", "deepseek", "zhipuai",
+    "moonshotai", "meta", "mistral", "nvidia", "bytedance", "xai",
+    "minimax", "xiaomi", "cohere", "stepfun", "tencent", "perplexity",
+    "microsoft", "baichuan", "upstage", "aisingapore", "arcee-ai", "ibm",
+    "meituan", "poolside", "sakana", "sarvam", "thinkingmachines"
+]
+
 class DashboardService:
     def __init__(self):
         self.usd_to_cny_rate = 7.25
@@ -71,13 +79,36 @@ class DashboardService:
             # 基础条件构建
             base_conditions = [RelaySite.is_active == True]
 
+            # 1. 模型厂商过滤 (支持 30 大权威 Lab 与 other)
             if providers and len(providers) > 0 and "all" not in providers:
-                lower_p = [p.lower() for p in providers]
-                base_conditions.append(func.lower(ModelMetadata.provider).in_(lower_p))
+                has_other = "other" in [p.lower() for p in providers]
+                normal_providers = [p.lower() for p in providers if p.lower() != "other"]
+                if "bytedance" in normal_providers:
+                    normal_providers.append("bytedance-seed")
 
+                if has_other and normal_providers:
+                    base_conditions.append(
+                        or_(
+                            func.lower(ModelMetadata.provider).in_(normal_providers),
+                            func.lower(ModelMetadata.provider) == "other",
+                            func.lower(ModelMetadata.provider).notin_(OFFICIAL_LAB_KEYS)
+                        )
+                    )
+                elif has_other:
+                    base_conditions.append(
+                        or_(
+                            func.lower(ModelMetadata.provider) == "other",
+                            func.lower(ModelMetadata.provider).notin_(OFFICIAL_LAB_KEYS)
+                        )
+                    )
+                elif normal_providers:
+                    base_conditions.append(func.lower(ModelMetadata.provider).in_(normal_providers))
+
+            # 2. 模型系列过滤
             if series and len(series) > 0 and "all" not in series:
                 base_conditions.append(ModelMetadata.series.in_(series))
 
+            # 3. 模型名称过滤
             if models and len(models) > 0 and "all" not in models:
                 base_conditions.append(
                     or_(
@@ -86,12 +117,14 @@ class DashboardService:
                     )
                 )
 
+            # 4. 渠道中转站过滤
             if sites and len(sites) > 0 and "all" not in sites:
                 if "__NONE__" in sites:
                     base_conditions.append(RelaySite.id == -999)
                 else:
                     base_conditions.append(RelaySite.name.in_(sites))
 
+            # 5. 全局模糊搜索
             if search_query and search_query.strip():
                 q = f"%{search_query.strip().lower()}%"
                 base_conditions.append(
@@ -104,7 +137,7 @@ class DashboardService:
                     )
                 )
 
-            # 1. 统计总数
+            # 统计总数
             count_stmt = select(func.count(SiteModelPricing.id)).join(
                 RelaySite, SiteModelPricing.site_id == RelaySite.id
             ).join(
@@ -114,7 +147,7 @@ class DashboardService:
             total = await session.scalar(count_stmt) or 0
             total_pages = math.ceil(total / page_size) if total > 0 else 1
 
-            # 2. 分页提取条目
+            # 分页提取条目
             offset = max(0, (page - 1) * page_size)
             data_stmt = select(SiteModelPricing, RelaySite, ModelMetadata).join(
                 RelaySite, SiteModelPricing.site_id == RelaySite.id
@@ -221,7 +254,29 @@ class DashboardService:
                 SiteModelPricing, ModelMetadata.model_id == SiteModelPricing.model_id
             )
             if selected_providers and len(selected_providers) > 0 and "all" not in selected_providers:
-                s_stmt = s_stmt.where(func.lower(ModelMetadata.provider).in_([p.lower() for p in selected_providers]))
+                has_other = "other" in [p.lower() for p in selected_providers]
+                normal_p = [p.lower() for p in selected_providers if p.lower() != "other"]
+                if "bytedance" in normal_p:
+                    normal_p.append("bytedance-seed")
+                
+                if has_other and normal_p:
+                    s_stmt = s_stmt.where(
+                        or_(
+                            func.lower(ModelMetadata.provider).in_(normal_p),
+                            func.lower(ModelMetadata.provider) == "other",
+                            func.lower(ModelMetadata.provider).notin_(OFFICIAL_LAB_KEYS)
+                        )
+                    )
+                elif has_other:
+                    s_stmt = s_stmt.where(
+                        or_(
+                            func.lower(ModelMetadata.provider) == "other",
+                            func.lower(ModelMetadata.provider).notin_(OFFICIAL_LAB_KEYS)
+                        )
+                    )
+                elif normal_p:
+                    s_stmt = s_stmt.where(func.lower(ModelMetadata.provider).in_(normal_p))
+
             s_stmt = s_stmt.group_by(ModelMetadata.series).order_by(func.count(SiteModelPricing.id).desc())
             s_res = await session.execute(s_stmt)
             series_opt = [
@@ -238,9 +293,32 @@ class DashboardService:
                 SiteModelPricing, ModelMetadata.model_id == SiteModelPricing.model_id
             )
             if selected_providers and len(selected_providers) > 0 and "all" not in selected_providers:
-                m_stmt = m_stmt.where(func.lower(ModelMetadata.provider).in_([p.lower() for p in selected_providers]))
+                has_other = "other" in [p.lower() for p in selected_providers]
+                normal_p = [p.lower() for p in selected_providers if p.lower() != "other"]
+                if "bytedance" in normal_p:
+                    normal_p.append("bytedance-seed")
+                
+                if has_other and normal_p:
+                    m_stmt = m_stmt.where(
+                        or_(
+                            func.lower(ModelMetadata.provider).in_(normal_p),
+                            func.lower(ModelMetadata.provider) == "other",
+                            func.lower(ModelMetadata.provider).notin_(OFFICIAL_LAB_KEYS)
+                        )
+                    )
+                elif has_other:
+                    m_stmt = m_stmt.where(
+                        or_(
+                            func.lower(ModelMetadata.provider) == "other",
+                            func.lower(ModelMetadata.provider).notin_(OFFICIAL_LAB_KEYS)
+                        )
+                    )
+                elif normal_p:
+                    m_stmt = m_stmt.where(func.lower(ModelMetadata.provider).in_(normal_p))
+
             if selected_series and len(selected_series) > 0 and "all" not in selected_series:
                 m_stmt = m_stmt.where(ModelMetadata.series.in_(selected_series))
+
             m_stmt = m_stmt.group_by(ModelMetadata.model_id, ModelMetadata.name).order_by(func.count(SiteModelPricing.id).desc()).limit(300)
             m_res = await session.execute(m_stmt)
             models_opt = [
@@ -258,7 +336,28 @@ class DashboardService:
                 ModelMetadata, SiteModelPricing.model_id == ModelMetadata.model_id
             )
             if selected_providers and len(selected_providers) > 0 and "all" not in selected_providers:
-                st_stmt = st_stmt.where(func.lower(ModelMetadata.provider).in_([p.lower() for p in selected_providers]))
+                has_other = "other" in [p.lower() for p in selected_providers]
+                normal_p = [p.lower() for p in selected_providers if p.lower() != "other"]
+                if "bytedance" in normal_p:
+                    normal_p.append("bytedance-seed")
+                if has_other and normal_p:
+                    st_stmt = st_stmt.where(
+                        or_(
+                            func.lower(ModelMetadata.provider).in_(normal_p),
+                            func.lower(ModelMetadata.provider) == "other",
+                            func.lower(ModelMetadata.provider).notin_(OFFICIAL_LAB_KEYS)
+                        )
+                    )
+                elif has_other:
+                    st_stmt = st_stmt.where(
+                        or_(
+                            func.lower(ModelMetadata.provider) == "other",
+                            func.lower(ModelMetadata.provider).notin_(OFFICIAL_LAB_KEYS)
+                        )
+                    )
+                elif normal_p:
+                    st_stmt = st_stmt.where(func.lower(ModelMetadata.provider).in_(normal_p))
+
             if selected_series and len(selected_series) > 0 and "all" not in selected_series:
                 st_stmt = st_stmt.where(ModelMetadata.series.in_(selected_series))
             if selected_models and len(selected_models) > 0 and "all" not in selected_models:

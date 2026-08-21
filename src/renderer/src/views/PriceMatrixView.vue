@@ -10,7 +10,8 @@
             label="模型厂商"
             icon="🏢"
             :options="formattedProviderOptions"
-            v-model="selectedProviders"
+            :model-value="selectedProviders"
+            @update:model-value="handleProviderChange"
           />
 
           <!-- 2. 模型系列多选 (根据已选厂商级联收敛 如 DeepSeek-V3, V4, R1) -->
@@ -18,15 +19,17 @@
             label="模型系列"
             icon="📦"
             :options="seriesOptions"
-            v-model="selectedSeries"
+            :model-value="selectedSeries"
+            @update:model-value="handleSeriesChange"
           />
 
-          <!-- 3. 模型名称多选 (根据已选厂商/系列级联收敛 如 deepseek-v4-flash, pro) -->
+          <!-- 3. 模型名称多选 (直接选择模型名称时，其他两项自动变为“全部”) -->
           <MultiSelectFilter
             label="模型名称"
             icon="🤖"
             :options="modelOptions"
-            v-model="selectedModels"
+            :model-value="selectedModels"
+            @update:model-value="handleModelChange"
           />
 
           <!-- 4. 渠道中转站多选 (支持模糊搜索 如“七牛”, “OpenRouter”, “硅基”) -->
@@ -336,7 +339,8 @@ const labNamesCn: Record<string, string> = {
   perplexity: 'Perplexity (AI 搜索)',
   meituan: 'Meituan (美团大模型)',
   internlm: 'InternLM (书生·浦语)',
-  '01-ai': '01.AI (零一万物/Yi)'
+  '01-ai': '01.AI (零一万物/Yi)',
+  other: '其他独立研究机构 (Other)'
 }
 
 // 选中的多维筛选状态
@@ -396,16 +400,6 @@ const fetchFilterOptions = async () => {
     seriesOptions.value = res.data.series || []
     modelOptions.value = res.data.models || []
     siteOptions.value = res.data.sites || []
-
-    // 级联清理：如果已选的系列/模型不在新的候选池中，自动剔除
-    if (selectedSeries.value.length > 0) {
-      const validSeries = new Set(seriesOptions.value.map((s) => s.value))
-      selectedSeries.value = selectedSeries.value.filter((s) => validSeries.has(s))
-    }
-    if (selectedModels.value.length > 0) {
-      const validModels = new Set(modelOptions.value.map((m) => m.value))
-      selectedModels.value = selectedModels.value.filter((m) => validModels.has(m))
-    }
   } catch (e) {
     console.error('Fetch filter options failed:', e)
   }
@@ -451,6 +445,61 @@ const fetchPaginatedMatrix = async () => {
   }
 }
 
+// ==================== 核心联动控制规则 ====================
+
+// 1. 用户变更【模型厂商】-> 触发系列与模型收敛，清洗失效已选项
+const handleProviderChange = async (newProviders: string[]) => {
+  selectedProviders.value = newProviders
+  currentPage.value = 1
+
+  // 刷新级联候选项
+  await fetchFilterOptions()
+
+  // 若已选系列不在新候选池中，清空系列
+  if (selectedSeries.value.length > 0) {
+    const validSeries = new Set(seriesOptions.value.map((s) => s.value))
+    selectedSeries.value = selectedSeries.value.filter((s) => validSeries.has(s))
+  }
+  // 若已选模型不在新候选池中，清空模型
+  if (selectedModels.value.length > 0) {
+    const validModels = new Set(modelOptions.value.map((m) => m.value))
+    selectedModels.value = selectedModels.value.filter((m) => validModels.has(m))
+  }
+
+  fetchPaginatedMatrix()
+}
+
+// 2. 用户变更【模型系列】-> 触发模型收敛，清洗失效模型
+const handleSeriesChange = async (newSeries: string[]) => {
+  selectedSeries.value = newSeries
+  currentPage.value = 1
+
+  await fetchFilterOptions()
+
+  if (selectedModels.value.length > 0) {
+    const validModels = new Set(modelOptions.value.map((m) => m.value))
+    selectedModels.value = selectedModels.value.filter((m) => validModels.has(m))
+  }
+
+  fetchPaginatedMatrix()
+}
+
+// 3. 用户手动选择/输入【模型名称】-> 核心规则：“除非是手动输入了模型名称，其他两项变为全部，否则就要遵守联动规则”
+const handleModelChange = async (newModels: string[]) => {
+  selectedModels.value = newModels
+  currentPage.value = 1
+
+  // 如果用户主动勾选了具体模型，且之前有选择厂商或系列，则自动将厂商与系列重置为“全部”
+  if (newModels.length > 0 && (selectedProviders.value.length > 0 || selectedSeries.value.length > 0)) {
+    selectedProviders.value = []
+    selectedSeries.value = []
+    // 恢复全量系列与模型候选
+    await fetchFilterOptions()
+  }
+
+  fetchPaginatedMatrix()
+}
+
 const toggleOnlyFavorites = () => {
   onlyFavorites.value = !onlyFavorites.value
   currentPage.value = 1
@@ -469,22 +518,8 @@ const toggleFavoriteByName = (siteName: string) => {
   }
 }
 
-// 监听厂商变化 -> 触发级联收敛与数据刷新
-watch(selectedProviders, () => {
-  currentPage.value = 1
-  fetchFilterOptions()
-  fetchPaginatedMatrix()
-})
-
-// 监听系列变化 -> 触发模型级联收敛与数据刷新
-watch(selectedSeries, () => {
-  currentPage.value = 1
-  fetchFilterOptions()
-  fetchPaginatedMatrix()
-})
-
-// 监听模型、渠道与分页条数变化 -> 触发数据刷新
-watch([selectedModels, selectedSites, pageSize], () => {
+// 监听渠道与分页条数变化
+watch([selectedSites, pageSize], () => {
   currentPage.value = 1
   fetchPaginatedMatrix()
 })
@@ -535,15 +570,18 @@ const resetAllFilters = () => {
 }
 
 const removeProvider = (p: string) => {
-  selectedProviders.value = selectedProviders.value.filter((item) => item !== p)
+  const next = selectedProviders.value.filter((item) => item !== p)
+  handleProviderChange(next)
 }
 
 const removeSeries = (s: string) => {
-  selectedSeries.value = selectedSeries.value.filter((item) => item !== s)
+  const next = selectedSeries.value.filter((item) => item !== s)
+  handleSeriesChange(next)
 }
 
 const removeModel = (m: string) => {
-  selectedModels.value = selectedModels.value.filter((item) => item !== m)
+  const next = selectedModels.value.filter((item) => item !== m)
+  handleModelChange(next)
 }
 
 const removeSite = (st: string) => {
