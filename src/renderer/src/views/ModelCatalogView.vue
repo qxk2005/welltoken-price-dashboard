@@ -167,26 +167,29 @@
                 <th @click="toggleSort('name')" class="py-2.5 px-3 cursor-pointer hover:text-[#1D1D1F] transition-colors">
                   模型名称 / 标准标识 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('name') }}</span>
                 </th>
-                <th @click="toggleSort('active_relay_count')" class="py-2.5 px-3 text-center cursor-pointer hover:text-[#1D1D1F] transition-colors">
+                <th @click="toggleSort('active_relay_count')" class="py-2.5 px-2 text-center cursor-pointer hover:text-[#1D1D1F] transition-colors w-20">
                   接入渠道 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('active_relay_count') }}</span>
                 </th>
-                <th @click="toggleSort('context_window')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors">
-                  上下文 (Context) <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('context_window') }}</span>
+                <th @click="toggleSort('context_window')" class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-20">
+                  上下文 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('context_window') }}</span>
                 </th>
-                <th @click="toggleSort('max_output')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors">
-                  最大输出 (Output) <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('max_output') }}</span>
+                <th @click="toggleSort('max_output')" class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-20">
+                  最大输出 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('max_output') }}</span>
                 </th>
-                <th class="py-2.5 px-3 text-center">输入模态</th>
-                <th class="py-2.5 px-3 text-center">深度推理</th>
-                <th class="py-2.5 px-3 text-center">工具调用</th>
-                <th class="py-2.5 px-3 text-center">结构化输出</th>
-                <th @click="toggleSort('official_input_price')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors">
-                  官方单价 (输入/输出) ({{ store.currency }}) <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('official_input_price') }}</span>
+                <th class="py-2.5 px-2 text-center w-18">模态</th>
+                <th class="py-2.5 px-2 text-center w-16">推理</th>
+                <th class="py-2.5 px-2 text-center w-16">工具</th>
+                <th class="py-2.5 px-2 text-center w-16">结构化</th>
+                <th @click="toggleSort('official_input_price')" class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
+                  官方输入 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('official_input_price') }}</span>
                 </th>
-                <th @click="toggleSort('lowest_price_usd')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors">
-                  全网最低 ({{ store.currency }}) <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('lowest_price_usd') }}</span>
+                <th @click="toggleSort('official_output_price')" class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
+                  官方输出 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('official_output_price') }}</span>
                 </th>
-                <th class="py-2.5 px-3 text-center">快捷操作</th>
+                <th @click="toggleSort('lowest_price_usd')" class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
+                  全网最低 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('lowest_price_usd') }}</span>
+                </th>
+                <th class="py-2.5 px-2 text-center w-20">操作</th>
               </tr>
             </thead>
 
@@ -207,81 +210,104 @@
                   </div>
                 </td>
 
-                <!-- 2. 接入渠道数 -->
-                <td class="py-2.5 px-3 text-center">
+                <!-- 2. 接入渠道数 (纯数字，无绿色背景) -->
+                <td class="py-2.5 px-2 text-center">
                   <span
                     @click="goToMatrix(model.model_id)"
-                    class="px-2 py-0.5 rounded-full bg-[#E6F4EA] text-[#137333] border border-[#CEEAD6] font-mono font-bold text-xs cursor-pointer hover:bg-[#CEEAD6] transition-colors"
-                    title="点击查看所有提供该模型的供应商"
+                    class="font-mono font-bold text-xs text-[#0071E3] hover:underline cursor-pointer"
+                    title="点击查看所有接入该模型的供应商"
                   >
-                    {{ model.active_relay_count || 12 }} 家
+                    {{ model.active_relay_count || 0 }}
                   </span>
                 </td>
 
-                <!-- 3. 上下文窗口 -->
-                <td class="py-2.5 px-3 text-right font-mono text-[#1D1D1F]">
-                  {{ formatContextWindow(model.context_window) }}
+                <!-- 3. 上下文窗口 (紧凑 K/M 显示) -->
+                <td class="py-2.5 px-2 text-right font-mono text-[#1D1D1F]" :title="`${Number(model.context_window || 128000).toLocaleString()} tokens`">
+                  {{ formatCompactTokens(model.context_window) }}
                 </td>
 
-                <!-- 4. 最大输出 -->
-                <td class="py-2.5 px-3 text-right font-mono text-[#6E6E73]">
-                  {{ model.max_output ? Number(model.max_output).toLocaleString() : '8,192' }}
+                <!-- 4. 最大输出 (紧凑 K/M 显示) -->
+                <td class="py-2.5 px-2 text-right font-mono text-[#6E6E73]" :title="`${Number(model.max_output || 8192).toLocaleString()} tokens`">
+                  {{ formatCompactTokens(model.max_output) }}
                 </td>
 
-                <!-- 5. 输入模态 -->
-                <td class="py-2.5 px-3 text-center">
-                  <div class="inline-flex items-center space-x-1 text-[11px]">
-                    <span class="px-1.5 py-0.2 rounded bg-[#F2F2F7] text-[#1D1D1F] border border-[#E5E5EA]" title="支持文本">文本</span>
-                    <span v-if="isVisionModel(model.model_id, model.name)" class="px-1.5 py-0.2 rounded bg-[#E8F2FD] text-[#0071E3] border border-[#CCE4FB]" title="支持视觉图像">图像</span>
-                    <span v-if="isVideoModel(model.model_id)" class="px-1.5 py-0.2 rounded bg-[#F3E8FF] text-[#9333EA] border border-[#E9D5FF]" title="支持视频">视频</span>
+                <!-- 5. 输入模态 (精致 Icon 替代文字) -->
+                <td class="py-2.5 px-2 text-center whitespace-nowrap">
+                  <div class="inline-flex items-center space-x-1 text-xs">
+                    <span title="支持文本输入 (Text)">📄</span>
+                    <span v-if="isVisionModel(model.model_id, model.name)" title="支持视觉图像识别 (Vision)">🖼️</span>
+                    <span v-if="isVideoModel(model.model_id)" title="支持视频输入 (Video)">🎬</span>
                   </div>
                 </td>
 
                 <!-- 6. 深度推理 -->
-                <td class="py-2.5 px-3 text-center font-mono">
+                <td class="py-2.5 px-2 text-center font-mono">
                   <span v-if="isReasoningModel(model.model_id, model.name)" class="text-[#34C759] font-bold">是</span>
                   <span v-else class="text-[#86868B]">-</span>
                 </td>
 
                 <!-- 7. 工具调用 -->
-                <td class="py-2.5 px-3 text-center font-mono">
+                <td class="py-2.5 px-2 text-center font-mono">
                   <span class="text-[#34C759] font-bold">是</span>
                 </td>
 
                 <!-- 8. 结构化输出 -->
-                <td class="py-2.5 px-3 text-center font-mono">
+                <td class="py-2.5 px-2 text-center font-mono">
                   <span class="text-[#34C759] font-bold">是</span>
                 </td>
 
-                <!-- 9. 官方输入/输出单价 (响应全局货币切换) -->
-                <td class="py-2.5 px-3 text-right font-mono font-medium text-[#1D1D1F]">
-                  {{ store.formatDualCurrency(model.official_input_price, model.official_output_price) }}
+                <!-- 9. 官方输入单价 (独立列，响应全局货币切换) -->
+                <td class="py-2.5 px-2 text-right font-mono font-medium text-[#1D1D1F]">
+                  {{ formatOfficialPrice(model.official_input_price) }}
                 </td>
 
-                <!-- 10. 全网最低单价 (响应全局货币切换) -->
-                <td class="py-2.5 px-3 text-right font-mono font-bold text-[#34C759]">
+                <!-- 10. 官方输出单价 (独立列，响应全局货币切换) -->
+                <td class="py-2.5 px-2 text-right font-mono font-medium text-[#1D1D1F]">
+                  {{ formatOfficialPrice(model.official_output_price) }}
+                </td>
+
+                <!-- 11. 全网最低单价 (响应全局货币切换) -->
+                <td class="py-2.5 px-2 text-right font-mono font-bold text-[#34C759]">
                   {{ store.formatCurrency(model.lowest_price_usd) }}/1M
                 </td>
 
-                <!-- 11. 快捷操作 -->
-                <td class="py-2.5 px-3 text-center font-mono text-[11px] whitespace-nowrap">
+                <!-- 12. 快捷操作 (精简下拉气泡菜单) -->
+                <td class="py-2.5 px-2 text-center w-20 whitespace-nowrap relative">
                   <button
-                    @click="goToMatrix(model.model_id)"
-                    class="text-[#0071E3] hover:underline mr-2 transition-colors font-medium"
+                    @click.stop="toggleModelActionDropdown(model.model_id)"
+                    class="px-2 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] active:bg-[#D1D1D6] text-[#1D1D1F] border border-[#E5E5EA] text-[11px] font-medium transition-all inline-flex items-center space-x-1"
+                    :class="{'bg-[#E8F2FD] border-[#CCE4FB] text-[#0071E3] font-bold': activeActionDropdownModelId === model.model_id}"
                   >
-                    [全网比价]
+                    <span>操作</span>
+                    <span class="text-[9px] text-[#86868B] transition-transform duration-150" :class="{'rotate-180': activeActionDropdownModelId === model.model_id}">▾</span>
                   </button>
-                  <button
-                    @click="goToSpeedTest(model.model_id)"
-                    class="text-[#34C759] hover:underline transition-colors font-bold"
+
+                  <!-- 浮层气泡下拉菜单 -->
+                  <div
+                    v-if="activeActionDropdownModelId === model.model_id"
+                    class="absolute right-2 top-9 w-32 bg-[#FFFFFF] border border-[#E5E5EA] rounded-xl shadow-[0_12px_30px_rgba(0,0,0,0.12)] z-30 py-1 text-left animate-fade-in text-xs divide-y divide-[#F2F2F7]"
+                    @click.stop
                   >
-                    [一键测速]
-                  </button>
+                    <button
+                      @click="goToMatrix(model.model_id); closeAllDropdowns()"
+                      class="w-full px-3 py-1.5 hover:bg-[#F2F2F7] flex items-center space-x-2 text-[#0071E3] transition-colors"
+                    >
+                      <span>⚖️</span>
+                      <span>全网比价</span>
+                    </button>
+                    <button
+                      @click="goToSpeedTest(model.model_id); closeAllDropdowns()"
+                      class="w-full px-3 py-1.5 hover:bg-[#F2F2F7] flex items-center space-x-2 text-[#34C759] font-medium transition-colors"
+                    >
+                      <span>⚡</span>
+                      <span>一键测速</span>
+                    </button>
+                  </div>
                 </td>
               </tr>
 
               <tr v-if="sortedAndFilteredModels.length === 0">
-                <td colspan="11" class="py-12 text-center text-xs text-[#86868B]">
+                <td colspan="12" class="py-12 text-center text-xs text-[#86868B]">
                   当前厂商下无匹配的模型记录
                 </td>
               </tr>
@@ -294,7 +320,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useDashboardStore } from '../stores/dashboardStore'
 import LabLogo from '../components/LabLogo.vue'
 import type { ModelMetadata } from '../types'
@@ -316,10 +342,31 @@ const selectedLab = ref<LabItem | null>(null)
 const labSearchQuery = ref('')
 const modelSearchQuery = ref('')
 const isCopied = ref(false)
+const activeActionDropdownModelId = ref<string | null>(null)
 
 // 排序状态
 const sortField = ref<string>('context_window')
 const sortOrder = ref<'asc' | 'desc'>('desc')
+
+const toggleModelActionDropdown = (modelId: string) => {
+  if (activeActionDropdownModelId.value === modelId) {
+    activeActionDropdownModelId.value = null
+  } else {
+    activeActionDropdownModelId.value = modelId
+  }
+}
+
+const closeAllDropdowns = () => {
+  activeActionDropdownModelId.value = null
+}
+
+onMounted(() => {
+  window.addEventListener('click', closeAllDropdowns)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('click', closeAllDropdowns)
+})
 
 // 官方 30 大权威 Labs 研发机构定义清单 (对标 models.dev/labs/)
 const officialLabsDef: OfficialLabDef[] = [
@@ -599,9 +646,27 @@ const copyText = (txt: string) => {
   setTimeout(() => (isCopied.value = false), 2000)
 }
 
-const formatContextWindow = (ctx: number) => {
-  if (!ctx) return '128,000'
-  return Number(ctx).toLocaleString()
+const formatCompactTokens = (num?: number) => {
+  if (!num) return '-'
+  const n = Number(num)
+  if (n >= 1000000) {
+    const m = n / 1000000
+    return m % 1 === 0 ? `${m}M` : `${m.toFixed(1).replace(/\.0$/, '')}M`
+  }
+  if (n >= 1000) {
+    const k = n / 1000
+    return k % 1 === 0 ? `${k}K` : `${k.toFixed(1).replace(/\.0$/, '')}K`
+  }
+  return String(n)
+}
+
+const formatOfficialPrice = (priceUsd?: number) => {
+  if (priceUsd === undefined || priceUsd === null) return '$0.000'
+  if (store.currency === 'USD') {
+    return `$${Number(priceUsd).toFixed(3)}`
+  } else {
+    return `¥${(Number(priceUsd) * store.usdToCnyRate).toFixed(3)}`
+  }
 }
 
 const isVisionModel = (id: string, name: string) => {
