@@ -316,7 +316,7 @@
           :key="row.id"
           :id="`price-row-${row.id}`"
           @click="selectRow(row)"
-          class="grid grid-cols-12 gap-2 items-center px-3 py-2 text-xs transition-all duration-200 cursor-pointer rounded-xl relative"
+          class="grid grid-cols-12 gap-2 items-center px-3 py-3 text-xs transition-all duration-200 cursor-pointer rounded-xl relative my-0.5"
           :class="[
             selectedRow?.id === row.id
               ? 'bg-[#E8F2FD] border-2 border-[#0071E3] shadow-md ring-2 ring-[#0071E3]/25 font-medium'

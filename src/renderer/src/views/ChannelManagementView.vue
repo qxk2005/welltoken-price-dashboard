@@ -58,7 +58,7 @@
             @click="openWizardForAdd"
             class="text-xs px-3 py-1.5 rounded-lg bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] text-white font-medium shadow-sm transition-all flex items-center space-x-1 whitespace-nowrap"
           >
-            <span>✨ 添加渠道向导 (Relay-Watch)</span>
+            <span>✨ 添加渠道向导</span>
           </button>
         </div>
       </div>

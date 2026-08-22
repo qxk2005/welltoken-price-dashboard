@@ -212,17 +212,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useDashboardStore } from '../stores/dashboardStore'
 
 const store = useDashboardStore()
 
-const syncSteps = [
+const labsCount = computed(() => {
+  if (store.modelsCatalog && store.modelsCatalog.length > 0) {
+    const uniqueProviders = new Set(store.modelsCatalog.map((m) => m.provider).filter(Boolean))
+    if (uniqueProviders.size > 0) return uniqueProviders.size
+  }
+  return 30
+})
+
+const providersCount = computed(() => {
+  return (
+    store.syncProgress.stats?.providers_count ||
+    store.syncStatus?.total_active_sites ||
+    store.relaySites.length ||
+    193
+  )
+})
+
+const syncSteps = computed(() => [
   { number: 1, title: '拉取 models.dev 官方三大核心数据源 (models/catalog/api)' },
-  { number: 2, title: '标准化 30 大 Lab 研发母厂与模型系列规范' },
-  { number: 3, title: '整理 190+ 供应商中转渠道与聚合定价矩阵' },
+  { number: 2, title: `标准化 ${labsCount.value} 大 Lab 研发母厂与模型系列规范` },
+  { number: 3, title: `整理 ${providersCount.value} 家供应商中转渠道与聚合定价矩阵` },
   { number: 4, title: '持久化写入 SQLite 本地大数据库并更新索引' }
-]
+])
 
 const autoCloseCountdown = ref(3)
 let countdownTimer: any = null

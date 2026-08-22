@@ -63,7 +63,7 @@
                 <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#0071E3] text-white">推荐</span>
               </div>
               <p class="text-[11px] text-[#6E6E73]">
-                无需手动配置，一键获取 30 大权威 Lab 研发母厂、190+ 供应商与 7,000+ 比价条目。
+                无需手动配置，一键获取 {{ store.syncStatus?.total_active_sites || store.relaySites.length || 193 }} 家供应商中转渠道与数千条全网比价条目。
               </p>
             </div>
 
