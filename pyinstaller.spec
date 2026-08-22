@@ -33,9 +33,14 @@ a = Analysis(
         'sqlalchemy.ext.asyncio',
         'sqlalchemy.dialects.sqlite',
         'sqlalchemy.dialects.sqlite.aiosqlite',
+        'pydantic',
         'pydantic_settings',
         'fastapi',
-        'websockets'
+        'websockets',
+        'httpx',
+        'dotenv',
+        'socksio',
+        'anyio'
     ],
     hookspath=[],
     hooksconfig={},
