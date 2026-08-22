@@ -242,6 +242,7 @@ export const useDashboardStore = defineStore('dashboard', {
         return res.data
       } catch (e) {
         this.speedLogMessages.push(`[${new Date().toLocaleTimeString()}] ❌ 测速任务发生异常`)
+        return []
       } finally {
         this.isSpeedTesting = false
       }

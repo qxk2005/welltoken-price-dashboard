@@ -16,7 +16,11 @@ from backend.app.schemas.token_schema import (
     SyncLogSchema,
     SyncStatusSchema,
     ExchangeRateUpdate,
-    SystemHealthResponse
+    SystemHealthResponse,
+    DepthLevel,
+    OrderBookDepth,
+    KlinePoint,
+    TokenPriceSummary
 )
 
 __all__ = [
@@ -37,5 +41,10 @@ __all__ = [
     "SyncLogSchema",
     "SyncStatusSchema",
     "ExchangeRateUpdate",
-    "SystemHealthResponse"
+    "SystemHealthResponse",
+    "DepthLevel",
+    "OrderBookDepth",
+    "KlinePoint",
+    "TokenPriceSummary"
 ]
+

@@ -27,7 +27,7 @@
         <!-- 模式切换：K线 / 分时 / 深度 -->
         <div class="flex items-center bg-[#0B0E14] p-0.5 rounded-lg border border-[#232936]">
           <button
-            v-for="mode in ['kline', 'area', 'depth']"
+            v-for="mode in (['kline', 'area', 'depth'] as const)"
             :key="mode"
             @click="chartType = mode"
             class="px-2.5 py-1 text-xs rounded font-medium transition-all"

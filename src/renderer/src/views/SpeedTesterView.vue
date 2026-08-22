@@ -439,7 +439,6 @@ import { ref, reactive, onMounted, nextTick, watch } from 'vue'
 import axios from 'axios'
 import { useDashboardStore } from '../stores/dashboardStore'
 import ScoreBreakdownTooltip from '../components/ScoreBreakdownTooltip.vue'
-import type { RelaySite } from '../types'
 
 interface ExecutionLog {
   time: string

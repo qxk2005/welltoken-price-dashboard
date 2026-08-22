@@ -61,7 +61,12 @@ import { useDashboardStore } from '../stores/dashboardStore'
 
 const store = useDashboardStore()
 
-const navItems = computed(() => [
+const navItems = computed<Array<{
+  id: 'price-matrix' | 'channels' | 'models' | 'speed-tester' | 'settings'
+  label: string
+  icon: string
+  badge?: string | number
+}>>(() => [
   { id: 'price-matrix', label: '全网聚合比价', icon: '📊', badge: store.comparisonMatrix.length || '7.2k' },
   { id: 'channels', label: '供应商与渠道', icon: '🌐', badge: store.relaySites.length || 193 },
   { id: 'models', label: '厂商与模型系列', icon: '🤖', badge: store.modelsCatalog.length || '3.5k' },
@@ -69,3 +74,4 @@ const navItems = computed(() => [
   { id: 'settings', label: '数据同步与设置', icon: '⚙️' }
 ])
 </script>
+

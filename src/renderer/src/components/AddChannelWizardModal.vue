@@ -301,8 +301,23 @@
               </button>
             </div>
 
-            <!-- 全选 / 清空当前视图模型 -->
+            <!-- 全选 / 清空当前视图模型 & 特权倍率快捷应用 -->
             <div class="flex items-center space-x-2">
+              <div v-if="hasSpecialPricingInMappings" class="flex items-center space-x-1 mr-2 bg-[#E8F2FD]/50 px-2 py-0.5 rounded-lg border border-[#CCE4FB]">
+                <span class="text-[10px] text-[#0071E3] font-bold">特权倍率:</span>
+                <button
+                  @click="batchApplyRatio('key')"
+                  class="text-[10px] px-1.5 py-0.5 rounded bg-white text-[#0071E3] border border-[#CCE4FB] hover:bg-[#0071E3] hover:text-white transition-colors"
+                >
+                  全部使用Key特权
+                </button>
+                <button
+                  @click="batchApplyRatio('public')"
+                  class="text-[10px] px-1.5 py-0.5 rounded bg-white text-[#6E6E73] border border-[#E5E5EA] hover:bg-[#F2F2F7] transition-colors"
+                >
+                  公开倍率
+                </button>
+              </div>
               <span class="text-[11px] text-[#86868B]">已选收录: <b class="text-[#0071E3] font-mono">{{ selectedMappingsCount }}</b> 款</span>
               <span class="text-[#D1D1D6]">|</span>
               <button
@@ -385,9 +400,16 @@
                     <div class="font-mono font-bold text-[#1D1D1F] truncate" :title="item.channel_model_name">
                       {{ item.channel_model_name }}
                     </div>
-                    <div class="mt-0.5">
+                    <div class="mt-0.5 flex items-center space-x-1">
                       <span class="px-1.5 py-0.2 rounded bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[9px] font-mono font-bold inline-block shadow-2xs">
                         🎯 {{ item.group_name }}
+                      </span>
+                      <span
+                        v-if="item.match_type"
+                        class="px-1.5 py-0.2 rounded border text-[9px] font-mono inline-block shadow-2xs"
+                        :class="getMatchBadgeClass(item.match_type)"
+                      >
+                        {{ getMatchBadgeLabel(item.match_type) }}
                       </span>
                     </div>
                   </td>

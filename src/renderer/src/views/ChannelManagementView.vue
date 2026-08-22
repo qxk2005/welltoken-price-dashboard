@@ -1129,6 +1129,7 @@ const detailAvailableGroups = computed(() => {
 
 // 详情页单条定价删除
 const removeModelPricing = async (item: any) => {
+  if (!selectedProvider.value) return
   if (!confirm(`确定要将模型 "${item.model_name || item.model_id}" (${item.group_name ? `分组: ${item.group_name}` : '默认分组'}) 从该渠道中移除吗？`)) return
   try {
     await axios.delete(`${store.apiUrl}/api/v1/channels/${selectedProvider.value.id}/pricings/${item.id}`)
@@ -1222,19 +1223,6 @@ const goToMatrixWithModel = (modelId: string) => {
 
 const goToSpeedTestWithModel = (modelId: string) => {
   store.navigateToSpeedTest(selectedProvider.value?.id, modelId)
-}
-
-const openAddModal = () => {
-  isEditing.value = false
-  currentEditId.value = null
-  form.value = {
-    name: '',
-    base_url: '',
-    site_type: 'newapi',
-    recharge_rate: 1.0,
-    api_key: ''
-  }
-  showModal.value = true
 }
 
 const openEditModal = (site: RelaySite) => {

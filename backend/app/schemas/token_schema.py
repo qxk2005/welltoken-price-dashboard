@@ -385,3 +385,36 @@ class PromoteAliasRequest(BaseModel):
     standard_model_id: str
     notes: Optional[str] = ""
 
+# --- Token 实时行情与 K线/深度 Schema ---
+class DepthLevel(BaseModel):
+    price: float
+    amount: float
+    total: float
+
+class OrderBookDepth(BaseModel):
+    symbol: str
+    timestamp: int
+    bids: List[DepthLevel] = []
+    asks: List[DepthLevel] = []
+
+class KlinePoint(BaseModel):
+    timestamp: int
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float
+
+class TokenPriceSummary(BaseModel):
+    symbol: str
+    name: str
+    price: float
+    change_24h: float
+    high_24h: float
+    low_24h: float
+    volume_24h: float
+    market_cap: float
+    timestamp: datetime
+    sparkline: List[float] = []
+
+
