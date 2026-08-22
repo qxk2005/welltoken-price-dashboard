@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import select, func, desc
 from backend.app.config import settings
 from backend.app.database import AsyncSessionLocal

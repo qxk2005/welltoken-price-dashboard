@@ -143,6 +143,8 @@
               <label class="block text-[#86868B] text-[10.5px]">USD / CNY 换算基准</label>
               <input
                 v-model.number="customRate"
+                @change="autoSaveManualRate"
+                @keyup.enter="autoSaveManualRate"
                 type="number"
                 step="0.001"
                 class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-2.5 py-1.5 text-[#1D1D1F] font-mono font-bold text-sm focus:outline-none"
@@ -162,6 +164,8 @@
               </label>
               <input
                 v-model="rateSourceUrl"
+                @change="autoSaveManualRate"
+                @keyup.enter="autoSaveManualRate"
                 type="text"
                 class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-2.5 py-1.5 text-[#1D1D1F] font-mono text-[11px] focus:outline-none truncate"
               />
@@ -179,22 +183,16 @@
             </div>
           </div>
 
-          <!-- 操作按钮组 -->
-          <div class="flex items-center space-x-2 pt-1">
+          <!-- 联网抓取与自动保存一体化主操作按钮 -->
+          <div class="pt-1">
             <button
               :disabled="isFetchingRate"
               @click="fetchOnlineRate"
-              class="flex-1 py-1.5 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] disabled:opacity-40 text-white font-medium text-xs shadow-sm transition-all flex items-center justify-center space-x-1.5"
+              class="w-full py-2 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] disabled:opacity-50 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center space-x-2 cursor-pointer"
             >
               <span v-if="isFetchingRate" class="animate-spin text-xs">🌀</span>
               <span v-else>⚡</span>
-              <span>{{ isFetchingRate ? '正在连接外汇源抓取...' : '联网抓取最新汇率' }}</span>
-            </button>
-            <button
-              @click="saveRate"
-              class="px-3.5 py-1.5 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] active:bg-[#D1D1D6] text-[#1D1D1F] border border-[#E5E5EA] font-medium text-xs transition-all"
-            >
-              💾 保存配置
+              <span>{{ isFetchingRate ? '正在连接在线外汇源抓取并持久化...' : '联网抓取最新汇率并自动保存' }}</span>
             </button>
           </div>
         </div>
@@ -242,7 +240,7 @@ const formatFullTime = (timeStr?: string | null) => {
   return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`
 }
 
-// 联网抓取最新汇率
+// 联网抓取最新汇率并自动持久化保存
 const fetchOnlineRate = async () => {
   isFetchingRate.value = true
   try {
@@ -253,7 +251,7 @@ const fetchOnlineRate = async () => {
     rateSourceUrl.value = res.data.source
     await store.fetchComparisonMatrix()
     await store.fetchSyncStatus()
-    alert(`✓ 成功从外汇源获取最新汇率: 1 USD = ${res.data.rate} CNY`)
+    alert(`✓ 成功同步并自动保存最新汇率: 1 USD = ${res.data.rate} CNY`)
   } catch (e: any) {
     console.error('Fetch online rate failed:', e)
     const errDetail = e.response?.data?.detail || e.message
@@ -263,8 +261,9 @@ const fetchOnlineRate = async () => {
   }
 }
 
-// 手动保存自定义汇率
-const saveRate = async () => {
+// 手动输入数值时无感自动保存
+const autoSaveManualRate = async () => {
+  if (!customRate.value || customRate.value <= 0) return
   try {
     await axios.post(`${store.apiUrl}/api/v1/settings/exchange-rate`, {
       usd_to_cny_rate: customRate.value,
@@ -272,10 +271,8 @@ const saveRate = async () => {
     })
     await store.fetchComparisonMatrix()
     await store.fetchSyncStatus()
-    alert(`✓ 汇率设置已成功保存: 1 USD = ${customRate.value} CNY`)
   } catch (e: any) {
-    console.error('Save rate failed:', e)
-    alert(`❌ 保存汇率失败: ${e.message}`)
+    console.error('Auto save rate failed:', e)
   }
 }
 

@@ -1,4 +1,5 @@
 import math
+import asyncio
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 import httpx
@@ -133,45 +134,118 @@ class DashboardService:
         })
 
     async def fetch_online_exchange_rate(self, source_url: Optional[str] = None) -> Dict[str, Any]:
-        """从在线权威外汇源抓取最新 USD/CNY 实时汇率并持久化到数据库"""
+        """从在线权威外汇源抓取最新 USD/CNY 实时汇率并持久化到数据库 (支持多源容灾回退)"""
         await self.ensure_settings_loaded()
-        target_url = source_url.strip() if source_url and source_url.strip() else self.exchange_rate_source
+        primary_url = source_url.strip() if source_url and source_url.strip() else self.exchange_rate_source
         
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(target_url)
-            if resp.status_code != 200:
-                raise Exception(f"在线外汇源返回异常状态码: {resp.status_code}")
-            
-            data = resp.json()
-            rates = data.get("rates") or data.get("conversion_rates") or {}
-            cny_rate = rates.get("CNY") or rates.get("cny")
-            
-            if not cny_rate or not isinstance(cny_rate, (int, float)):
-                raise Exception("未能从返回数据中解析到有效的 CNY 人民币汇率字段")
-            
-            new_rate = round(float(cny_rate), 4)
-            new_updated_at = datetime.utcnow()
-            
-            # 持久化保存到数据库
-            await self.save_persisted_settings(
-                rate=new_rate,
-                source=target_url,
-                updated_at=new_updated_at
-            )
-            
-            await self.broadcast({
-                "type": "EXCHANGE_RATE_UPDATE",
-                "rate": self.usd_to_cny_rate,
-                "source": self.exchange_rate_source,
-                "updated_at": self.exchange_rate_updated_at.isoformat()
-            })
-            
-            return {
-                "status": "success",
-                "rate": self.usd_to_cny_rate,
-                "source": self.exchange_rate_source,
-                "updated_at": self.exchange_rate_updated_at
-            }
+        # 候选外汇源容灾链条
+        candidate_sources = [primary_url]
+        fallback_urls = [
+            "https://open.er-api.com/v6/latest/USD",
+            "https://api.exchangerate-api.com/v4/latest/USD",
+            "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json"
+        ]
+        for fb in fallback_urls:
+            if fb not in candidate_sources:
+                candidate_sources.append(fb)
+
+        fetched_rate: Optional[float] = None
+        effective_source = primary_url
+        last_error = ""
+
+        # 1. 优先使用 direct 直连 (trust_env=False 避免系统残留死代理 10061 报错)
+        async with httpx.AsyncClient(trust_env=False, follow_redirects=True, timeout=12.0) as client:
+            for url in candidate_sources:
+                try:
+                    resp = await client.get(url)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        rates = data.get("rates") or data.get("conversion_rates") or {}
+                        cny_val = rates.get("CNY") or rates.get("cny")
+                        if not cny_val and "usd" in data:
+                            cny_val = data["usd"].get("cny") or data["usd"].get("CNY")
+
+                        if cny_val and isinstance(cny_val, (int, float)) and cny_val > 0:
+                            fetched_rate = round(float(cny_val), 4)
+                            effective_source = url
+                            break
+                except Exception as e:
+                    last_error = str(e)
+                    continue
+
+        # 2. 如果直连失败，尝试使用环境变量代理 (trust_env=True)
+        if not fetched_rate:
+            async with httpx.AsyncClient(trust_env=True, follow_redirects=True, timeout=15.0) as client:
+                for url in candidate_sources:
+                    try:
+                        resp = await client.get(url)
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            rates = data.get("rates") or data.get("conversion_rates") or {}
+                            cny_val = rates.get("CNY") or rates.get("cny")
+                            if not cny_val and "usd" in data:
+                                cny_val = data["usd"].get("cny") or data["usd"].get("CNY")
+
+                            if cny_val and isinstance(cny_val, (int, float)) and cny_val > 0:
+                                fetched_rate = round(float(cny_val), 4)
+                                effective_source = url
+                                break
+                    except Exception as e:
+                        last_error = str(e)
+                        continue
+
+        # 3. 如果 httpx 均未成功，使用 urllib 直连 ProxyHandler({}) 终极容灾
+        if not fetched_rate:
+            import urllib.request
+            import json as py_json
+            loop = asyncio.get_running_loop()
+            for url in candidate_sources:
+                try:
+                    def _fetch_sync(u):
+                        proxy_handler = urllib.request.ProxyHandler({})
+                        opener = urllib.request.build_opener(proxy_handler)
+                        req = urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+                        with opener.open(req, timeout=10) as resp:
+                            return py_json.loads(resp.read().decode("utf-8"))
+                    data = await loop.run_in_executor(None, _fetch_sync, url)
+                    rates = data.get("rates") or data.get("conversion_rates") or {}
+                    cny_val = rates.get("CNY") or rates.get("cny")
+                    if not cny_val and "usd" in data:
+                        cny_val = data["usd"].get("cny") or data["usd"].get("CNY")
+
+                    if cny_val and isinstance(cny_val, (int, float)) and cny_val > 0:
+                        fetched_rate = round(float(cny_val), 4)
+                        effective_source = url
+                        break
+                except Exception as ue:
+                    last_error = str(ue)
+                    continue
+
+        if not fetched_rate:
+            raise Exception(f"所有外汇源抓取均失败 (最后错误: {last_error})，请检查网络代理设置或手工填写")
+
+        new_updated_at = datetime.utcnow()
+
+        # 持久化保存到数据库
+        await self.save_persisted_settings(
+            rate=fetched_rate,
+            source=effective_source,
+            updated_at=new_updated_at
+        )
+
+        await self.broadcast({
+            "type": "EXCHANGE_RATE_UPDATE",
+            "rate": self.usd_to_cny_rate,
+            "source": self.exchange_rate_source,
+            "updated_at": self.exchange_rate_updated_at.isoformat()
+        })
+
+        return {
+            "status": "success",
+            "rate": self.usd_to_cny_rate,
+            "source": self.exchange_rate_source,
+            "updated_at": self.exchange_rate_updated_at.isoformat()
+        }
 
     async def get_overview_statistics(self) -> Dict[str, Any]:
         """获取仪表盘概览统计指标"""
