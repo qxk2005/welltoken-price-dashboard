@@ -466,15 +466,15 @@
                     <div v-if="item.official_input_cny > 0 || item.official_input_price > 0" class="inline-flex flex-col items-center bg-[#F9F9FB] px-2 py-0.5 rounded-lg border border-[#E5E5EA] text-[10px] font-mono text-[#6E6E73] w-full">
                       <div class="flex items-center justify-between w-full">
                         <span>入:</span>
-                        <span>{{ store.currency === 'USD' ? `$${item.official_input_price.toFixed(3)}` : `¥${(item.official_input_cny || item.official_input_price * 7.25).toFixed(2)}` }}</span>
+                        <span>{{ store.currency === 'USD' ? `$${item.official_input_price.toFixed(3)}` : `¥${(item.official_input_cny || item.official_input_price * (store.usdToCnyRate || 7.25)).toFixed(2)}` }}</span>
                       </div>
                       <div class="flex items-center justify-between w-full">
                         <span>出:</span>
-                        <span>{{ store.currency === 'USD' ? `$${item.official_output_price.toFixed(3)}` : `¥${(item.official_output_cny || item.official_output_price * 7.25).toFixed(2)}` }}</span>
+                        <span>{{ store.currency === 'USD' ? `$${item.official_output_price.toFixed(3)}` : `¥${(item.official_output_cny || item.official_output_price * (store.usdToCnyRate || 7.25)).toFixed(2)}` }}</span>
                       </div>
                       <div v-if="(item.official_cache_cny > 0 || item.official_cache_price > 0)" class="flex items-center justify-between w-full text-[9px] text-[#86868B]">
                         <span>缓:</span>
-                        <span>{{ store.currency === 'USD' ? `$${item.official_cache_price.toFixed(3)}` : `¥${(item.official_cache_cny || item.official_cache_price * 7.25).toFixed(2)}` }}</span>
+                        <span>{{ store.currency === 'USD' ? `$${item.official_cache_price.toFixed(3)}` : `¥${(item.official_cache_cny || item.official_cache_price * (store.usdToCnyRate || 7.25)).toFixed(2)}` }}</span>
                       </div>
                     </div>
                     <span v-else class="text-[10px] text-[#AEAEB2] font-mono">--</span>

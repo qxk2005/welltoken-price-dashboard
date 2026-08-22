@@ -42,6 +42,17 @@ export const useDashboardStore = defineStore('dashboard', {
     speedLogMessages: [] as string[],
     speedTestTargetSiteId: null as number | null,
     speedTestTargetModelId: null as string | null,
+
+    // 跨模块比价跳转与高亮基准传参
+    targetModelFilter: null as string | null,
+    targetSiteFilter: null as string | null,
+    targetProviderFilter: null as string | null,
+    highlightBenchmarkSiteName: null as string | null,
+
+    // 从全网比价跳转至详情标记与目标
+    navigatedFromPriceMatrix: false,
+    targetChannelSiteName: null as string | null,
+    targetLabProvider: null as string | null,
     
     // 全网数据同步进度状态
     syncProgress: {
@@ -187,6 +198,9 @@ export const useDashboardStore = defineStore('dashboard', {
       try {
         const res = await axios.get<SyncStatus>(`${this.apiUrl}/api/v1/settings/status`)
         this.syncStatus = res.data
+        if (res.data.usd_to_cny_rate) {
+          this.usdToCnyRate = Number(res.data.usd_to_cny_rate)
+        }
         if (res.data.recent_sync_logs) {
           this.syncLogs = res.data.recent_sync_logs
         }
@@ -245,6 +259,44 @@ export const useDashboardStore = defineStore('dashboard', {
     closeSyncProgress() {
       this.syncProgress.visible = false
       this.syncProgress.isSyncing = false
+    },
+
+    navigateToPriceMatrix(options?: {
+      modelId?: string
+      highlightSiteName?: string
+      siteName?: string
+      siteId?: number
+      provider?: string
+    }) {
+      this.targetModelFilter = options?.modelId || null
+      this.highlightBenchmarkSiteName = options?.highlightSiteName || null
+      if (options?.siteName) {
+        this.targetSiteFilter = options.siteName
+      } else if (options?.siteId) {
+        const site = this.relaySites.find((s) => s.id === options.siteId)
+        this.targetSiteFilter = site ? site.name : null
+      } else {
+        this.targetSiteFilter = null
+      }
+      this.targetProviderFilter = options?.provider || null
+      this.activeTab = 'price-matrix'
+    },
+
+    navigateToChannelDetail(siteName: string) {
+      this.navigatedFromPriceMatrix = true
+      this.targetChannelSiteName = siteName
+      this.activeTab = 'channels'
+    },
+
+    navigateToLabDetail(provider: string) {
+      this.navigatedFromPriceMatrix = true
+      this.targetLabProvider = (provider || '').toLowerCase()
+      this.activeTab = 'models'
+    },
+
+    returnToPriceMatrix() {
+      this.navigatedFromPriceMatrix = false
+      this.activeTab = 'price-matrix'
     },
 
     navigateToSpeedTest(siteId?: number, modelId?: string) {

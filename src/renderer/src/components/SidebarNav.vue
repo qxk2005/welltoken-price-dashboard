@@ -156,10 +156,7 @@ const store = useDashboardStore()
 
 function formatBadgeCount(count: number): string {
   if (!count) return '0'
-  if (count >= 1000) {
-    return `${(count / 1000).toFixed(1)}k`
-  }
-  return `${count}`
+  return count.toLocaleString()
 }
 
 const navItems = computed<Array<{

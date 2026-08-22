@@ -85,12 +85,14 @@
       <div class="p-4 rounded-2xl bg-[#FFFFFF] border border-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-3">
         <!-- 顶部返回与代码标识 -->
         <div class="flex items-center justify-between">
-          <button
-            @click="selectedLab = null"
-            class="px-3 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] border border-[#E5E5EA] transition-all text-xs font-medium flex items-center space-x-1"
-          >
-            <span>← 返回厂商大全 (共 30 家权威机构)</span>
-          </button>
+          <div class="flex items-center space-x-2">
+            <button
+              @click="selectedLabId = null"
+              class="px-3 py-1.5 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] border border-[#E5E5EA] transition-all text-xs font-medium flex items-center space-x-1 cursor-pointer"
+            >
+              <span>← 返回厂商大全</span>
+            </button>
+          </div>
 
           <div class="flex items-center space-x-2">
             <span class="text-[11px] text-[#86868B]">官方机构标识:</span>
@@ -193,10 +195,10 @@
               </tr>
             </thead>
 
-            <!-- 数据行体 -->
+            <!-- 数据行体 (渲染当前页 50 条，极速流畅 60 FPS) -->
             <tbody class="divide-y divide-[#E5E5EA]/60 font-sans">
               <tr
-                v-for="model in sortedAndFilteredModels"
+                v-for="model in paginatedModels"
                 :key="model.model_id"
                 class="hover:bg-[#F5F5F7] transition-colors group"
               >
@@ -306,7 +308,7 @@
                 </td>
               </tr>
 
-              <tr v-if="sortedAndFilteredModels.length === 0">
+              <tr v-if="paginatedModels.length === 0">
                 <td colspan="12" class="py-12 text-center text-xs text-[#86868B]">
                   当前厂商下无匹配的模型记录
                 </td>
@@ -314,13 +316,75 @@
             </tbody>
           </table>
         </div>
+
+        <!-- 底部轻量分页工具栏 (防卡顿极速 60 FPS) -->
+        <div v-if="totalPages > 1" class="pt-2 border-t border-[#E5E5EA] flex items-center justify-between text-xs select-none">
+          <div class="flex items-center space-x-2 text-[#86868B]">
+            <span>第 <strong class="text-[#1D1D1F]">{{ currentPage }}</strong> / {{ totalPages }} 页</span>
+            <span>(共 <strong class="text-[#0071E3] font-mono">{{ totalItems }}</strong> 款模型)</span>
+            <span class="text-[#D1D1D6]">•</span>
+            <span>每页</span>
+            <select
+              v-model.number="pageSize"
+              class="bg-[#F2F2F7] border border-[#E5E5EA] rounded-lg px-2 py-0.5 text-xs text-[#1D1D1F] focus:outline-none"
+            >
+              <option :value="20">20 条</option>
+              <option :value="50">50 条</option>
+              <option :value="100">100 条</option>
+            </select>
+          </div>
+
+          <div class="flex items-center space-x-1">
+            <button
+              :disabled="currentPage === 1"
+              @click="currentPage = 1"
+              class="px-2 py-1 rounded-lg border border-[#E5E5EA] bg-[#FFFFFF] hover:bg-[#F2F2F7] disabled:opacity-30 text-[#1D1D1F] transition-all text-xs cursor-pointer"
+              title="第一页"
+            >
+              «
+            </button>
+            <button
+              :disabled="currentPage === 1"
+              @click="currentPage--"
+              class="px-2.5 py-1 rounded-lg border border-[#E5E5EA] bg-[#FFFFFF] hover:bg-[#F2F2F7] disabled:opacity-30 text-[#1D1D1F] transition-all text-xs cursor-pointer"
+            >
+              上一页
+            </button>
+
+            <button
+              v-for="p in visiblePages"
+              :key="`page-${p}`"
+              @click="currentPage = p"
+              class="px-2.5 py-1 rounded-lg border text-xs font-mono transition-all cursor-pointer"
+              :class="currentPage === p ? 'bg-[#0071E3] text-white border-[#0071E3] font-bold shadow-xs' : 'bg-[#FFFFFF] text-[#1D1D1F] border-[#E5E5EA] hover:bg-[#F2F2F7]'"
+            >
+              {{ p }}
+            </button>
+
+            <button
+              :disabled="currentPage === totalPages"
+              @click="currentPage++"
+              class="px-2.5 py-1 rounded-lg border border-[#E5E5EA] bg-[#FFFFFF] hover:bg-[#F2F2F7] disabled:opacity-30 text-[#1D1D1F] transition-all text-xs cursor-pointer"
+            >
+              下一页
+            </button>
+            <button
+              :disabled="currentPage === totalPages"
+              @click="currentPage = totalPages"
+              class="px-2 py-1 rounded-lg border border-[#E5E5EA] bg-[#FFFFFF] hover:bg-[#F2F2F7] disabled:opacity-30 text-[#1D1D1F] transition-all text-xs cursor-pointer"
+              title="最后一页"
+            >
+              »
+            </button>
+          </div>
+        </div>
       </div>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useDashboardStore } from '../stores/dashboardStore'
 import LabLogo from '../components/LabLogo.vue'
 import type { ModelMetadata } from '../types'
@@ -338,7 +402,18 @@ interface LabItem extends OfficialLabDef {
 }
 
 const store = useDashboardStore()
-const selectedLab = ref<LabItem | null>(null)
+const selectedLabId = ref<string | null>(null)
+const selectedLab = computed<LabItem | null>(() => {
+  if (!selectedLabId.value) return null
+  const target = selectedLabId.value.toLowerCase().trim()
+  return (
+    officialLabsList.value.find((l) => {
+      const lid = l.id.toLowerCase()
+      const dName = l.displayName.toLowerCase()
+      return lid === target || lid.includes(target) || target.includes(lid) || dName.includes(target)
+    }) || null
+  )
+})
 const labSearchQuery = ref('')
 const modelSearchQuery = ref('')
 const isCopied = ref(false)
@@ -634,7 +709,7 @@ const filteredLabs = computed(() => {
 })
 
 const selectLab = (lab: LabItem) => {
-  selectedLab.value = lab
+  selectedLabId.value = lab.id
   modelSearchQuery.value = ''
   sortField.value = 'context_window'
   sortOrder.value = 'desc'
@@ -692,6 +767,7 @@ const toggleSort = (field: string) => {
     sortField.value = field
     sortOrder.value = 'desc'
   }
+  currentPage.value = 1
 }
 
 const getSortIndicator = (field: string) => {
@@ -728,12 +804,84 @@ const sortedAndFilteredModels = computed(() => {
   return list
 })
 
+// 分页状态 (针对 OpenAI 等 400+ 款大厂商提供防卡顿分页与极速响应)
+const currentPage = ref(1)
+const pageSize = ref(50)
+const totalItems = computed(() => sortedAndFilteredModels.value.length)
+const totalPages = computed(() => Math.max(1, Math.ceil(totalItems.value / pageSize.value)))
+const startIndex = computed(() => (currentPage.value - 1) * pageSize.value)
+
+const paginatedModels = computed(() => {
+  return sortedAndFilteredModels.value.slice(startIndex.value, startIndex.value + pageSize.value)
+})
+
+const visiblePages = computed(() => {
+  const pages: number[] = []
+  const max = totalPages.value
+  const cur = currentPage.value
+
+  let start = Math.max(1, cur - 2)
+  let end = Math.min(max, cur + 2)
+
+  if (end - start < 4) {
+    if (start === 1) end = Math.min(max, start + 4)
+    else if (end === max) start = Math.max(1, end - 4)
+  }
+
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
+  }
+  return pages
+})
+
+watch([modelSearchQuery, selectedLabId], () => {
+  currentPage.value = 1
+})
+
 const goToMatrix = (modelId: string) => {
-  store.selectedModelId = modelId
-  store.activeTab = 'price-matrix'
+  store.navigateToPriceMatrix({ modelId })
 }
 
 const goToSpeedTest = (modelId: string) => {
   store.navigateToSpeedTest(undefined, modelId)
 }
+
+const checkAndApplyTargetLab = async () => {
+  if (store.targetLabProvider) {
+    const target = store.targetLabProvider.toLowerCase().trim()
+    store.targetLabProvider = null
+    if (store.modelsCatalog.length === 0) {
+      await store.fetchModelsCatalog()
+    }
+    const matched = officialLabsList.value.find((l) => {
+      const lid = l.id.toLowerCase()
+      const dName = l.displayName.toLowerCase()
+      return (
+        lid === target ||
+        lid.includes(target) ||
+        target.includes(lid) ||
+        dName.includes(target)
+      )
+    })
+    if (matched) {
+      selectedLabId.value = matched.id
+    } else {
+      selectedLabId.value = 'community'
+    }
+  }
+}
+
+onMounted(async () => {
+  window.addEventListener('click', closeAllDropdowns)
+  await checkAndApplyTargetLab()
+})
+
+watch(
+  () => store.targetLabProvider,
+  async (newVal) => {
+    if (newVal) {
+      await checkAndApplyTargetLab()
+    }
+  }
+)
 </script>

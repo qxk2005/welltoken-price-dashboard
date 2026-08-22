@@ -13,6 +13,7 @@ from backend.app.schemas.token_schema import (
 )
 from backend.app.services.relay_fetcher import relay_fetcher
 from backend.app.services.model_normalizer import model_normalizer
+from backend.app.services.dashboard_service import dashboard_service
 
 router = APIRouter(prefix="/channels", tags=["Relay Channels & Providers"])
 
@@ -72,10 +73,14 @@ async def get_channel_models(site_id: int):
         res = await session.execute(stmt)
         pricings = res.scalars().all()
 
-        rate = 7.25
+        await dashboard_service.ensure_settings_loaded()
+        rate = dashboard_service.usd_to_cny_rate
         result = []
         for p in pricings:
             m = p.model
+            in_cny = round(p.calculated_input_usd * rate, 4)
+            out_cny = round(p.calculated_output_usd * rate, 4)
+            ca_cny = round(p.calculated_cache_usd * rate, 4)
             result.append({
                 "id": p.id,
                 "model_id": p.model_id,
@@ -91,9 +96,9 @@ async def get_channel_models(site_id: int):
                 "calculated_input_usd": p.calculated_input_usd,
                 "calculated_output_usd": p.calculated_output_usd,
                 "calculated_cache_usd": p.calculated_cache_usd,
-                "calculated_input_cny": round(p.calculated_input_usd * rate, 2),
-                "calculated_output_cny": round(p.calculated_output_usd * rate, 2),
-                "calculated_cache_cny": round(p.calculated_cache_usd * rate, 3),
+                "calculated_input_cny": in_cny,
+                "calculated_output_cny": out_cny,
+                "calculated_cache_cny": ca_cny,
                 "discount_percent": p.discount_percent,
                 "last_tested_tps": p.last_tested_tps,
                 "is_available": p.is_available

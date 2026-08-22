@@ -5,6 +5,15 @@
       <!-- 顶部操作栏与精确分类筛选 (苹果高级灰白风格，言简意赅，防折行) -->
       <div class="p-3 rounded-2xl bg-[#FFFFFF] border border-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex items-center justify-between flex-nowrap overflow-x-auto">
         <div class="flex items-center space-x-2.5 flex-shrink-0">
+          <!-- 从全网比价跳转而来时的返回按钮 -->
+          <button
+            v-if="store.navigatedFromPriceMatrix"
+            @click="store.returnToPriceMatrix()"
+            class="px-3 py-1.5 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] text-white transition-all text-xs font-bold flex items-center space-x-1 shadow-sm cursor-pointer flex-shrink-0"
+          >
+            <span>← 返回全网聚合比价</span>
+          </button>
+
           <!-- 分类切换胶囊按钮组：全部 / 官方 / 中转 / 自建 / ⭐ 收藏 -->
           <div class="flex items-center space-x-1 bg-[#F2F2F7] p-0.5 rounded-xl border border-[#E5E5EA] flex-shrink-0">
             <button
@@ -391,12 +400,14 @@
       <div class="p-4 rounded-2xl bg-[#FFFFFF] border border-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-3.5">
         <!-- 顶部返回与代码标识 -->
         <div class="flex items-center justify-between">
-          <button
-            @click="selectedProvider = null"
-            class="px-3 py-1.5 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] border border-[#E5E5EA] transition-all text-xs font-medium flex items-center space-x-1"
-          >
-            <span>← 返回供应商与渠道列表</span>
-          </button>
+          <div class="flex items-center space-x-2">
+            <button
+              @click="selectedProvider = null"
+              class="px-3 py-1.5 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] border border-[#E5E5EA] transition-all text-xs font-medium flex items-center space-x-1 cursor-pointer"
+            >
+              <span>← 返回渠道列表</span>
+            </button>
+          </div>
 
           <div class="flex items-center space-x-2">
             <span class="text-[11px] text-[#86868B]">渠道标识 (Provider ID):</span>
@@ -852,9 +863,35 @@ const closeAllDropdowns = () => {
   activeActionDropdownModelId.value = null
 }
 
-onMounted(() => {
+const checkAndApplyTargetChannel = async () => {
+  if (store.targetChannelSiteName) {
+    const target = store.targetChannelSiteName.toLowerCase().trim()
+    store.targetChannelSiteName = null
+    if (store.relaySites.length === 0) {
+      await store.fetchRelaySites()
+    }
+    const site = store.relaySites.find(
+      (s) => s.name.toLowerCase() === target || (s.provider_id && s.provider_id.toLowerCase() === target)
+    )
+    if (site) {
+      await selectProvider(site)
+    }
+  }
+}
+
+onMounted(async () => {
   window.addEventListener('click', closeAllDropdowns)
+  await checkAndApplyTargetChannel()
 })
+
+watch(
+  () => store.targetChannelSiteName,
+  async (newVal) => {
+    if (newVal) {
+      await checkAndApplyTargetChannel()
+    }
+  }
+)
 
 onUnmounted(() => {
   window.removeEventListener('click', closeAllDropdowns)
@@ -1208,8 +1245,8 @@ const isReasoningModel = (modelId: string) => {
 }
 
 const goToMatrixWithSite = (siteId: number) => {
-  store.selectedSiteId = siteId
-  store.activeTab = 'price-matrix'
+  const site = store.relaySites.find((s) => s.id === siteId)
+  store.navigateToPriceMatrix({ siteId, siteName: site?.name })
 }
 
 const goToSpeedTestWithSite = (siteId: number) => {
@@ -1217,8 +1254,10 @@ const goToSpeedTestWithSite = (siteId: number) => {
 }
 
 const goToMatrixWithModel = (modelId: string) => {
-  store.selectedModelId = modelId
-  store.activeTab = 'price-matrix'
+  store.navigateToPriceMatrix({
+    modelId: modelId,
+    highlightSiteName: selectedProvider.value?.name
+  })
 }
 
 const goToSpeedTestWithModel = (modelId: string) => {
