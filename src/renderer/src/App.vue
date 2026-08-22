@@ -30,13 +30,25 @@
         </span>
       </div>
     </footer>
+
+    <!-- 首次启动/数据库为空时自动弹出的引导向导 -->
+    <AddChannelWizardModal
+      v-if="showInitialWizardModal"
+      @close="showInitialWizardModal = false"
+      @saved="handleInitialWizardSaved"
+    />
+
+    <!-- 全局全网数据同步实时进度浮窗 -->
+    <SyncProgressModal />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import TopHeader from './components/TopHeader.vue'
 import SidebarNav from './components/SidebarNav.vue'
+import AddChannelWizardModal from './components/AddChannelWizardModal.vue'
+import SyncProgressModal from './components/SyncProgressModal.vue'
 import PriceMatrixView from './views/PriceMatrixView.vue'
 import ChannelManagementView from './views/ChannelManagementView.vue'
 import ModelCatalogView from './views/ModelCatalogView.vue'
@@ -45,6 +57,7 @@ import SyncSettingsView from './views/SyncSettingsView.vue'
 import { useDashboardStore } from './stores/dashboardStore'
 
 const store = useDashboardStore()
+const showInitialWizardModal = ref(false)
 
 const currentView = computed(() => {
   switch (store.activeTab) {
@@ -63,7 +76,19 @@ const currentView = computed(() => {
   }
 })
 
-onMounted(() => {
-  store.init()
+onMounted(async () => {
+  await store.init()
+  // 检测数据库是否完全为空，若是则友好弹出初始化向导
+  if (store.backendHealthy && store.relaySites.length === 0 && store.modelsCatalog.length === 0) {
+    showInitialWizardModal.value = true
+  }
 })
+
+async function handleInitialWizardSaved() {
+  showInitialWizardModal.value = false
+  await store.fetchRelaySites()
+  await store.fetchModelsCatalog()
+  await store.fetchComparisonMatrix()
+  await store.fetchSyncStatus()
+}
 </script>

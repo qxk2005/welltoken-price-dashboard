@@ -61,9 +61,13 @@
       <!-- 全网同步按钮 -->
       <button
         @click="store.triggerFullSync"
-        class="px-3 py-1 rounded-lg bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] text-white font-medium shadow-sm transition-all flex items-center space-x-1"
+        :disabled="store.syncProgress.isSyncing"
+        class="px-3 py-1 rounded-lg bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] disabled:opacity-60 text-white font-medium shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer"
+        :title="store.syncProgress.isSyncing ? '正在全量同步中...' : '从 models.dev 同步全网最新大模型与渠道定价数据'"
       >
-        <span>⚡ 一键全网同步</span>
+        <span v-if="store.syncProgress.isSyncing" class="animate-spin text-xs">🔄</span>
+        <span v-else>⚡</span>
+        <span>{{ store.syncProgress.isSyncing ? `同步中 (${store.syncProgress.progress}%)` : '一键全网同步' }}</span>
       </button>
 
       <!-- 模式标记 -->

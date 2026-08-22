@@ -12,13 +12,12 @@ async def lifespan(app: FastAPI):
     # 启动阶段 1：瞬间完成 SQLite 数据库引擎与表结构初始化 (毫秒级完成，确保 /health 立即 200 OK)
     await init_db()
     
-    # 启动阶段 2：非阻塞异步在后台加载 models.dev 真实全网大数据库与启动广播轮询
+    # 启动阶段 2：非阻塞异步在后台加载标准模型与系统配置
     async def async_boot():
         try:
             from backend.app.services.model_normalizer import model_normalizer
             await model_normalizer.initialize()
-            await dashboard_service.initialize()
-            await dashboard_service.start_loop()
+            await dashboard_service.ensure_settings_loaded()
         except Exception as e:
             print(f"[Lifespan Boot Error]: {e}")
 
@@ -30,7 +29,6 @@ async def lifespan(app: FastAPI):
     # 停止阶段：安全关闭后台任务
     if not boot_task.done():
         boot_task.cancel()
-    await dashboard_service.stop_loop()
     print(f"[{settings.APP_NAME}] Backend service stopped.")
 
 app = FastAPI(

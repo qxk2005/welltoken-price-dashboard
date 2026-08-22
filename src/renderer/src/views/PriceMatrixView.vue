@@ -246,8 +246,47 @@
           </div>
         </div>
 
-        <div v-if="!isLoading && pagedItems.length === 0" class="py-12 text-center text-xs text-[#86868B]">
-          无匹配的大模型比价数据，请调整筛选条件
+        <!-- 空状态 A: 库内完全无数据 (首次使用引导) -->
+        <div v-if="!isLoading && pagedItems.length === 0 && !hasAnyFilter && !onlyFavorites && totalRecords === 0" class="py-16 px-6 text-center space-y-4 max-w-md mx-auto animate-fade-in">
+          <div class="w-14 h-14 rounded-2xl bg-[#E8F2FD] border border-[#CCE4FB] text-[#0071E3] text-2xl flex items-center justify-center mx-auto shadow-xs">
+            📡
+          </div>
+          <div class="space-y-1">
+            <h4 class="font-bold text-[#1D1D1F] text-sm">本地数据库暂无全网比价数据</h4>
+            <p class="text-[#6E6E73] text-xs leading-relaxed">
+              系统当前尚未同步大模型数据。您可以一键从 models.dev 官方基准库拉取 7,000+ 比价条目，或手动配置中转渠道。
+            </p>
+          </div>
+          <div class="flex items-center justify-center space-x-3 pt-2">
+            <button
+              @click="triggerSync"
+              :disabled="isSyncingAll"
+              class="px-4 py-2 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] disabled:opacity-50 text-white font-bold text-xs shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer"
+            >
+              <span v-if="isSyncingAll" class="animate-spin">⏳</span>
+              <span v-else>⚡</span>
+              <span>{{ isSyncingAll ? '正在全网同步...' : '立即从 models.dev 同步' }}</span>
+            </button>
+            <button
+              @click="showAddModal = true"
+              class="px-4 py-2 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] font-medium text-xs border border-[#E5E5EA] transition-all flex items-center space-x-1 cursor-pointer"
+            >
+              <span>➕</span>
+              <span>添加供应商与渠道</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 空状态 B: 筛选器无匹配 -->
+        <div v-else-if="!isLoading && pagedItems.length === 0" class="py-12 text-center text-xs text-[#86868B] space-y-2">
+          <div>无匹配的大模型比价数据，请调整筛选条件</div>
+          <button
+            v-if="hasAnyFilter || onlyFavorites"
+            @click="resetAllFilters"
+            class="px-3 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#FFE5E5] text-[#0071E3] hover:text-[#FF3B30] border border-[#E5E5EA] transition-all text-xs font-medium cursor-pointer"
+          >
+            重置所有筛选
+          </button>
         </div>
       </div>
 
@@ -339,6 +378,13 @@
         <div ref="scatterChartRef" class="w-full h-full"></div>
       </div>
     </div>
+
+    <!-- 添加中转渠道向导弹窗 -->
+    <AddChannelWizardModal
+      v-if="showAddModal"
+      @close="showAddModal = false"
+      @saved="onModalSaved"
+    />
   </div>
 </template>
 
@@ -348,9 +394,33 @@ import axios from 'axios'
 import * as echarts from 'echarts'
 import { useDashboardStore } from '../stores/dashboardStore'
 import MultiSelectFilter, { type FilterOption } from '../components/MultiSelectFilter.vue'
+import AddChannelWizardModal from '../components/AddChannelWizardModal.vue'
 import type { ComparisonItem } from '../types'
 
 const store = useDashboardStore()
+const showAddModal = ref(false)
+const isSyncingAll = ref(false)
+
+async function triggerSync() {
+  isSyncingAll.value = true
+  try {
+    await store.triggerFullSync()
+    await fetchFilterOptions()
+    await fetchPaginatedMatrix()
+  } catch (e: any) {
+    alert(`同步失败: ${e.response?.data?.detail || e.message}`)
+  } finally {
+    isSyncingAll.value = false
+  }
+}
+
+async function onModalSaved() {
+  showAddModal.value = false
+  await store.fetchRelaySites()
+  await store.fetchComparisonMatrix()
+  await fetchFilterOptions()
+  await fetchPaginatedMatrix()
+}
 
 // 厂商中文与别名映射表 (支持用户输入“深度探索”、“通义千问”、“Kimi”等模糊搜索)
 const labNamesCn: Record<string, string> = {

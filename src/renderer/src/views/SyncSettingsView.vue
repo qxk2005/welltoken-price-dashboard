@@ -9,9 +9,12 @@
         </div>
         <button
           @click="store.triggerFullSync"
-          class="text-xs px-4 py-1.5 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] text-white font-medium shadow-sm transition-all flex items-center space-x-1.5"
+          :disabled="store.syncProgress.isSyncing"
+          class="text-xs px-4 py-1.5 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] disabled:opacity-60 text-white font-medium shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer"
         >
-          <span>⚡ 立即执行全网全量同步</span>
+          <span v-if="store.syncProgress.isSyncing" class="animate-spin text-xs">🔄</span>
+          <span v-else>⚡</span>
+          <span>{{ store.syncProgress.isSyncing ? `全网同步中 (${store.syncProgress.progress}%)` : '立即执行全网全量同步' }}</span>
         </button>
       </div>
 

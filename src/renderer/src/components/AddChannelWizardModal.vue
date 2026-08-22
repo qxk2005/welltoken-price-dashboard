@@ -54,8 +54,33 @@
         
         <!-- ==================== Step 1: 基础配置 ==================== -->
         <div v-if="currentStep === 1" class="space-y-4 animate-fade-in">
+          <!-- 快捷操作：一键从 models.dev 导入官方全量数据库 -->
+          <div class="p-4 bg-gradient-to-r from-[#F0F7FF] to-[#F5FAFF] rounded-2xl border border-[#CCE4FB] flex items-center justify-between shadow-xs">
+            <div class="space-y-1">
+              <div class="flex items-center space-x-1.5">
+                <span class="text-base">⚡</span>
+                <span class="font-bold text-[#0071E3] text-xs">一键导入全网官方数据库 (models.dev)</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#0071E3] text-white">推荐</span>
+              </div>
+              <p class="text-[11px] text-[#6E6E73]">
+                无需手动配置，一键获取 30 大权威 Lab 研发母厂、190+ 供应商与 7,000+ 比价条目。
+              </p>
+            </div>
+
+            <button
+              type="button"
+              @click="handleOneClickSync"
+              :disabled="isSyncingModelsDev"
+              class="px-4 py-2 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] disabled:opacity-50 text-white font-bold text-xs shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap"
+            >
+              <span v-if="isSyncingModelsDev" class="animate-spin text-sm">⏳</span>
+              <span v-else>🚀</span>
+              <span>{{ isSyncingModelsDev ? '正在全网同步中...' : '立即一键全量同步' }}</span>
+            </button>
+          </div>
+
           <div class="p-3 bg-[#F2F2F7]/70 rounded-xl border border-[#E5E5EA] text-[#6E6E73] text-[11px] leading-relaxed">
-            💡 支持直接接入基于 <strong>NewAPI</strong>、<strong>OneAPI</strong>、<strong>Sub2API</strong> 或自建聚合网关的中转服务。系统将自动探测连通性并拉取原始模型列表。
+            💡 或者手动接入基于 <strong>NewAPI</strong>、<strong>OneAPI</strong>、<strong>Sub2API</strong> 或自建聚合网关的中转服务。系统将自动探测连通性并拉取原始模型列表。
           </div>
 
           <div class="space-y-3">
@@ -946,6 +971,21 @@ async function submitWizard() {
     alert(`创建渠道失败: ${e.response?.data?.detail || e.message}`)
   } finally {
     isSubmitting.value = false
+  }
+}
+
+const isSyncingModelsDev = ref(false)
+
+async function handleOneClickSync() {
+  isSyncingModelsDev.value = true
+  try {
+    await store.triggerFullSync()
+    emit('saved')
+    emit('close')
+  } catch (e: any) {
+    alert(`同步失败: ${e.response?.data?.detail || e.message}`)
+  } finally {
+    isSyncingModelsDev.value = false
   }
 }
 </script>

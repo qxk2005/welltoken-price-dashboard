@@ -25,6 +25,9 @@ export const useDashboardStore = defineStore('dashboard', {
     // 收藏夹渠道 ID 集合 (持久化至 localStorage)
     favoriteSiteIds: JSON.parse(localStorage.getItem('welltoken_fav_sites') || '[]') as number[],
     
+    // 侧边栏折叠状态 (持久化至 localStorage)
+    isSidebarCollapsed: localStorage.getItem('welltoken_sidebar_collapsed') === 'true',
+    
     // 数据集合
     comparisonMatrix: [] as ComparisonItem[],
     relaySites: [] as RelaySite[],
@@ -40,6 +43,18 @@ export const useDashboardStore = defineStore('dashboard', {
     speedTestTargetSiteId: null as number | null,
     speedTestTargetModelId: null as string | null,
     
+    // 全网数据同步进度状态
+    syncProgress: {
+      visible: false,
+      isSyncing: false,
+      stage: 0, // 0: idle, 1: download, 2: normalize, 3: pricing, 4: persist, 5: done, -1: error
+      progress: 0,
+      message: '',
+      detail: '',
+      stats: {} as { models_count?: number; providers_count?: number; pricings_count?: number; duration_ms?: number },
+      error: ''
+    },
+
     // 系统连接状态
     isConnected: false,
     backendHealthy: false,
@@ -203,15 +218,33 @@ export const useDashboardStore = defineStore('dashboard', {
     },
 
     async triggerFullSync() {
+      this.syncProgress.visible = true
+      this.syncProgress.isSyncing = true
+      this.syncProgress.stage = 1
+      this.syncProgress.progress = 10
+      this.syncProgress.message = '正在连接并拉取 models.dev 官方 3 大核心数据源...'
+      this.syncProgress.detail = '准备下载 models.json, catalog.json 与 api.json'
+      this.syncProgress.error = ''
+
       try {
-        await axios.post(`${this.apiUrl}/api/v1/settings/full-sync`)
+        const res = await axios.post(`${this.apiUrl}/api/v1/settings/full-sync`)
         await this.fetchComparisonMatrix()
         await this.fetchRelaySites()
         await this.fetchModelsCatalog()
         await this.fetchSyncStatus()
-      } catch (e) {
+        return res.data
+      } catch (e: any) {
+        this.syncProgress.stage = -1
+        this.syncProgress.isSyncing = false
+        this.syncProgress.error = e.response?.data?.detail || e.message || '全网同步发生异常'
         console.error('Full sync failed:', e)
+        throw e
       }
+    },
+
+    closeSyncProgress() {
+      this.syncProgress.visible = false
+      this.syncProgress.isSyncing = false
     },
 
     navigateToSpeedTest(siteId?: number, modelId?: string) {
@@ -252,6 +285,16 @@ export const useDashboardStore = defineStore('dashboard', {
       this.currency = this.currency === 'USD' ? 'CNY' : 'USD'
     },
 
+    toggleSidebar() {
+      this.isSidebarCollapsed = !this.isSidebarCollapsed
+      localStorage.setItem('welltoken_sidebar_collapsed', String(this.isSidebarCollapsed))
+    },
+
+    setSidebarCollapsed(collapsed: boolean) {
+      this.isSidebarCollapsed = collapsed
+      localStorage.setItem('welltoken_sidebar_collapsed', String(collapsed))
+    },
+
     connectWebSocket() {
       if (this.ws) {
         this.ws.close()
@@ -268,7 +311,24 @@ export const useDashboardStore = defineStore('dashboard', {
         this.ws.onmessage = (event) => {
           try {
             const msg = JSON.parse(event.data)
-            if (msg.type === 'matrix_update' || msg.type === 'init') {
+            if (msg.type === 'SYNC_PROGRESS') {
+              this.syncProgress.visible = true
+              this.syncProgress.stage = msg.stage
+              this.syncProgress.progress = msg.progress
+              this.syncProgress.message = msg.message
+              this.syncProgress.detail = msg.detail
+              if (msg.stats && Object.keys(msg.stats).length > 0) {
+                this.syncProgress.stats = msg.stats
+              }
+              if (msg.stage === 5) {
+                this.syncProgress.isSyncing = false
+              } else if (msg.stage === -1) {
+                this.syncProgress.isSyncing = false
+                this.syncProgress.error = msg.message
+              } else {
+                this.syncProgress.isSyncing = true
+              }
+            } else if (msg.type === 'matrix_update' || msg.type === 'init') {
               this.comparisonMatrix = msg.data
             } else if (msg.type === 'speed_test_event') {
               const ev = msg.data as SpeedTestStreamEvent
