@@ -55,13 +55,13 @@
         >
           <!-- 展开态内容 -->
           <div v-if="!store.isSidebarCollapsed" class="flex items-center space-x-2.5">
-            <span class="text-sm">{{ item.icon }}</span>
+            <SystemIcon :name="item.iconName" custom-class="w-4 h-4" />
             <span class="truncate">{{ item.label }}</span>
           </div>
 
           <!-- 收拢态内容 (仅图标) -->
           <div v-else class="flex items-center justify-center relative">
-            <span class="text-base">{{ item.icon }}</span>
+            <SystemIcon :name="item.iconName" custom-class="w-4.5 h-4.5" />
             <!-- 收拢态小圆点徽标 -->
             <span
               v-if="item.badge !== undefined && item.badge !== '' && item.badge !== '0'"
@@ -88,10 +88,11 @@
             v-if="store.isSidebarCollapsed"
             class="absolute left-full ml-3 px-3 py-2 bg-[#1D1D1F] text-white text-xs rounded-xl shadow-[0_10px_25px_rgba(0,0,0,0.25)] whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-150 z-50 flex items-center space-x-2 border border-white/10"
           >
-            <span class="font-bold">{{ item.label }}</span>
+            <SystemIcon :name="item.iconName" custom-class="w-3.5 h-3.5" />
+            <span class="font-medium">{{ item.label }}</span>
             <span
               v-if="item.badge !== undefined && item.badge !== ''"
-              class="px-1.5 py-0.5 rounded-full text-[10px] font-mono bg-white/20 text-white"
+              class="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-white/20 text-white font-bold"
             >
               {{ item.badge }}
             </span>
@@ -102,40 +103,42 @@
       </div>
     </div>
 
-    <!-- 底部：状态看板 -->
-    <div class="space-y-2 pt-3 border-t border-[#E5E5EA] text-xs">
-      <!-- 展开态：完整看板 -->
+    <!-- 底部状态小部件 (折叠时收缩为指示点，展开时显示实时汇率与基准源) -->
+    <div
+      class="pt-3 border-t border-[#E5E5EA] transition-all"
+      :class="store.isSidebarCollapsed ? 'px-0 flex flex-col items-center' : 'px-2'"
+    >
       <div
         v-if="!store.isSidebarCollapsed"
-        class="p-2.5 rounded-xl bg-[#F9F9FB] border border-[#E5E5EA] space-y-1 font-mono text-[11px] animate-fade-in"
+        class="bg-[#F2F2F7] rounded-xl p-2.5 text-[11px] font-mono space-y-1 border border-[#E5E5EA]"
       >
         <div class="flex items-center justify-between text-[#86868B]">
           <span>models.dev 基准</span>
           <span class="text-[#34C759] font-bold">100% 实时</span>
         </div>
-        <div class="flex items-center justify-between text-[#86868B]">
+        <div class="flex items-center justify-between text-[#6E6E73]">
           <span>当前换算汇率</span>
           <span class="text-[#0071E3] font-bold">{{ store.syncStatus?.usd_to_cny_rate || 7.25 }}</span>
         </div>
-        <div class="text-[10px] text-[#86868B] pt-0.5 truncate">
-          SQLite 本地大数据库就绪
+        <div class="text-[10px] text-[#86868B] truncate pt-0.5">
+          SQLite 本地大数据就绪
         </div>
       </div>
 
-      <!-- 收拢态：紧凑微型胶囊 -->
-      <div
-        v-else
-        class="p-1.5 rounded-xl bg-[#F9F9FB] border border-[#E5E5EA] flex flex-col items-center justify-center font-mono text-[10px] space-y-0.5 text-center animate-fade-in group relative"
-      >
-        <span class="text-[#86868B]">汇率</span>
-        <span class="text-[#0071E3] font-bold text-[11px]">{{ store.syncStatus?.usd_to_cny_rate || 7.25 }}</span>
+      <!-- 收起状态下的微小指示图标 -->
+      <div v-else class="flex flex-col items-center space-y-1 group relative cursor-pointer">
+        <span class="w-2 h-2 rounded-full bg-[#34C759]"></span>
+        <span class="text-[9px] font-mono text-[#86868B]">实时</span>
 
-        <!-- 悬停气泡提示 -->
         <div
-          class="absolute left-full ml-3 px-3 py-2 bg-[#1D1D1F] text-white text-xs rounded-xl shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-150 z-50 flex flex-col space-y-1 border border-white/10"
+          class="absolute left-full ml-3 px-3 py-2 bg-[#1D1D1F] text-white text-xs rounded-xl shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-150 z-50 border border-white/10 space-y-1"
         >
-          <div class="flex items-center space-x-2">
-            <span class="text-[#86868B]">实时汇率:</span>
+          <div class="font-bold flex items-center space-x-1.5">
+            <span class="w-2 h-2 rounded-full bg-[#34C759]"></span>
+            <span>核心引擎正常运行</span>
+          </div>
+          <div class="text-[11px] font-mono text-white/80">
+            当前基准汇率:
             <strong class="text-[#0071E3]">{{ store.syncStatus?.usd_to_cny_rate || 7.25 }} CNY/USD</strong>
           </div>
           <div class="text-[10px] text-[#86868B]">
@@ -151,6 +154,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useDashboardStore } from '../stores/dashboardStore'
+import SystemIcon from './SystemIcon.vue'
 
 const store = useDashboardStore()
 
@@ -162,13 +166,13 @@ function formatBadgeCount(count: number): string {
 const navItems = computed<Array<{
   id: 'price-matrix' | 'channels' | 'models' | 'speed-tester' | 'settings'
   label: string
-  icon: string
+  iconName: string
   badge?: string | number
 }>>(() => [
-  { id: 'price-matrix', label: '全网聚合比价', icon: '📊', badge: formatBadgeCount(store.syncStatus?.total_pricings_cached || store.comparisonMatrix.length) },
-  { id: 'channels', label: '供应商与渠道', icon: '🌐', badge: formatBadgeCount(store.syncStatus?.total_active_sites || store.relaySites.length) },
-  { id: 'models', label: '厂商与模型系列', icon: '🤖', badge: formatBadgeCount(store.syncStatus?.models_dev_total_models || store.modelsCatalog.length) },
-  { id: 'speed-tester', label: '渠道性能实测', icon: '⏱️', badge: store.isSpeedTesting ? '测速中' : '' },
-  { id: 'settings', label: '数据同步与设置', icon: '⚙️' }
+  { id: 'price-matrix', label: '全网比价', iconName: 'price-matrix', badge: formatBadgeCount(store.syncStatus?.total_pricings_cached || store.comparisonMatrix.length) },
+  { id: 'channels', label: '供应商表', iconName: 'channels', badge: formatBadgeCount(store.syncStatus?.total_active_sites || store.relaySites.length) },
+  { id: 'models', label: '模型厂商', iconName: 'models', badge: formatBadgeCount(store.syncStatus?.models_dev_total_models || store.modelsCatalog.length) },
+  { id: 'speed-tester', label: '性能测试', iconName: 'speed-tester', badge: store.isSpeedTesting ? '测速中' : '' },
+  { id: 'settings', label: '系统设置', iconName: 'settings' }
 ])
 </script>

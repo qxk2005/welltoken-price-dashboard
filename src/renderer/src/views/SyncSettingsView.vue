@@ -3,8 +3,9 @@
     <!-- 卡片 1：数据源同步调度设置 (苹果灰白卡片) -->
     <div class="p-5 rounded-2xl bg-[#FFFFFF] border border-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-4">
       <div class="flex items-center justify-between border-b border-[#E5E5EA] pb-3">
-        <div>
-          <span class="font-bold text-sm text-[#1D1D1F]">🔄 全网数据源自动同步与调度策略</span>
+        <div class="flex items-center space-x-2">
+          <SystemIcon name="refresh" custom-class="w-4 h-4 text-[#0071E3]" />
+          <span class="font-bold text-sm text-[#1D1D1F]">全网数据源自动同步与调度策略</span>
           <span class="text-xs text-[#86868B] ml-2">(涵盖 models.dev 的 models.json, catalog.json, api.json 三大核心数据源)</span>
         </div>
         <button
@@ -12,8 +13,8 @@
           :disabled="store.syncProgress.isSyncing"
           class="text-xs px-4 py-1.5 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] disabled:opacity-60 text-white font-medium shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer"
         >
-          <span v-if="store.syncProgress.isSyncing" class="animate-spin text-xs">🔄</span>
-          <span v-else>⚡</span>
+          <SystemIcon v-if="store.syncProgress.isSyncing" name="refresh" custom-class="w-3.5 h-3.5 animate-spin" />
+          <SystemIcon v-else name="zap" custom-class="w-3.5 h-3.5" />
           <span>{{ store.syncProgress.isSyncing ? `全网同步中 (${store.syncProgress.progress}%)` : '立即执行全网全量同步' }}</span>
         </button>
       </div>
@@ -67,12 +68,13 @@
     <div class="p-5 rounded-2xl bg-[#FFFFFF] border border-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-3">
       <div class="flex items-center justify-between border-b border-[#E5E5EA] pb-3">
         <div class="flex items-center space-x-2">
-          <span class="font-bold text-sm text-[#1D1D1F]">📋 数据同步历史审计日志 (Sync Audit Logs)</span>
+          <SystemIcon name="detail" custom-class="w-4 h-4 text-[#0071E3]" />
+          <span class="font-bold text-sm text-[#1D1D1F]">数据同步历史审计日志 (Sync Audit Logs)</span>
           <span class="text-xs text-[#86868B] font-mono">记录每次抓取时间、条数与性能耗时</span>
         </div>
         <button
           @click="store.fetchSyncStatus"
-          class="text-xs text-[#0071E3] hover:underline font-medium"
+          class="text-xs text-[#0071E3] hover:underline font-medium cursor-pointer"
         >
           刷新日志
         </button>
@@ -128,7 +130,7 @@
       <div class="p-4 rounded-2xl bg-[#FFFFFF] border border-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-3">
         <div class="flex items-center justify-between border-b border-[#E5E5EA] pb-2">
           <div class="flex items-center space-x-1.5 font-bold text-xs text-[#1D1D1F]">
-            <span>💱</span>
+            <SystemIcon name="coins" custom-class="w-4 h-4 text-[#0071E3]" />
             <span>全球外汇汇率实时折算</span>
           </div>
           <span class="text-[10px] px-1.5 py-0.2 rounded bg-[#E6F4EA] text-[#34C759] border border-[#CEEAD6] font-mono font-bold">
@@ -174,8 +176,8 @@
 
           <!-- 最后一次获取时间信息 -->
           <div class="p-2 rounded-xl bg-[#F9F9FB] border border-[#E5E5EA] flex items-center justify-between text-[11px]">
-            <div class="text-[#86868B] flex items-center space-x-1">
-              <span>🕒</span>
+            <div class="text-[#86868B] flex items-center space-x-1.5">
+              <SystemIcon name="timer" custom-class="w-3.5 h-3.5 text-[#86868B]" />
               <span>最后一次获取汇率时间:</span>
             </div>
             <div class="font-mono text-[#1D1D1F] font-bold">
@@ -190,8 +192,8 @@
               @click="fetchOnlineRate"
               class="w-full py-2 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] disabled:opacity-50 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center space-x-2 cursor-pointer"
             >
-              <span v-if="isFetchingRate" class="animate-spin text-xs">🌀</span>
-              <span v-else>⚡</span>
+              <SystemIcon v-if="isFetchingRate" name="refresh" custom-class="w-3.5 h-3.5 animate-spin" />
+              <SystemIcon v-else name="zap" custom-class="w-3.5 h-3.5" />
               <span>{{ isFetchingRate ? '正在连接在线外汇源抓取并持久化...' : '联网抓取最新汇率并自动保存' }}</span>
             </button>
           </div>
@@ -200,8 +202,9 @@
 
       <!-- 数据库文件维护 -->
       <div class="p-4 rounded-2xl bg-[#FFFFFF] border border-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-3">
-        <div class="border-b border-[#E5E5EA] pb-2 font-bold text-xs text-[#1D1D1F]">
-          🗄️ 本地 SQLite 大数据库资产
+        <div class="border-b border-[#E5E5EA] pb-2 font-bold text-xs text-[#1D1D1F] flex items-center space-x-1.5">
+          <SystemIcon name="site" custom-class="w-4 h-4 text-[#0071E3]" />
+          <span>本地 SQLite 大数据库资产</span>
         </div>
         <div class="flex items-center justify-between text-xs font-mono">
           <div>
@@ -214,9 +217,10 @@
           </div>
           <button
             @click="exportJson"
-            class="px-3 py-1.5 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] border border-[#E5E5EA] text-xs font-sans font-medium"
+            class="px-3 py-1.5 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] border border-[#E5E5EA] text-xs font-sans font-medium flex items-center space-x-1.5 cursor-pointer"
           >
-            📥 导出大数据库 (JSON)
+            <SystemIcon name="detail" custom-class="w-3.5 h-3.5" />
+            <span>导出大数据库 (JSON)</span>
           </button>
         </div>
       </div>
@@ -228,6 +232,7 @@
 import { ref, onMounted, watch } from 'vue'
 import axios from 'axios'
 import { useDashboardStore } from '../stores/dashboardStore'
+import SystemIcon from '../components/SystemIcon.vue'
 
 const store = useDashboardStore()
 const customRate = ref(7.25)

@@ -9,7 +9,7 @@
         <div>
           <div class="flex items-center justify-between">
             <h2 class="font-bold text-sm text-[#1D1D1F] flex items-center space-x-1.5">
-              <span>⚡</span>
+              <SystemIcon name="speed-tester" custom-class="w-4 h-4 text-[#0071E3]" />
               <span>渠道测速与连通性检测</span>
             </h2>
             <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#E8F2FD] text-[#0071E3] border border-[#CCE4FB]">
@@ -68,9 +68,9 @@
               <button
                 @click="showApiKey = !showApiKey"
                 type="button"
-                class="absolute right-2.5 top-2 text-xs text-[#86868B] hover:text-[#1D1D1F]"
+                class="absolute right-2.5 top-2 text-xs text-[#86868B] hover:text-[#1D1D1F] cursor-pointer"
               >
-                {{ showApiKey ? '🙈' : '👁️' }}
+                <SystemIcon :name="showApiKey ? 'eye-off' : 'eye'" custom-class="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -149,10 +149,10 @@
           <button
             :disabled="isTesting || !selectedSiteId || !form.modelId"
             @click="startBenchmark"
-            class="w-full py-2.5 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] disabled:opacity-40 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center space-x-2"
+            class="w-full py-2.5 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] disabled:opacity-40 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center space-x-2 cursor-pointer"
           >
-            <span v-if="isTesting" class="animate-spin text-sm">🌀</span>
-            <span v-else>⚡</span>
+            <SystemIcon v-if="isTesting" name="refresh" custom-class="w-4 h-4 animate-spin text-white" />
+            <SystemIcon v-else name="zap" custom-class="w-4 h-4 text-white" />
             <span>{{ isTesting ? `正在并发压测中 (${form.rounds}轮)...` : '开始渠道性能检测' }}</span>
           </button>
         </div>
@@ -439,6 +439,7 @@ import { ref, reactive, onMounted, nextTick, watch } from 'vue'
 import axios from 'axios'
 import { useDashboardStore } from '../stores/dashboardStore'
 import ScoreBreakdownTooltip from '../components/ScoreBreakdownTooltip.vue'
+import SystemIcon from '../components/SystemIcon.vue'
 
 interface ExecutionLog {
   time: string

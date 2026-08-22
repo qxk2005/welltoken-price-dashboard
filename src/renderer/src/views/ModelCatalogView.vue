@@ -24,9 +24,10 @@
 
         <button
           @click="store.syncModelsDev"
-          class="text-xs px-3.5 py-1.5 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#0071E3] border border-[#E5E5EA] font-medium transition-all flex items-center space-x-1"
+          class="text-xs px-3.5 py-1.5 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#0071E3] border border-[#E5E5EA] font-medium transition-all flex items-center space-x-1.5 cursor-pointer"
         >
-          <span>🔄 从 models.dev 同步最新厂商库</span>
+          <SystemIcon name="refresh" custom-class="w-3.5 h-3.5" />
+          <span>从 models.dev 同步最新厂商库</span>
         </button>
       </div>
 
@@ -387,6 +388,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useDashboardStore } from '../stores/dashboardStore'
 import LabLogo from '../components/LabLogo.vue'
+import SystemIcon from '../components/SystemIcon.vue'
 import type { ModelMetadata } from '../types'
 
 interface OfficialLabDef {

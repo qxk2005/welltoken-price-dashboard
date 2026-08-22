@@ -15,8 +15,9 @@
             <!-- 顶部返回与代码标识 -->
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-2">
-                <span class="px-2.5 py-1 rounded-lg bg-[#E8F2FD] text-[#0071E3] text-xs font-bold font-mono">
-                  🌐 渠道商详情与可用模型
+                <span class="px-2.5 py-1 rounded-lg bg-[#E8F2FD] text-[#0071E3] text-xs font-bold font-mono flex items-center space-x-1.5">
+                  <SystemIcon name="channels" custom-class="w-3.5 h-3.5 text-[#0071E3]" />
+                  <span>渠道商详情与可用模型</span>
                 </span>
               </div>
 
@@ -238,25 +239,30 @@
                     <td class="py-2 px-2 text-center whitespace-nowrap">
                       <button
                         @click="triggerModelCompare(item.model_id)"
-                        class="px-2 py-0.5 rounded bg-[#E8F2FD] hover:bg-[#0071E3] text-[#0071E3] hover:text-white border border-[#CCE4FB] text-[10px] font-medium transition-all cursor-pointer mr-1"
+                        class="px-2 py-0.5 rounded bg-[#E8F2FD] hover:bg-[#0071E3] text-[#0071E3] hover:text-white border border-[#CCE4FB] text-[10px] font-medium transition-all cursor-pointer mr-1 inline-flex items-center space-x-0.5"
                         title="在全网比价中只查看接入该模型的所有渠道"
                       >
-                        ⚖️ 比价
+                        <SystemIcon name="chart" custom-class="w-2.5 h-2.5" />
+                        <span>比价</span>
                       </button>
                     </td>
                   </tr>
 
                   <tr v-if="displayedModels.length === 0">
                     <td colspan="5" class="py-12 text-center text-xs text-[#86868B]">
-                      <div class="space-y-1">
-                        <div>{{ viewScope === 'filtered' ? '该渠道暂无符合当前比价筛选条件的模型' : '无匹配的模型数据' }}</div>
-                        <button
-                          v-if="viewScope === 'filtered' && providerModelsList.length > 0"
-                          @click="viewScope = 'all'"
-                          class="text-[#0071E3] hover:underline cursor-pointer text-xs font-medium"
-                        >
-                          点击查看该渠道的全部 {{ providerModelsList.length }} 款模型 ➔
-                        </button>
+                      <div v-if="viewScope === 'filtered' && filterContext?.availableModelIds?.length">
+                        该渠道暂未接入当前全局筛选范围内的 {{ filterContext.availableModelIds.length }} 款模型
+                        <div class="mt-2">
+                          <button
+                            @click="viewScope = 'all'"
+                            class="text-xs text-[#0071E3] hover:underline font-bold cursor-pointer"
+                          >
+                            切换为「查看全部模型 ({{ providerModelsList.length }})」
+                          </button>
+                        </div>
+                      </div>
+                      <div v-else>
+                        暂无匹配的模型记录
                       </div>
                     </td>
                   </tr>
@@ -276,6 +282,7 @@ import axios from 'axios'
 import { useDashboardStore } from '../stores/dashboardStore'
 import ProviderLogo from './ProviderLogo.vue'
 import ScoreBreakdownTooltip from './ScoreBreakdownTooltip.vue'
+import SystemIcon from './SystemIcon.vue'
 import type { RelaySite } from '../types'
 
 export interface FilterContext {

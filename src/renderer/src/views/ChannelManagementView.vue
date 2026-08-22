@@ -14,15 +14,16 @@
             <span>← 返回全网聚合比价</span>
           </button>
 
-          <!-- 分类切换胶囊按钮组：全部 / 官方 / 中转 / 自建 / ⭐ 收藏 -->
+          <!-- 分类切换胶囊按钮组：全部 / 官方 / 中转 / 自建 / 收藏 -->
           <div class="flex items-center space-x-1 bg-[#F2F2F7] p-0.5 rounded-xl border border-[#E5E5EA] flex-shrink-0">
             <button
               v-for="tab in categoryTabs"
               :key="tab.id"
               @click="setCategory(tab.id)"
-              class="px-2.5 py-1 text-xs rounded-lg font-medium transition-all flex items-center space-x-1 whitespace-nowrap"
+              class="px-2.5 py-1 text-xs rounded-lg font-medium transition-all flex items-center space-x-1.5 whitespace-nowrap cursor-pointer"
               :class="activeCategory === tab.id ? 'bg-[#0071E3] text-white font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
             >
+              <SystemIcon v-if="tab.iconName" :name="tab.iconName" custom-class="w-3.5 h-3.5" />
               <span>{{ tab.name }}</span>
               <span
                 class="px-1.5 py-0.2 rounded-full text-[10px] font-mono ml-0.5"
@@ -49,16 +50,18 @@
         <div class="flex items-center space-x-2 flex-shrink-0 pl-2">
           <button
             @click="store.triggerFullSync"
-            class="text-xs px-3 py-1.5 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#0071E3] border border-[#E5E5EA] font-medium transition-all flex items-center space-x-1 whitespace-nowrap"
+            class="text-xs px-3 py-1.5 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#0071E3] border border-[#E5E5EA] font-medium transition-all flex items-center space-x-1.5 whitespace-nowrap cursor-pointer"
             title="从 models.dev 官方数据库同步最新供应商与渠道"
           >
-            <span>🔄 同步官方库</span>
+            <SystemIcon name="refresh" custom-class="w-3.5 h-3.5" />
+            <span>同步官方库</span>
           </button>
           <button
             @click="openWizardForAdd"
-            class="text-xs px-3 py-1.5 rounded-lg bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] text-white font-medium shadow-sm transition-all flex items-center space-x-1 whitespace-nowrap"
+            class="text-xs px-3 py-1.5 rounded-lg bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] text-white font-medium shadow-sm transition-all flex items-center space-x-1.5 whitespace-nowrap cursor-pointer"
           >
-            <span>✨ 添加渠道向导</span>
+            <SystemIcon name="wand" custom-class="w-3.5 h-3.5 text-white" />
+            <span>添加渠道向导</span>
           </button>
         </div>
       </div>
@@ -103,11 +106,14 @@
                 <td class="py-3 px-2 text-center w-12">
                   <button
                     @click.stop="store.toggleFavoriteSite(site.id)"
-                    class="text-base transition-transform hover:scale-125 focus:outline-none"
+                    class="transition-transform hover:scale-125 focus:outline-none cursor-pointer"
                     :title="store.isSiteFavorite(site.id) ? '点击取消收藏' : '点击加入收藏夹'"
                   >
-                    <span v-if="store.isSiteFavorite(site.id)" class="text-[#FF9500]">⭐</span>
-                    <span v-else class="text-[#AEAEB2] hover:text-[#FF9500]">☆</span>
+                    <SystemIcon
+                      :name="store.isSiteFavorite(site.id) ? 'star-filled' : 'star'"
+                      custom-class="w-4 h-4"
+                      :class="store.isSiteFavorite(site.id) ? 'text-amber-500 fill-amber-500' : 'text-[#AEAEB2] hover:text-amber-500'"
+                    />
                   </button>
                 </td>
 
@@ -128,18 +134,18 @@
                         <!-- 智能动态分组徽章 -->
                         <span
                           v-if="site.groups && site.groups.length > 1"
-                          class="px-1.5 py-0.2 rounded-md bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[10px] font-mono font-bold inline-flex items-center space-x-0.5 shadow-2xs cursor-help"
+                          class="px-1.5 py-0.2 rounded-md bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[10px] font-mono font-bold inline-flex items-center space-x-1 shadow-2xs cursor-help"
                           :title="`包含 ${site.groups.length} 个分组: ${site.groups.join(', ')}`"
                         >
-                          <span>🎯</span>
+                          <SystemIcon name="target" custom-class="w-2.5 h-2.5 text-[#8E24AA]" />
                           <span>{{ site.groups.length }}个分组</span>
                         </span>
                         <span
                           v-else-if="site.groups && site.groups.length === 1"
-                          class="px-1.5 py-0.2 rounded-md bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[10px] font-mono font-bold inline-flex items-center space-x-0.5 shadow-2xs"
+                          class="px-1.5 py-0.2 rounded-md bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[10px] font-mono font-bold inline-flex items-center space-x-1 shadow-2xs"
                           :title="`结算分组: ${site.groups[0]}`"
                         >
-                          <span>🎯</span>
+                          <SystemIcon name="target" custom-class="w-2.5 h-2.5 text-[#8E24AA]" />
                           <span>{{ site.groups[0] }}</span>
                         </span>
                         <span
@@ -303,8 +309,9 @@
 
               <tr v-if="paginatedSites.length === 0">
                 <td colspan="10" class="py-16 text-center text-xs text-[#86868B]">
-                  <div v-if="activeCategory === 'favorites'">
-                    ⭐ 暂无收藏的渠道，点击列表左侧的星标即可快速加入收藏夹！
+                  <div v-if="activeCategory === 'favorites'" class="flex items-center justify-center space-x-1.5">
+                    <SystemIcon name="star" custom-class="w-4 h-4 text-amber-500" />
+                    <span>暂无收藏的渠道，点击列表左侧的星标即可快速加入收藏夹！</span>
                   </div>
                   <div v-else>
                     无匹配的供应商与渠道记录
@@ -826,6 +833,7 @@ import { useDashboardStore } from '../stores/dashboardStore'
 import ProviderLogo from '../components/ProviderLogo.vue'
 import AddChannelWizardModal from '../components/AddChannelWizardModal.vue'
 import ScoreBreakdownTooltip from '../components/ScoreBreakdownTooltip.vue'
+import SystemIcon from '../components/SystemIcon.vue'
 import type { RelaySite } from '../types'
 
 const store = useDashboardStore()
@@ -991,11 +999,11 @@ const isRelayChannel = (site: RelaySite): boolean => {
 
 // 业务四大分类 Tab + 收藏夹 (言简意赅，防折行)
 const categoryTabs = [
-  { id: 'all', name: '全部' },
-  { id: 'official', name: '官方' },
-  { id: 'relay', name: '中转' },
-  { id: 'custom', name: '自建' },
-  { id: 'favorites', name: '⭐ 收藏' }
+  { id: 'all', name: '全部', iconName: 'site' },
+  { id: 'official', name: '官方', iconName: 'shield-check' },
+  { id: 'relay', name: '中转', iconName: 'globe' },
+  { id: 'custom', name: '自建', iconName: 'settings' },
+  { id: 'favorites', name: '收藏', iconName: 'star' }
 ]
 
 const setCategory = (catId: string) => {

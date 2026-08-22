@@ -15,8 +15,9 @@
             <!-- 顶部返回与代码标识 -->
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-2">
-                <span class="px-2.5 py-1 rounded-lg bg-[#E8F2FD] text-[#0071E3] text-xs font-bold font-mono">
-                  🤖 大模型研发机构与厂商详情
+                <span class="px-2.5 py-1 rounded-lg bg-[#E8F2FD] text-[#0071E3] text-xs font-bold font-mono flex items-center space-x-1.5">
+                  <SystemIcon name="models" custom-class="w-3.5 h-3.5 text-[#0071E3]" />
+                  <span>大模型研发机构与厂商详情</span>
                 </span>
               </div>
 
@@ -190,10 +191,11 @@
                     <td class="py-2 px-2 text-center whitespace-nowrap">
                       <button
                         @click="triggerModelCompare(model.model_id)"
-                        class="px-2 py-0.5 rounded bg-[#E8F2FD] hover:bg-[#0071E3] text-[#0071E3] hover:text-white border border-[#CCE4FB] text-[10px] font-medium transition-all cursor-pointer mr-1"
+                        class="px-2 py-0.5 rounded bg-[#E8F2FD] hover:bg-[#0071E3] text-[#0071E3] hover:text-white border border-[#CCE4FB] text-[10px] font-medium transition-all cursor-pointer mr-1 inline-flex items-center space-x-0.5"
                         title="在全网比价中只查看接入该模型的所有渠道"
                       >
-                        ⚖️ 比价
+                        <SystemIcon name="chart" custom-class="w-2.5 h-2.5" />
+                        <span>比价</span>
                       </button>
                     </td>
                   </tr>
@@ -249,6 +251,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useDashboardStore } from '../stores/dashboardStore'
 import LabLogo from './LabLogo.vue'
+import SystemIcon from './SystemIcon.vue'
 import type { ModelMetadata } from '../types'
 
 export interface FilterContext {

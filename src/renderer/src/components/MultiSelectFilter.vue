@@ -4,25 +4,26 @@
     <button
       @click="isOpen = !isOpen"
       type="button"
-      class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all shadow-xs"
+      class="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all shadow-2xs cursor-pointer"
       :class="
         modelValue.length > 0
-          ? 'bg-[#E8F2FD] border-[#CCE4FB] text-[#0071E3] font-bold'
+          ? 'bg-[#E8F2FD] border-[#CCE4FB] text-[#0071E3] font-bold shadow-xs'
           : 'bg-[#FFFFFF] hover:bg-[#F2F2F7] border-[#E5E5EA] text-[#1D1D1F]'
       "
     >
-      <span>{{ icon }}</span>
+      <SystemIcon v-if="iconName" :name="iconName" custom-class="w-3.5 h-3.5 opacity-85" />
+      <span v-else-if="icon">{{ icon }}</span>
       <span>{{ label }}:</span>
       <span class="font-bold">
         {{ selectedLabelSummary }}
       </span>
-      <span class="text-[10px] text-[#86868B]">▼</span>
+      <SystemIcon name="chevron-down" custom-class="w-3 h-3 text-[#86868B] transition-transform duration-200" :class="isOpen ? 'rotate-180 text-[#0071E3]' : ''" />
     </button>
 
     <!-- 下拉浮层面板 (苹果毛玻璃/纯白阴影质感) -->
     <div
       v-if="isOpen"
-      class="absolute left-0 mt-1.5 w-64 rounded-xl bg-[#FFFFFF] border border-[#E5E5EA] shadow-[0_12px_36px_rgba(0,0,0,0.1)] z-50 p-2.5 space-y-2 select-none"
+      class="absolute left-0 mt-1.5 w-64 rounded-2xl bg-[#FFFFFF] border border-[#E5E5EA] shadow-[0_12px_36px_rgba(0,0,0,0.12)] z-50 p-2.5 space-y-2 select-none"
     >
       <!-- 搜索过滤框 -->
       <div class="relative">
@@ -37,8 +38,8 @@
 
       <!-- 快速全选 / 清空 -->
       <div class="flex items-center justify-between text-[11px] px-1 text-[#0071E3]">
-        <button @click="selectAll" class="hover:underline font-medium">全选 ({{ filteredOptions.length }})</button>
-        <button @click="clearAll" class="hover:underline text-[#FF3B30]">清空</button>
+        <button @click="selectAll" class="hover:underline font-medium cursor-pointer">全选 ({{ filteredOptions.length }})</button>
+        <button @click="clearAll" class="hover:underline text-[#FF3B30] cursor-pointer">清空</button>
       </div>
 
       <!-- 选项列表 -->
@@ -54,7 +55,7 @@
               :value="opt.value"
               :checked="modelValue.includes(opt.value)"
               @change="toggleOption(opt.value)"
-              class="w-3.5 h-3.5 rounded border-[#D1D1D6] text-[#0071E3] focus:ring-[#0071E3]"
+              class="w-3.5 h-3.5 rounded border-[#D1D1D6] text-[#0071E3] focus:ring-[#0071E3] cursor-pointer"
             />
             <span class="truncate" :title="opt.label">{{ opt.label }}</span>
           </div>
@@ -74,6 +75,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import SystemIcon from './SystemIcon.vue'
 
 export interface FilterOption {
   value: string
@@ -83,7 +85,8 @@ export interface FilterOption {
 
 const props = defineProps<{
   label: string
-  icon: string
+  icon?: string
+  iconName?: string
   options: FilterOption[]
   modelValue: string[]
 }>()

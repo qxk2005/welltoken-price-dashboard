@@ -52,10 +52,11 @@
       <!-- 汇率切换胶囊 -->
       <button
         @click="store.toggleCurrency"
-        class="px-2.5 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] text-[#1D1D1F] font-mono font-medium transition-all flex items-center space-x-1.5"
+        class="px-2.5 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] text-[#1D1D1F] font-mono font-medium transition-all flex items-center space-x-1.5 cursor-pointer shadow-2xs"
         title="切换 USD 刀 / CNY 人民币定价展示"
       >
-        <span class="text-xs">{{ store.currency === 'USD' ? '💵 USD ($)' : '💴 CNY (￥)' }}</span>
+        <SystemIcon name="coins" custom-class="w-3.5 h-3.5 text-[#0071E3]" />
+        <span class="text-xs font-semibold">{{ store.currency === 'USD' ? 'USD ($)' : 'CNY (￥)' }}</span>
       </button>
 
       <!-- 全网同步按钮 -->
@@ -65,8 +66,8 @@
         class="px-3 py-1 rounded-lg bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] disabled:opacity-60 text-white font-medium shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer"
         :title="store.syncProgress.isSyncing ? '正在全量同步中...' : '从 models.dev 同步全网最新大模型与渠道定价数据'"
       >
-        <span v-if="store.syncProgress.isSyncing" class="animate-spin text-xs">🔄</span>
-        <span v-else>⚡</span>
+        <SystemIcon v-if="store.syncProgress.isSyncing" name="refresh" custom-class="w-3.5 h-3.5 animate-spin text-white" />
+        <SystemIcon v-else name="zap" custom-class="w-3.5 h-3.5 text-white" />
         <span>{{ store.syncProgress.isSyncing ? `同步中 (${store.syncProgress.progress}%)` : '一键全网同步' }}</span>
       </button>
 
@@ -80,6 +81,7 @@
 
 <script setup lang="ts">
 import { useDashboardStore } from '../stores/dashboardStore'
+import SystemIcon from './SystemIcon.vue'
 
 const store = useDashboardStore()
 </script>
