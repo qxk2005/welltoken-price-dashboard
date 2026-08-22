@@ -9,7 +9,7 @@ from backend.app.schemas.token_schema import (
     RelaySiteSchema, RelaySiteCreate, RelaySiteUpdate,
     ChannelProbeRequest, ChannelProbeResponse, ModelMappingItem,
     ChannelWizardCreateRequest, ChannelModelMappingSchema,
-    ChannelMappingsBatchUpdate, PromoteAliasRequest
+    ChannelMappingsBatchUpdate, PromoteAliasRequest, ChannelChangeGroupRequest
 )
 from backend.app.services.relay_fetcher import relay_fetcher
 from backend.app.services.model_normalizer import model_normalizer

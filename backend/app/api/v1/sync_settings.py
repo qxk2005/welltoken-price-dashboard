@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter
 from sqlalchemy import select, func, desc
 from backend.app.config import settings
