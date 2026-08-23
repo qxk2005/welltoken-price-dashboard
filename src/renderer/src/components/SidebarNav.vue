@@ -106,43 +106,70 @@
     <!-- 底部状态小部件 (折叠时收缩为指示点，展开时显示实时汇率与基准源) -->
     <div
       class="pt-3 border-t border-[#E5E5EA] transition-all"
-      :class="store.isSidebarCollapsed ? 'px-0 flex flex-col items-center' : 'px-2'"
+      :class="store.isSidebarCollapsed ? 'px-0 flex flex-col items-center' : 'px-0.5'"
     >
       <div
         v-if="!store.isSidebarCollapsed"
-        class="bg-[#F2F2F7] rounded-xl p-2.5 text-[11px] font-mono space-y-1 border border-[#E5E5EA]"
+        @click="store.activeTab = 'settings'"
+        class="bg-[#F2F2F7]/70 hover:bg-[#F2F2F7] border border-[#E5E5EA] hover:border-[#0071E3]/30 rounded-xl p-2.5 space-y-2 transition-all cursor-pointer group"
+        title="点击前往系统设置查看与配置汇率和同步源"
       >
-        <div class="flex items-center justify-between text-[#86868B]">
-          <span>models.dev 基准</span>
-          <span class="text-[#34C759] font-bold">100% 实时</span>
+        <!-- 第一行：基准数据源 + 状态胶囊 -->
+        <div class="flex items-center justify-between min-w-0">
+          <div class="flex items-center space-x-1.5 min-w-0 text-xs font-medium text-[#48484A]">
+            <span class="w-2 h-2 rounded-full bg-[#34C759] flex-shrink-0 animate-pulse"></span>
+            <span class="truncate font-sans font-semibold">models.dev</span>
+          </div>
+          <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#E8F8EE] text-[#34C759] border border-[#34C759]/20 flex-shrink-0 whitespace-nowrap">
+            基准实时
+          </span>
         </div>
-        <div class="flex items-center justify-between text-[#6E6E73]">
-          <span>当前换算汇率</span>
-          <span class="text-[#0071E3] font-bold">{{ store.syncStatus?.usd_to_cny_rate || 7.25 }}</span>
+
+        <!-- 第二行：参考汇率 -->
+        <div class="flex items-center justify-between min-w-0 text-[11px]">
+          <span class="text-[#86868B] whitespace-nowrap font-sans">参考汇率 (USD)</span>
+          <span class="text-[#0071E3] font-bold font-mono whitespace-nowrap group-hover:scale-105 transition-transform">
+            ¥ {{ Number(store.syncStatus?.usd_to_cny_rate || store.usdToCnyRate || 7.25).toFixed(4) }}
+          </span>
         </div>
-        <div class="text-[10px] text-[#86868B] truncate pt-0.5">
-          SQLite 本地大数据就绪
+
+        <!-- 第三行：SQLite 引擎状态 -->
+        <div class="flex items-center justify-between text-[10px] text-[#86868B] pt-1.5 border-t border-[#E5E5EA]/70">
+          <span class="whitespace-nowrap font-sans">SQLite 本地存储</span>
+          <span class="font-mono text-[#6E6E73] font-medium flex-shrink-0">WAL 就绪</span>
         </div>
       </div>
 
       <!-- 收起状态下的微小指示图标 -->
-      <div v-else class="flex flex-col items-center space-y-1 group relative cursor-pointer">
-        <span class="w-2 h-2 rounded-full bg-[#34C759]"></span>
+      <div
+        v-else
+        @click="store.activeTab = 'settings'"
+        class="flex flex-col items-center space-y-1 group relative cursor-pointer py-1"
+        title="点击前往系统设置"
+      >
+        <div class="relative flex items-center justify-center">
+          <span class="w-2.5 h-2.5 rounded-full bg-[#34C759]"></span>
+          <span class="absolute w-4 h-4 rounded-full bg-[#34C759]/25 animate-ping"></span>
+        </div>
         <span class="text-[9px] font-mono text-[#86868B]">实时</span>
 
         <div
-          class="absolute left-full ml-3 px-3 py-2 bg-[#1D1D1F] text-white text-xs rounded-xl shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-150 z-50 border border-white/10 space-y-1"
+          class="absolute left-full ml-3 px-3 py-2.5 bg-[#1D1D1F] text-white text-xs rounded-xl shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-150 z-50 border border-white/10 space-y-1.5"
         >
-          <div class="font-bold flex items-center space-x-1.5">
+          <div class="font-bold flex items-center space-x-1.5 text-white">
             <span class="w-2 h-2 rounded-full bg-[#34C759]"></span>
-            <span>核心引擎正常运行</span>
+            <span>数据引擎与基准正常</span>
           </div>
-          <div class="text-[11px] font-mono text-white/80">
-            当前基准汇率:
-            <strong class="text-[#0071E3]">{{ store.syncStatus?.usd_to_cny_rate || 7.25 }} CNY/USD</strong>
+          <div class="text-[11px] font-mono text-white/90 flex items-center justify-between space-x-3">
+            <span class="text-white/60">USD/CNY 汇率:</span>
+            <strong class="text-[#38ACFF]">¥ {{ Number(store.syncStatus?.usd_to_cny_rate || store.usdToCnyRate || 7.25).toFixed(4) }}</strong>
           </div>
-          <div class="text-[10px] text-[#86868B]">
-            数据源: models.dev (100% 实时)
+          <div class="text-[10px] text-white/60 flex items-center justify-between space-x-3">
+            <span>基准数据源:</span>
+            <span class="text-[#34C759] font-medium">models.dev (100% 实时)</span>
+          </div>
+          <div class="text-[10px] text-white/40 pt-1 border-t border-white/10">
+            点击前往系统设置调整汇率与配置
           </div>
           <div class="absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent border-r-[#1D1D1F]"></div>
         </div>
