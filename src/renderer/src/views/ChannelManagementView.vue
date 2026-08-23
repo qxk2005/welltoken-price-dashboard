@@ -509,8 +509,8 @@
           </div>
         </div>
 
-        <!-- 2. 四维 Fact Grid 指标看板 (参考 models.dev/providers/bailing/) -->
-        <div class="grid grid-cols-4 gap-3 pt-2 border-t border-[#E5E5EA]">
+        <!-- 2. 五维 Fact Grid 指标看板 (提供可用模型数 / SDK 驱动 / 环境变量 / 实测评分 / 数据更新时间) -->
+        <div class="grid grid-cols-5 gap-3 pt-2 border-t border-[#E5E5EA]">
           <div class="p-2.5 rounded-xl bg-[#F9F9FB] border border-[#E5E5EA]">
             <div class="text-[10px] text-[#86868B] font-medium uppercase tracking-wider">提供可用模型数</div>
             <div class="text-lg font-bold font-mono text-[#0071E3] mt-0.5">
@@ -519,13 +519,13 @@
           </div>
           <div class="p-2.5 rounded-xl bg-[#F9F9FB] border border-[#E5E5EA]">
             <div class="text-[10px] text-[#86868B] font-medium uppercase tracking-wider">SDK 兼容驱动 (Package)</div>
-            <div class="text-xs font-bold font-mono text-[#1D1D1F] mt-1 truncate">
+            <div class="text-xs font-bold font-mono text-[#1D1D1F] mt-1 truncate" title="@ai-sdk/openai-compatible">
               @ai-sdk/openai-compatible
             </div>
           </div>
           <div class="p-2.5 rounded-xl bg-[#F9F9FB] border border-[#E5E5EA]">
             <div class="text-[10px] text-[#86868B] font-medium uppercase tracking-wider">环境变量标识 (Env Key)</div>
-            <div class="text-xs font-bold font-mono text-[#AF52DE] mt-1 truncate">
+            <div class="text-xs font-bold font-mono text-[#AF52DE] mt-1 truncate" :title="selectedProvider.env_vars || `${selectedProvider.name.toUpperCase().replace(/[^A-Z]/g, '')}_API_KEY`">
               {{ selectedProvider.env_vars || `${selectedProvider.name.toUpperCase().replace(/[^A-Z]/g, '')}_API_KEY` }}
             </div>
           </div>
@@ -543,48 +543,227 @@
               </ScoreBreakdownTooltip>
             </div>
           </div>
+          <!-- 5. 数据最后更新时间 (新增方块区域) -->
+          <div class="p-2.5 rounded-xl bg-[#F9F9FB] border border-[#E5E5EA]">
+            <div class="text-[10px] text-[#86868B] font-medium uppercase tracking-wider flex items-center justify-between">
+              <span>数据最后更新</span>
+              <span
+                class="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-full border shadow-2xs"
+                :class="getChannelUpdateSourceType(selectedProvider) === 'm'
+                  ? 'bg-[#E8F2FD] text-[#0071E3] border-[#CCE4FB]'
+                  : 'bg-[#F3E8FD] text-[#8E24AA] border-[#E1BEE7]'"
+                :title="getChannelUpdateSourceType(selectedProvider) === 'm' ? '数据源: models.dev 官方平台' : '数据源: 自定义渠道同步'"
+              >
+                {{ getChannelUpdateSourceType(selectedProvider) }}
+              </span>
+            </div>
+            <div class="mt-1 flex items-baseline space-x-1.5" :title="getChannelFullUpdateTime(selectedProvider)">
+              <span class="text-sm font-bold font-mono text-[#1D1D1F]">
+                {{ getChannelRelativeUpdateTime(selectedProvider) }}
+              </span>
+              <span class="text-[10px] text-[#86868B] font-mono truncate">
+                {{ getChannelShortUpdateTime(selectedProvider) }}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- 3. 该供应商所能提供的完整模型与价格数据表格 (对标 models.dev/providers/bailing/) -->
+      <!-- 3. 该供应商所能提供的完整模型与价格数据表格 (支持 3 种视图模式切换) -->
       <div class="flex-1 flex flex-col bg-[#FFFFFF] rounded-2xl border border-[#E5E5EA] p-3 shadow-[0_1px_3px_rgba(0,0,0,0.02)] overflow-hidden min-h-0">
-        <div class="flex flex-col space-y-2 pb-2 border-b border-[#E5E5EA]">
-          <div class="flex items-center justify-between">
+        <!-- 头部导航栏：标题 + 匹配数 + 三段式视图选择器 + 价格分组胶囊 + 搜索框 -->
+        <div class="flex items-center justify-between pb-2.5 border-b border-[#E5E5EA]">
+          <div class="flex items-center space-x-2.5 flex-wrap gap-y-1">
             <span class="text-xs font-bold text-[#1D1D1F]">
               📋 旗下可用模型规格与定价清单 (共 {{ providerModelsList.length }} 款)
             </span>
-            <div class="w-60 relative">
+            <span
+              v-if="filteredProviderModels.length !== providerModelsList.length"
+              class="text-[11px] font-normal text-[#6E6E73] bg-[#F2F2F7] px-2 py-0.5 rounded-full border border-[#E5E5EA]"
+            >
+              已匹配 <strong class="text-[#0071E3] font-mono">{{ filteredProviderModels.length }}</strong> 款
+            </span>
+
+            <!-- 视图模式分段选择器 (Segmented Control) -->
+            <div class="inline-flex p-0.5 rounded-xl bg-[#E5E5EA]/70 border border-[#D1D1D6]/60 text-xs select-none">
+              <button
+                @click="detailViewMode = 'flat'"
+                class="px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center space-x-1"
+                :class="detailViewMode === 'flat' ? 'bg-[#FFFFFF] text-[#0071E3] font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+              >
+                <span>📄 平铺清单</span>
+              </button>
+              <button
+                @click="detailViewMode = 'by-group'"
+                class="px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center space-x-1"
+                :class="detailViewMode === 'by-group' ? 'bg-[#FFFFFF] text-[#AF52DE] font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+              >
+                <span>🎯 按价格分组</span>
+              </button>
+              <button
+                @click="detailViewMode = 'by-model'"
+                class="px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center space-x-1"
+                :class="detailViewMode === 'by-model' ? 'bg-[#FFFFFF] text-[#FF9500] font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+              >
+                <span>🤖 按模型对比</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 右侧组合工具条：分组下拉胶囊 + 搜索框 -->
+          <div class="flex items-center space-x-2">
+            <!-- 分组筛选 Apple 胶囊下拉选择器 (当渠道包含价格分组时展示) -->
+            <div v-if="detailAvailableGroups.length > 0" class="relative" ref="groupFilterContainerRef">
+              <button
+                @click.stop="toggleGroupFilterPopover"
+                class="px-2.5 py-1 rounded-xl border text-xs font-medium transition-all flex items-center space-x-1.5 cursor-pointer select-none shadow-2xs group"
+                :class="isGroupFilterActive
+                  ? 'bg-[#F3E8FD] border-[#AF52DE] text-[#8E24AA] font-bold shadow-xs'
+                  : 'bg-[#FFFFFF] hover:bg-[#F2F2F7] border-[#E5E5EA] text-[#6E6E73] hover:text-[#1D1D1F]'"
+                :title="`当前价格分组: ${groupFilterSummaryLabel}`"
+              >
+                <span>🎯</span>
+                <span class="max-w-[130px] truncate">{{ groupFilterSummaryLabel }}</span>
+                <span class="text-[10px] opacity-60">▾</span>
+                <span
+                  v-if="isGroupFilterActive"
+                  @click.stop="clearGroupFilter"
+                  class="hover:text-[#FF3B30] ml-0.5 cursor-pointer font-bold"
+                  title="清空分组筛选"
+                >✕</span>
+              </button>
+
+              <!-- 下拉弹层 Popover -->
+              <div
+                v-if="isGroupFilterOpen"
+                @click.stop
+                class="absolute right-0 top-9 w-64 bg-[#FFFFFF] border border-[#E5E5EA] rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.14)] z-30 p-2.5 animate-fade-in text-xs space-y-2"
+              >
+                <!-- 弹层头部与快捷全选/清空 -->
+                <div class="flex items-center justify-between pb-1.5 border-b border-[#E5E5EA]">
+                  <div class="flex items-center space-x-1 text-[11px] font-bold text-[#1D1D1F]">
+                    <span>🎯 价格分组 ({{ detailAvailableGroups.length }})</span>
+                  </div>
+                  <div class="flex items-center space-x-2 text-[11px]">
+                    <button
+                      @click="selectAllGroups"
+                      class="text-[#0071E3] hover:underline cursor-pointer font-medium"
+                    >
+                      全选
+                    </button>
+                    <span class="text-[#D1D1D6]">|</span>
+                    <button
+                      @click="clearGroupFilter"
+                      class="text-[#FF3B30] hover:underline cursor-pointer font-medium"
+                    >
+                      清空
+                    </button>
+                  </div>
+                </div>
+
+                <!-- 分组搜索框 (分组多于 4 个时展示) -->
+                <div v-if="detailAvailableGroups.length > 4" class="relative">
+                  <input
+                    v-model="groupSearchQuery"
+                    type="text"
+                    placeholder="搜索分组名称..."
+                    class="w-full bg-[#F2F2F7] border border-[#E5E5EA] rounded-lg px-2 py-1 text-[11px] text-[#1D1D1F] placeholder-[#86868B] focus:bg-white focus:border-[#AF52DE] focus:outline-none transition-all font-mono"
+                  />
+                  <span v-if="groupSearchQuery" @click="groupSearchQuery = ''" class="absolute right-2 top-1 text-[#86868B] hover:text-[#1D1D1F] cursor-pointer text-xs">✕</span>
+                </div>
+
+                <!-- 分组列表 -->
+                <div class="max-h-56 overflow-y-auto space-y-0.5 pr-0.5">
+                  <!-- 全部分组选项 -->
+                  <div
+                    @click="toggleAllGroupsOption"
+                    class="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-[#F2F2F7] cursor-pointer transition-colors"
+                    :class="isAllGroupsSelected ? 'bg-[#E8F2FD] text-[#0071E3] font-bold' : 'text-[#1D1D1F]'"
+                  >
+                    <div class="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        :checked="isAllGroupsSelected"
+                        class="rounded text-[#0071E3] focus:ring-0 cursor-pointer w-3.5 h-3.5"
+                        @click.stop="toggleAllGroupsOption"
+                      />
+                      <span>全部分组</span>
+                    </div>
+                    <span class="text-[10px] font-mono opacity-70">({{ providerModelsList.length }})</span>
+                  </div>
+
+                  <!-- 各独立分组项 -->
+                  <div
+                    v-for="g in searchedAvailableGroups"
+                    :key="`grp-${g.name}`"
+                    @click="toggleGroupSelection(g.name)"
+                    class="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-[#F3E8FD]/50 cursor-pointer transition-colors font-mono"
+                    :class="selectedGroupNames.includes(g.name) ? 'bg-[#F3E8FD] text-[#8E24AA] font-bold' : 'text-[#1D1D1F]'"
+                  >
+                    <div class="flex items-center space-x-2 truncate">
+                      <input
+                        type="checkbox"
+                        :checked="selectedGroupNames.includes(g.name)"
+                        class="rounded text-[#AF52DE] focus:ring-0 cursor-pointer w-3.5 h-3.5 flex-shrink-0"
+                        @click.stop="toggleGroupSelection(g.name)"
+                      />
+                      <span class="truncate">{{ g.name }}</span>
+                    </div>
+                    <span class="text-[10px] font-mono text-[#86868B] flex-shrink-0 ml-1.5 bg-[#FFFFFF] px-1.5 py-0.2 rounded-full border border-[#E5E5EA]">
+                      {{ g.count }}款
+                    </span>
+                  </div>
+
+                  <div v-if="searchedAvailableGroups.length === 0" class="py-4 text-center text-[11px] text-[#86868B]">
+                    未找到匹配分组
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 搜索框 -->
+            <div class="w-56 relative">
               <input
                 v-model="providerModelSearchQuery"
                 type="text"
                 placeholder="搜索模型名称/标识..."
-                class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-lg px-2.5 py-1 text-xs text-[#1D1D1F] placeholder-[#86868B] focus:outline-none transition-all font-sans"
+                class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-2.5 py-1 text-xs text-[#1D1D1F] placeholder-[#86868B] focus:outline-none transition-all font-sans"
               />
+              <span v-if="providerModelSearchQuery" @click="providerModelSearchQuery = ''" class="absolute right-2 top-1 text-[#86868B] hover:text-[#1D1D1F] cursor-pointer text-xs">✕</span>
             </div>
           </div>
+        </div>
 
-          <!-- 分组筛选胶囊 (当包含多分组定价时展示) -->
-          <div v-if="detailAvailableGroups.length > 1" class="flex items-center space-x-1.5 overflow-x-auto py-0.5">
-            <span class="text-[11px] text-[#86868B] font-medium mr-1">分组过滤:</span>
+        <!-- 聚合视图下的批量折叠/展开快捷按钮 -->
+        <div v-if="detailViewMode !== 'flat' && filteredProviderModels.length > 0" class="flex items-center justify-between py-1.5 px-3 bg-[#F9F9FB] rounded-xl border border-[#E5E5EA] text-xs mt-2 mb-1 flex-shrink-0">
+          <div class="text-[11px] text-[#6E6E73] flex items-center space-x-1.5">
+            <span v-if="detailViewMode === 'by-group'">
+              📦 共聚合 <strong class="text-[#AF52DE] font-mono font-bold">{{ groupedByPricingGroup.length }}</strong> 个价格分组
+            </span>
+            <span v-else-if="detailViewMode === 'by-model'">
+              🤖 共聚合 <strong class="text-[#FF9500] font-mono font-bold">{{ groupedByModel.length }}</strong> 款标准模型（跨组比价）
+            </span>
+          </div>
+          <div class="flex items-center space-x-2 text-[11px]">
             <button
-              @click="detailSelectedGroup = 'all'"
-              class="px-2.5 py-0.5 rounded-lg text-xs font-medium transition-all"
-              :class="detailSelectedGroup === 'all' ? 'bg-[#0071E3] text-white shadow-2xs' : 'bg-[#F2F2F7] text-[#6E6E73] hover:bg-[#E5E5EA]'"
+              @click="expandAllGroups"
+              class="text-[#0071E3] hover:underline cursor-pointer font-medium flex items-center space-x-0.5"
             >
-              全部 ({{ providerModelsList.length }})
+              <span>▾</span>
+              <span>全部展开</span>
             </button>
+            <span class="text-[#D1D1D6]">|</span>
             <button
-              v-for="g in detailAvailableGroups"
-              :key="g.name"
-              @click="detailSelectedGroup = g.name"
-              class="px-2.5 py-0.5 rounded-lg text-xs font-medium font-mono transition-all flex items-center space-x-1"
-              :class="detailSelectedGroup === g.name ? 'bg-[#AF52DE] text-white shadow-2xs' : 'bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] hover:bg-[#EBD5FA]'"
+              @click="collapseAllGroups"
+              class="text-[#6E6E73] hover:underline cursor-pointer font-medium flex items-center space-x-0.5"
             >
-              <span>🎯 {{ g.name }} ({{ g.count }})</span>
+              <span>▸</span>
+              <span>全部折叠</span>
             </button>
           </div>
         </div>
 
+        <!-- 内容视图区域 -->
         <div class="flex-1 overflow-x-auto overflow-y-auto pr-1 mt-1 relative">
           <div v-if="isDetailLoading" class="absolute inset-0 bg-white/70 backdrop-blur-xs flex items-center justify-center z-10">
             <div class="text-xs text-[#0071E3] font-medium flex items-center space-x-2">
@@ -593,7 +772,8 @@
             </div>
           </div>
 
-          <table class="w-full text-left text-xs border-collapse min-w-[980px]">
+          <!-- 模式 1：标准平铺清单表格 (detailViewMode === 'flat') -->
+          <table v-if="detailViewMode === 'flat'" class="w-full text-left text-xs border-collapse min-w-[980px]">
             <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans select-none">
               <tr>
                 <th @click="toggleDetailSort('model_name')" class="py-2.5 px-3 cursor-pointer hover:text-[#0071E3] transition-colors">
@@ -725,6 +905,221 @@
               </tr>
             </tbody>
           </table>
+
+          <!-- 模式 2：按「价格分组」聚合展示折叠卡片 (detailViewMode === 'by-group') -->
+          <div v-else-if="detailViewMode === 'by-group'" class="space-y-3 pb-3">
+            <div
+              v-for="sec in groupedByPricingGroup"
+              :key="`sec-grp-${sec.groupName}`"
+              class="bg-[#FFFFFF] border border-[#E5E5EA] rounded-2xl shadow-xs overflow-hidden transition-all"
+            >
+              <!-- 分组卡片头部 -->
+              <div
+                @click="toggleCollapse(sec.groupName)"
+                class="flex items-center justify-between p-3 bg-[#F9F9FB] hover:bg-[#F2F2F7] cursor-pointer transition-colors border-b border-[#E5E5EA] select-none"
+              >
+                <div class="flex items-center space-x-2.5">
+                  <span class="px-2.5 py-0.5 rounded-lg bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-xs font-mono font-bold flex items-center space-x-1 shadow-2xs">
+                    <span>🎯</span>
+                    <span>{{ sec.groupName }}</span>
+                  </span>
+                  <span class="text-xs font-bold text-[#1D1D1F]">
+                    包含 <strong class="text-[#0071E3] font-mono">{{ sec.models.length }}</strong> 款模型
+                  </span>
+                </div>
+
+                <div class="flex items-center space-x-3 text-xs">
+                  <div class="flex items-center space-x-2 text-[11px] text-[#6E6E73] font-mono">
+                    <span>输入单价: <strong class="text-[#34C759] font-bold">{{ store.formatCurrency(sec.minInputPrice) }} ~ {{ store.formatCurrency(sec.maxInputPrice) }}</strong></span>
+                    <span>•</span>
+                    <span>平均: <strong class="text-[#0071E3]">{{ sec.avgTps }} TPS</strong></span>
+                  </div>
+                  <button class="text-[#86868B] text-xs font-bold transition-transform duration-150" :class="{'rotate-180': !collapsedGroupKeys.has(sec.groupName)}">
+                    ▾
+                  </button>
+                </div>
+              </div>
+
+              <!-- 分组卡片内部模型列表 -->
+              <div v-if="!collapsedGroupKeys.has(sec.groupName)" class="p-2 overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse min-w-[900px]">
+                  <thead class="text-[11px] text-[#6E6E73] bg-[#FFFFFF] border-b border-[#E5E5EA] font-sans select-none">
+                    <tr>
+                      <th class="py-2 px-2.5">模型名称 / 标准标识</th>
+                      <th class="py-2 px-2.5 text-right">上下文 (Context)</th>
+                      <th class="py-2 px-2.5 text-right">最大输出 (Output)</th>
+                      <th class="py-2 px-2.5 text-right">输入单价 ({{ store.currency }})</th>
+                      <th class="py-2 px-2.5 text-right">输出单价 ({{ store.currency }})</th>
+                      <th class="py-2 px-2.5 text-center">深度推理</th>
+                      <th class="py-2 px-2.5 text-center">工具调用</th>
+                      <th class="py-2 px-2.5 text-center">实测 TPS</th>
+                      <th class="py-2 px-2.5 text-center">快捷操作</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-[#E5E5EA]/60 font-sans">
+                    <tr v-for="item in sec.models" :key="item.id || item.model_id" class="hover:bg-[#F5F5F7] transition-colors">
+                      <td class="py-2 px-2.5">
+                        <div class="font-bold text-[#1D1D1F] text-xs">{{ item.model_name }}</div>
+                        <div class="text-[11px] font-mono text-[#0071E3] mt-0.5">{{ item.model_id }}</div>
+                      </td>
+                      <td class="py-2 px-2.5 text-right font-mono text-[#1D1D1F]">{{ formatContextWindow(item.context_window) }}</td>
+                      <td class="py-2 px-2.5 text-right font-mono text-[#6E6E73]">{{ item.max_output ? Number(item.max_output).toLocaleString() : '8,192' }}</td>
+                      <td class="py-2 px-2.5 text-right font-mono font-bold text-[#34C759]">{{ store.formatCurrency(item.calculated_input_usd) }}</td>
+                      <td class="py-2 px-2.5 text-right font-mono text-[#1D1D1F]">{{ store.formatCurrency(item.calculated_output_usd) }}</td>
+                      <td class="py-2 px-2.5 text-center font-mono">
+                        <span v-if="isReasoningModel(item.model_id)" class="text-[#34C759] font-bold">是</span>
+                        <span v-else class="text-[#86868B]">-</span>
+                      </td>
+                      <td class="py-2 px-2.5 text-center font-mono"><span class="text-[#34C759] font-bold">是</span></td>
+                      <td class="py-2 px-2.5 text-center font-mono text-[#0071E3] font-bold">{{ item.last_tested_tps }} tps</td>
+                      <td class="py-2 px-2.5 text-center whitespace-nowrap">
+                        <div class="flex items-center justify-center space-x-1">
+                          <button @click="goToMatrixWithModel(item.model_id)" class="px-2 py-0.5 rounded bg-[#F2F2F7] hover:bg-[#E8F2FD] text-[#0071E3] border border-[#E5E5EA] text-[10px] font-medium" title="去全网比价">比价</button>
+                          <button @click="goToSpeedTestWithModel(item.model_id)" class="px-2 py-0.5 rounded bg-[#F2F2F7] hover:bg-[#EAF8EE] text-[#34C759] border border-[#E5E5EA] text-[10px] font-medium" title="一键测速">测速</button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div v-if="!isDetailLoading && groupedByPricingGroup.length === 0" class="py-12 text-center text-xs text-[#86868B]">
+              暂无匹配的价格分组
+            </div>
+          </div>
+
+          <!-- 模式 3：按「模型名称」聚合跨分组比价展示折叠卡片 (detailViewMode === 'by-model') -->
+          <div v-else-if="detailViewMode === 'by-model'" class="space-y-3 pb-3">
+            <div
+              v-for="sec in groupedByModel"
+              :key="`sec-mdl-${sec.modelKey}`"
+              class="bg-[#FFFFFF] border border-[#E5E5EA] rounded-2xl shadow-xs overflow-hidden transition-all"
+            >
+              <!-- 模型卡片头部 -->
+              <div
+                @click="toggleCollapse(sec.modelKey)"
+                class="flex items-center justify-between p-3 bg-[#F9F9FB] hover:bg-[#F2F2F7] cursor-pointer transition-colors border-b border-[#E5E5EA] select-none"
+              >
+                <div class="flex items-center space-x-2.5">
+                  <span class="text-xs font-bold text-[#1D1D1F] flex items-center space-x-1.5">
+                    <span>🤖</span>
+                    <span>{{ sec.modelName }}</span>
+                  </span>
+                  <code class="px-2 py-0.5 rounded bg-[#F2F2F7] text-[#0071E3] font-mono text-[11px] border border-[#E5E5EA]">
+                    {{ sec.modelId }}
+                  </code>
+                  <span
+                    class="px-2 py-0.2 rounded-full text-[10px] font-bold border"
+                    :class="sec.groupCount > 1 ? 'bg-[#FFF8E1] text-[#B78103] border-[#FFE082]' : 'bg-[#F2F2F7] text-[#6E6E73] border-[#E5E5EA]'"
+                  >
+                    覆盖 {{ sec.groupCount }} 个分组
+                  </span>
+                </div>
+
+                <div class="flex items-center space-x-3 text-xs">
+                  <div class="flex items-center space-x-2 font-mono text-[11px]">
+                    <span class="text-[#6E6E73]">
+                      最低起步: <strong class="text-[#34C759] font-bold text-xs">{{ store.formatCurrency(sec.minInputPrice) }}</strong>
+                    </span>
+                    <span v-if="sec.groupCount > 1 && sec.maxInputPrice > sec.minInputPrice" class="text-[#86868B]">
+                      (最高: {{ store.formatCurrency(sec.maxInputPrice) }})
+                    </span>
+                  </div>
+                  <button class="text-[#86868B] text-xs font-bold transition-transform duration-150" :class="{'rotate-180': !collapsedGroupKeys.has(sec.modelKey)}">
+                    ▾
+                  </button>
+                </div>
+              </div>
+
+              <!-- 模型卡片内部跨分组对比表格 -->
+              <div v-if="!collapsedGroupKeys.has(sec.modelKey)" class="p-2 overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse min-w-[850px]">
+                  <thead class="text-[11px] text-[#6E6E73] bg-[#FFFFFF] border-b border-[#E5E5EA] font-sans select-none">
+                    <tr>
+                      <th class="py-2 px-2.5">所属分组</th>
+                      <th class="py-2 px-2.5 text-right">输入单价 ({{ store.currency }})</th>
+                      <th class="py-2 px-2.5 text-right">输出单价 ({{ store.currency }})</th>
+                      <th class="py-2 px-2.5 text-center">价差 / 溢价分析</th>
+                      <th class="py-2 px-2.5 text-right">上下文 / 最大输出</th>
+                      <th class="py-2 px-2.5 text-center">实测 TPS</th>
+                      <th class="py-2 px-2.5 text-center">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-[#E5E5EA]/60 font-sans">
+                    <tr
+                      v-for="item in sec.items"
+                      :key="item.id || `${item.model_id}-${item.group_name}`"
+                      class="hover:bg-[#F5F5F7] transition-colors"
+                      :class="{'bg-[#EAF8EE]/40': getModelGroupPriceMeta(item, sec.items).isLowest}"
+                    >
+                      <!-- 所属分组徽章 -->
+                      <td class="py-2 px-2.5">
+                        <span class="px-2 py-0.5 rounded bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[10px] font-mono font-bold shadow-2xs">
+                          🎯 {{ item.group_name || '默认分组' }}
+                        </span>
+                      </td>
+
+                      <!-- 输入单价 (高亮最低价) -->
+                      <td class="py-2 px-2.5 text-right font-mono font-bold">
+                        <span :class="getModelGroupPriceMeta(item, sec.items).isLowest ? 'text-[#34C759]' : 'text-[#1D1D1F]'">
+                          {{ store.formatCurrency(item.calculated_input_usd) }}
+                        </span>
+                      </td>
+
+                      <!-- 输出单价 -->
+                      <td class="py-2 px-2.5 text-right font-mono text-[#1D1D1F]">
+                        {{ store.formatCurrency(item.calculated_output_usd) }}
+                      </td>
+
+                      <!-- 价差 / 溢价分析徽章 -->
+                      <td class="py-2 px-2.5 text-center">
+                        <span
+                          v-if="getModelGroupPriceMeta(item, sec.items).isLowest"
+                          class="px-2 py-0.5 rounded-full bg-[#EAF8EE] text-[#28A745] border border-[#C3E6CB] text-[10px] font-bold shadow-2xs inline-flex items-center space-x-0.5"
+                        >
+                          <span>🏆</span>
+                          <span>最低价 (最优)</span>
+                        </span>
+                        <span
+                          v-else-if="getModelGroupPriceMeta(item, sec.items).diffPercentText"
+                          class="px-2 py-0.5 rounded-full bg-[#FFF3E0] text-[#E65100] border border-[#FFE0B2] text-[10px] font-mono font-medium shadow-2xs inline-flex items-center space-x-0.5"
+                          :title="`相较该模型最低价高出 ${getModelGroupPriceMeta(item, sec.items).diffText}`"
+                        >
+                          <span>高出 {{ getModelGroupPriceMeta(item, sec.items).diffPercentText }}</span>
+                        </span>
+                        <span v-else class="text-[#86868B] text-[10px] font-mono">
+                          标准价
+                        </span>
+                      </td>
+
+                      <!-- 上下文 / 输出 -->
+                      <td class="py-2 px-2.5 text-right font-mono text-[11px] text-[#6E6E73]">
+                        {{ formatContextWindow(item.context_window) }} / {{ item.max_output ? Number(item.max_output).toLocaleString() : '8K' }}
+                      </td>
+
+                      <!-- 实测 TPS -->
+                      <td class="py-2 px-2.5 text-center font-mono text-[#0071E3] font-bold">
+                        {{ item.last_tested_tps }} tps
+                      </td>
+
+                      <!-- 操作 -->
+                      <td class="py-2 px-2.5 text-center whitespace-nowrap">
+                        <div class="flex items-center justify-center space-x-1">
+                          <button @click="goToMatrixWithModel(item.model_id)" class="px-2 py-0.5 rounded bg-[#F2F2F7] hover:bg-[#E8F2FD] text-[#0071E3] border border-[#E5E5EA] text-[10px] font-medium" title="去全网比价">比价</button>
+                          <button @click="goToSpeedTestWithModel(item.model_id)" class="px-2 py-0.5 rounded bg-[#F2F2F7] hover:bg-[#EAF8EE] text-[#34C759] border border-[#E5E5EA] text-[10px] font-medium" title="一键测速">测速</button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div v-if="!isDetailLoading && groupedByModel.length === 0" class="py-12 text-center text-xs text-[#86868B]">
+              暂无匹配的模型数据
+            </div>
+          </div>
         </div>
       </div>
     </template>
@@ -866,23 +1261,37 @@ const toggleModelActionDropdown = (modelId: any) => {
   }
 }
 
-const closeAllDropdowns = () => {
+const closeAllDropdowns = (e?: MouseEvent) => {
   activeActionDropdownSiteId.value = null
   activeActionDropdownModelId.value = null
+  if (isGroupFilterOpen.value && groupFilterContainerRef.value && e && !groupFilterContainerRef.value.contains(e.target as Node)) {
+    isGroupFilterOpen.value = false
+  }
 }
 
 const checkAndApplyTargetChannel = async () => {
-  if (store.targetChannelSiteName) {
-    const target = store.targetChannelSiteName.toLowerCase().trim()
-    store.targetChannelSiteName = null
+  const hashQuery = window.location.hash.includes('?') ? window.location.hash.split('?')[1] : ''
+  const urlParams = new URLSearchParams(window.location.search ? window.location.search.slice(1) : hashQuery)
+  const queryChannel = urlParams.get('channel') || urlParams.get('site')
+
+  const target = (store.targetChannelSiteName || queryChannel || '').toLowerCase().trim()
+  store.targetChannelSiteName = null
+  if (target) {
     if (store.relaySites.length === 0) {
       await store.fetchRelaySites()
     }
     const site = store.relaySites.find(
-      (s) => s.name.toLowerCase() === target || (s.provider_id && s.provider_id.toLowerCase() === target)
+      (s) =>
+        s.name.toLowerCase() === target ||
+        (s.provider_id && s.provider_id.toLowerCase() === target) ||
+        String(s.id) === target
     )
     if (site) {
       await selectProvider(site)
+      const queryView = urlParams.get('view')
+      if (queryView === 'by-group' || queryView === 'by-model' || queryView === 'flat') {
+        detailViewMode.value = queryView
+      }
     }
   }
 }
@@ -1143,7 +1552,11 @@ const toggleSiteActive = async (site: RelaySite) => {
 const selectProvider = async (site: RelaySite) => {
   selectedProvider.value = site
   providerModelSearchQuery.value = ''
-  detailSelectedGroup.value = 'all'
+  selectedGroupNames.value = []
+  groupSearchQuery.value = ''
+  isGroupFilterOpen.value = false
+  detailViewMode.value = 'flat'
+  collapsedGroupKeys.value.clear()
   providerModelsList.value = []
   isDetailLoading.value = true
 
@@ -1160,8 +1573,148 @@ const selectProvider = async (site: RelaySite) => {
   }
 }
 
-// 详情页多分组筛选支持
-const detailSelectedGroup = ref<string>('all')
+// 视图模式切换与聚合折叠状态
+type DetailViewMode = 'flat' | 'by-group' | 'by-model'
+const detailViewMode = ref<DetailViewMode>('flat')
+
+// 折叠状态集合 (存储已折叠的 groupName 或 modelKey)
+const collapsedGroupKeys = ref<Set<string>>(new Set())
+
+const toggleCollapse = (key: string) => {
+  if (collapsedGroupKeys.value.has(key)) {
+    collapsedGroupKeys.value.delete(key)
+  } else {
+    collapsedGroupKeys.value.add(key)
+  }
+}
+
+const expandAllGroups = () => {
+  collapsedGroupKeys.value.clear()
+}
+
+const collapseAllGroups = () => {
+  if (detailViewMode.value === 'by-group') {
+    collapsedGroupKeys.value = new Set(groupedByPricingGroup.value.map((s) => s.groupName))
+  } else if (detailViewMode.value === 'by-model') {
+    collapsedGroupKeys.value = new Set(groupedByModel.value.map((s) => s.modelKey))
+  }
+}
+
+// 视图 2：按价格分组聚合数据结构
+interface PricingGroupSection {
+  groupName: string
+  models: any[]
+  minInputPrice: number
+  maxInputPrice: number
+  avgTps: number
+}
+
+const groupedByPricingGroup = computed<PricingGroupSection[]>(() => {
+  const map = new Map<string, any[]>()
+  for (const item of filteredProviderModels.value) {
+    const gName = item.group_name || '默认分组 (default)'
+    if (!map.has(gName)) {
+      map.set(gName, [])
+    }
+    map.get(gName)!.push(item)
+  }
+
+  const sections: PricingGroupSection[] = []
+  for (const [groupName, models] of map.entries()) {
+    const inputPrices = models.map((m) => m.calculated_input_usd).filter((p) => typeof p === 'number')
+    const minInput = inputPrices.length > 0 ? Math.min(...inputPrices) : 0
+    const maxInput = inputPrices.length > 0 ? Math.max(...inputPrices) : 0
+    const tpsList = models.map((m) => m.last_tested_tps || 50)
+    const avgTps = tpsList.length > 0 ? Math.round(tpsList.reduce((a, b) => a + b, 0) / tpsList.length) : 50
+
+    sections.push({
+      groupName,
+      models,
+      minInputPrice: minInput,
+      maxInputPrice: maxInput,
+      avgTps
+    })
+  }
+
+  return sections.sort((a, b) => b.models.length - a.models.length || a.groupName.localeCompare(b.groupName))
+})
+
+// 视图 3：按模型名称聚合跨组比价数据结构
+interface ModelGroupSection {
+  modelKey: string
+  modelName: string
+  modelId: string
+  items: any[]
+  minInputPrice: number
+  maxInputPrice: number
+  groupCount: number
+}
+
+const groupedByModel = computed<ModelGroupSection[]>(() => {
+  const map = new Map<string, any[]>()
+  for (const item of filteredProviderModels.value) {
+    const key = item.model_id || item.model_name || 'unknown'
+    if (!map.has(key)) {
+      map.set(key, [])
+    }
+    map.get(key)!.push(item)
+  }
+
+  const sections: ModelGroupSection[] = []
+  for (const [modelKey, rawItems] of map.entries()) {
+    const items = [...rawItems]
+    // 内部按输入单价从低到高升序排列
+    items.sort((a, b) => (a.calculated_input_usd || 0) - (b.calculated_input_usd || 0))
+
+    const inputPrices = items.map((m) => m.calculated_input_usd).filter((p) => typeof p === 'number')
+    const minInput = inputPrices.length > 0 ? Math.min(...inputPrices) : 0
+    const maxInput = inputPrices.length > 0 ? Math.max(...inputPrices) : 0
+    const first = items[0]
+
+    sections.push({
+      modelKey,
+      modelName: first.model_name || first.model_id,
+      modelId: first.model_id,
+      items,
+      minInputPrice: minInput,
+      maxInputPrice: maxInput,
+      groupCount: items.length
+    })
+  }
+
+  return sections.sort((a, b) => a.modelName.localeCompare(b.modelName))
+})
+
+// 跨组比价溢价与最优标识计算函数
+function getModelGroupPriceMeta(item: any, allItems: any[]) {
+  const minPrice = allItems.length > 0 ? allItems[0].calculated_input_usd || 0 : 0
+  const curPrice = item.calculated_input_usd || 0
+  const isLowest = allItems.length > 1 && Math.abs(curPrice - minPrice) < 0.000001
+  const isSingle = allItems.length === 1
+
+  let diffText = ''
+  let diffPercentText = ''
+  if (!isLowest && !isSingle && minPrice > 0) {
+    const diff = curPrice - minPrice
+    const pct = ((diff / minPrice) * 100).toFixed(1)
+    diffText = `+${store.formatCurrency(diff)}`
+    diffPercentText = `+${pct}%`
+  }
+
+  return {
+    isLowest,
+    isSingle,
+    diffText,
+    diffPercentText
+  }
+}
+
+// 详情页多分组筛选与下拉弹层状态
+const selectedGroupNames = ref<string[]>([])
+const groupSearchQuery = ref('')
+const isGroupFilterOpen = ref(false)
+const groupFilterContainerRef = ref<HTMLElement | null>(null)
+
 const detailAvailableGroups = computed(() => {
   const map = new Map<string, number>()
   for (const m of providerModelsList.value) {
@@ -1169,8 +1722,64 @@ const detailAvailableGroups = computed(() => {
       map.set(m.group_name, (map.get(m.group_name) || 0) + 1)
     }
   }
-  return Array.from(map.entries()).map(([name, count]) => ({ name, count }))
+  return Array.from(map.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
 })
+
+const searchedAvailableGroups = computed(() => {
+  if (!groupSearchQuery.value.trim()) return detailAvailableGroups.value
+  const q = groupSearchQuery.value.toLowerCase().trim()
+  return detailAvailableGroups.value.filter((g) => g.name.toLowerCase().includes(q))
+})
+
+const isAllGroupsSelected = computed(() => {
+  return (
+    selectedGroupNames.value.length === 0 ||
+    (detailAvailableGroups.value.length > 0 && selectedGroupNames.value.length === detailAvailableGroups.value.length)
+  )
+})
+
+const isGroupFilterActive = computed(() => {
+  return selectedGroupNames.value.length > 0 && selectedGroupNames.value.length < detailAvailableGroups.value.length
+})
+
+const groupFilterSummaryLabel = computed(() => {
+  if (selectedGroupNames.value.length === 0 || selectedGroupNames.value.length === detailAvailableGroups.value.length) {
+    return `价格分组: 全部 (${detailAvailableGroups.value.length})`
+  }
+  if (selectedGroupNames.value.length === 1) {
+    return `分组: ${selectedGroupNames.value[0]}`
+  }
+  return `已选 ${selectedGroupNames.value.length} 个分组`
+})
+
+const toggleGroupFilterPopover = () => {
+  isGroupFilterOpen.value = !isGroupFilterOpen.value
+}
+
+const toggleGroupSelection = (gName: string) => {
+  if (selectedGroupNames.value.includes(gName)) {
+    selectedGroupNames.value = selectedGroupNames.value.filter((g) => g !== gName)
+  } else {
+    selectedGroupNames.value.push(gName)
+    if (selectedGroupNames.value.length === detailAvailableGroups.value.length) {
+      selectedGroupNames.value = []
+    }
+  }
+}
+
+const toggleAllGroupsOption = () => {
+  selectedGroupNames.value = []
+}
+
+const selectAllGroups = () => {
+  selectedGroupNames.value = []
+}
+
+const clearGroupFilter = () => {
+  selectedGroupNames.value = []
+}
 
 // 详情页单条定价删除
 const removeModelPricing = async (item: any) => {
@@ -1207,9 +1816,9 @@ const getDetailSortIndicator = (field: string) => {
 const filteredProviderModels = computed(() => {
   let list = [...providerModelsList.value]
 
-  // 1. 分组过滤
-  if (detailSelectedGroup.value !== 'all') {
-    list = list.filter((m: any) => m.group_name === detailSelectedGroup.value)
+  // 1. 分组多选过滤
+  if (selectedGroupNames.value.length > 0 && selectedGroupNames.value.length < detailAvailableGroups.value.length) {
+    list = list.filter((m: any) => selectedGroupNames.value.includes(m.group_name))
   }
 
   // 2. 搜索过滤
@@ -1308,5 +1917,85 @@ const deleteSite = async (siteId: number) => {
   } catch (e) {
     console.error('Delete site failed:', e)
   }
+}
+
+// 渠道数据最后更新时间与来源标识计算
+const getChannelUpdateSourceType = (site: RelaySite | null): string => {
+  if (!site) return 'm'
+  return site.is_official_catalog ? 'm' : 'c'
+}
+
+const getChannelUpdateTimeRaw = (site: RelaySite | null): string => {
+  if (!site) return ''
+  if (providerModelsList.value && providerModelsList.value.length > 0) {
+    const times = providerModelsList.value
+      .map((m: any) => m.source_updated_at || m.updated_at || '')
+      .filter((t: string) => !!t)
+    if (times.length > 0) {
+      times.sort().reverse()
+      return times[0]
+    }
+  }
+  if (site.last_sync_time) {
+    return typeof site.last_sync_time === 'string' ? site.last_sync_time : new Date(site.last_sync_time).toISOString()
+  }
+  if (site.updated_at) {
+    return typeof site.updated_at === 'string' ? site.updated_at : new Date(site.updated_at).toISOString()
+  }
+  return ''
+}
+
+const getChannelRelativeUpdateTime = (site: RelaySite | null): string => {
+  const raw = getChannelUpdateTimeRaw(site)
+  if (!raw) return '刚刚'
+
+  try {
+    const targetDate = new Date(raw.replace(' ', 'T'))
+    if (isNaN(targetDate.getTime())) return '刚刚'
+
+    const now = new Date()
+    const diffMs = now.getTime() - targetDate.getTime()
+    if (diffMs < 0) return '刚刚'
+
+    const diffSeconds = Math.floor(diffMs / 1000)
+    const diffMinutes = Math.floor(diffSeconds / 60)
+    const diffHours = Math.floor(diffMinutes / 60)
+    const diffDays = Math.floor(diffHours / 24)
+    const diffMonths = Math.floor(diffDays / 30)
+    const diffYears = Math.floor(diffDays / 365)
+
+    if (diffSeconds < 60) return '刚刚'
+    if (diffMinutes < 60) return `${diffMinutes}分钟前`
+    if (diffHours < 24) return `${diffHours}小时前`
+    if (diffDays < 30) return `${diffDays}天前`
+    if (diffMonths < 12) return `${diffMonths}个月前`
+    return `${diffYears}年前`
+  } catch (e) {
+    return '刚刚'
+  }
+}
+
+const getChannelShortUpdateTime = (site: RelaySite | null): string => {
+  const raw = getChannelUpdateTimeRaw(site)
+  if (!raw) return ''
+  try {
+    const d = new Date(raw.replace(' ', 'T'))
+    if (isNaN(d.getTime())) return raw.slice(0, 10)
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const h = String(d.getHours()).padStart(2, '0')
+    const min = String(d.getMinutes()).padStart(2, '0')
+    return `(${m}-${day} ${h}:${min})`
+  } catch {
+    return ''
+  }
+}
+
+const getChannelFullUpdateTime = (site: RelaySite | null): string => {
+  if (!site) return ''
+  const raw = getChannelUpdateTimeRaw(site)
+  const isModelsDev = getChannelUpdateSourceType(site) === 'm'
+  const sourceLabel = isModelsDev ? 'models.dev 官方平台原始时间' : '自建/中转渠道最后同步时间'
+  return raw ? `数据源: ${sourceLabel}\n完整时间: ${raw}` : `数据源: ${sourceLabel}`
 }
 </script>

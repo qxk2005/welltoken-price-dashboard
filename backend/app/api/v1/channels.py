@@ -101,7 +101,9 @@ async def get_channel_models(site_id: int):
                 "calculated_cache_cny": ca_cny,
                 "discount_percent": p.discount_percent,
                 "last_tested_tps": p.last_tested_tps,
-                "is_available": p.is_available
+                "is_available": p.is_available,
+                "source_updated_at": p.source_updated_at or (p.updated_at.strftime("%Y-%m-%d %H:%M:%S") if p.updated_at else ""),
+                "updated_at": p.updated_at.strftime("%Y-%m-%d %H:%M:%S") if p.updated_at else ""
             })
         return result
 

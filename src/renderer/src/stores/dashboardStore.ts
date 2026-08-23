@@ -14,7 +14,9 @@ export const useDashboardStore = defineStore('dashboard', {
   state: () => ({
     apiUrl: 'http://127.0.0.1:8765',
     wsUrl: 'ws://127.0.0.1:8765/api/v1/price/ws',
-    activeTab: 'price-matrix' as 'price-matrix' | 'channels' | 'models' | 'speed-tester' | 'settings',
+    activeTab: (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab'))
+      ? (new URLSearchParams(window.location.search).get('tab') as any)
+      : ('price-matrix' as 'price-matrix' | 'channels' | 'models' | 'speed-tester' | 'settings'),
     currency: 'USD' as 'USD' | 'CNY',
     usdToCnyRate: 7.25,
     searchQuery: '',

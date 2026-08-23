@@ -705,16 +705,42 @@
     <!-- 底部：全网价格-TPS 性价比散点图 (ECharts 浅色苹果风格) -->
     <div class="h-44 flex-shrink-0 rounded-2xl bg-[#FFFFFF] border border-[#E5E5EA] p-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col min-h-[170px]">
       <div class="flex items-center justify-between pb-1.5 border-b border-[#E5E5EA]">
-        <div class="flex items-center space-x-2 text-xs text-[#1D1D1F]">
+        <div class="flex items-center space-x-2 text-xs text-[#1D1D1F] flex-wrap gap-y-1">
           <span class="font-bold flex items-center space-x-1.5">
             <SystemIcon name="chart" custom-class="w-3.5 h-3.5 text-[#0071E3]" />
             <span>全网性价比散点分布</span>
           </span>
           <span class="text-[#D1D1D6]">•</span>
-          <span class="text-[11px] text-[#6E6E73] font-medium">当前分析模型:</span>
-          <!-- 智能模型选择器：可直接下拉切换当前列表中的任意模型 -->
+
+          <!-- 维度模式分段选择器 (Segmented Control) -->
+          <div class="inline-flex p-0.5 rounded-lg bg-[#E5E5EA]/70 border border-[#D1D1D6]/60 text-[11px] select-none">
+            <button
+              @click="setScatterDimensionMode('model')"
+              class="px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer flex items-center space-x-1"
+              :class="scatterDimensionMode === 'model' ? 'bg-[#FFFFFF] text-[#0071E3] font-bold shadow-2xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+              title="按具体的模型标准标识进行精准比价"
+            >
+              <span>🏷️ 按模型标识</span>
+            </button>
+            <button
+              @click="setScatterDimensionMode('series')"
+              class="px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer flex items-center space-x-1"
+              :class="scatterDimensionMode === 'series' ? 'bg-[#FFFFFF] text-[#AF52DE] font-bold shadow-2xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+              title="按模型系列聚合展示该系列下所有渠道的报价分布（适合跨渠道多别名比价）"
+            >
+              <span>📦 按模型系列</span>
+            </button>
+          </div>
+
+          <span class="text-[#D1D1D6]">•</span>
+          <span class="text-[11px] text-[#6E6E73] font-medium">
+            {{ scatterDimensionMode === 'model' ? '当前分析模型:' : '当前分析系列:' }}
+          </span>
+
+          <!-- 动态智能选择器：在模型模式下选模型标识，在系列模式下选模型系列 -->
           <div class="relative">
             <select
+              v-if="scatterDimensionMode === 'model'"
               v-model="manualScatterModelId"
               class="bg-[#F2F2F7] hover:bg-[#E8F2FD] focus:bg-[#FFFFFF] border border-[#CCE4FB] text-[#0071E3] font-mono text-xs font-bold rounded-lg px-2 py-0.5 focus:outline-none transition-all cursor-pointer shadow-2xs"
             >
@@ -722,12 +748,27 @@
                 {{ m }}
               </option>
             </select>
+
+            <select
+              v-else
+              v-model="manualScatterSeries"
+              class="bg-[#F3E8FD]/60 hover:bg-[#F3E8FD] focus:bg-[#FFFFFF] border border-[#E1BEE7] text-[#8E24AA] font-mono text-xs font-bold rounded-lg px-2 py-0.5 focus:outline-none transition-all cursor-pointer shadow-2xs"
+            >
+              <option v-for="s in currentAvailableSeries" :key="s" :value="s">
+                {{ s }}
+              </option>
+            </select>
           </div>
-          <span class="text-[10px] text-[#86868B] font-normal hidden lg:inline">| 💡 点击表格任一行或在此切换模型，越偏左上角综合性价比越高</span>
+          <span class="text-[10px] text-[#86868B] font-normal hidden lg:inline">| 💡 点击表格任一行或在此切换，越偏左上角综合性价比越高</span>
         </div>
 
         <div class="text-[11px] font-mono text-[#86868B]">
-          全网接入 <strong class="text-[#0071E3]">{{ currentScatterItemsCount }}</strong> 个渠道节点
+          <span v-if="scatterDimensionMode === 'model'">
+            全网接入 <strong class="text-[#0071E3]">{{ currentScatterItemsCount }}</strong> 个渠道节点
+          </span>
+          <span v-else>
+            该系列共覆盖 <strong class="text-[#8E24AA]">{{ currentScatterItemsCount }}</strong> 个渠道报价
+          </span>
         </div>
       </div>
       <div class="flex-1 w-full relative min-h-0 mt-0.5">
@@ -1325,6 +1366,12 @@ const resetAllFilters = () => {
 
 const checkAndApplyTargetFilters = () => {
   let changed = false
+  const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()
+  const qMode = urlParams.get('scatter_mode')
+  if (qMode === 'series' || qMode === 'model') {
+    scatterDimensionMode.value = qMode
+  }
+
   if (store.targetModelFilter) {
     selectedModels.value = [store.targetModelFilter]
     selectedProviders.value = []
@@ -1393,12 +1440,18 @@ const removeSite = (st: string) => {
 const selectRow = (row: ComparisonItem) => {
   selectedRow.value = row
   manualScatterModelId.value = row.model_id
+  if (row.series) {
+    manualScatterSeries.value = row.series
+  }
   updateScatterChart()
 }
 
 const selectAndScrollToRow = (row: ComparisonItem) => {
   selectedRow.value = row
   manualScatterModelId.value = row.model_id
+  if (row.series) {
+    manualScatterSeries.value = row.series
+  }
   updateScatterChart()
 
   nextTick(() => {
@@ -1487,14 +1540,41 @@ const getSourceTimeTooltip = (row: ComparisonItem): string => {
   return `[c 标 = 自定义渠道最后同步时间] ${rawTime}\n（点击表头文字可切换 相对时间/绝对日期 样式）`
 }
 
-// 手动选择分析的散点图模型
+// 散点图分析维度切换 ('model' = 按模型标识, 'series' = 按模型系列)
+type ScatterDimensionMode = 'model' | 'series'
+const scatterDimensionMode = ref<ScatterDimensionMode>('model')
+
+const setScatterDimensionMode = (mode: ScatterDimensionMode) => {
+  scatterDimensionMode.value = mode
+  if (selectedRow.value) {
+    if (mode === 'model' && selectedRow.value.model_id) {
+      manualScatterModelId.value = selectedRow.value.model_id
+    } else if (mode === 'series' && selectedRow.value.series) {
+      manualScatterSeries.value = selectedRow.value.series
+    }
+  }
+  updateScatterChart()
+}
+
+// 手动选择分析的散点图模型与系列
 const manualScatterModelId = ref<string>('')
+const manualScatterSeries = ref<string>('')
 
 // 当前表格页面内所有不重复的模型 ID 清单
 const currentAvailableModelIds = computed<string[]>(() => {
   const set = new Set<string>()
   pagedItems.value.forEach((it) => {
     if (it.model_id) set.add(it.model_id)
+  })
+  return Array.from(set)
+})
+
+// 当前表格页面内所有不重复的模型系列清单
+const currentAvailableSeries = computed<string[]>(() => {
+  const set = new Set<string>()
+  pagedItems.value.forEach((it) => {
+    if (it.series) set.add(it.series)
+    else set.add('通用系列')
   })
   return Array.from(set)
 })
@@ -1509,11 +1589,26 @@ const activeScatterModelId = computed(() => {
   return currentAvailableModelIds.value[0] || 'deepseek-v3'
 })
 
-const currentScatterItemsCount = computed(() => {
-  return pagedItems.value.filter((item) => item.model_id === activeScatterModelId.value).length
+const activeScatterSeries = computed(() => {
+  if (manualScatterSeries.value && currentAvailableSeries.value.includes(manualScatterSeries.value)) {
+    return manualScatterSeries.value
+  }
+  if (selectedRow.value && selectedRow.value.series && currentAvailableSeries.value.includes(selectedRow.value.series)) {
+    return selectedRow.value.series
+  }
+  return currentAvailableSeries.value[0] || '通用系列'
 })
 
-watch(activeScatterModelId, () => {
+const currentScatterItemsCount = computed(() => {
+  if (scatterDimensionMode.value === 'model') {
+    return pagedItems.value.filter((item) => item.model_id === activeScatterModelId.value).length
+  } else {
+    const s = activeScatterSeries.value
+    return pagedItems.value.filter((item) => (item.series || '通用系列') === s).length
+  }
+})
+
+watch([activeScatterModelId, activeScatterSeries, scatterDimensionMode], () => {
   updateScatterChart()
 })
 
@@ -1540,15 +1635,25 @@ const initScatterChart = () => {
 const updateScatterChart = () => {
   if (!chartInstance) return
 
-  const targetModelId = activeScatterModelId.value
-  const targetItems = pagedItems.value.filter((item) => item.model_id === targetModelId)
+  let targetItems: ComparisonItem[] = []
+  if (scatterDimensionMode.value === 'model') {
+    const targetModelId = activeScatterModelId.value
+    targetItems = pagedItems.value.filter((item) => item.model_id === targetModelId)
+  } else {
+    const targetSeries = activeScatterSeries.value
+    targetItems = pagedItems.value.filter((item) => (item.series || '通用系列') === targetSeries)
+  }
 
+  // data: [price, tps, site_name, model_ratio, id, model_id, series, model_name]
   const data = targetItems.map((item) => [
     store.currency === 'USD' ? item.calculated_input_usd : item.calculated_input_cny,
     item.last_tested_tps || 50,
     item.site_name,
     item.model_ratio,
-    item.id
+    item.id,
+    item.model_id,
+    item.series || '通用系列',
+    item.model_name || item.model_id
   ])
 
   const option: echarts.EChartsOption = {
@@ -1567,14 +1672,18 @@ const updateScatterChart = () => {
         const d = params.data
         const isBm = store.highlightBenchmarkSiteName && (d[2] || '').toLowerCase() === store.highlightBenchmarkSiteName.toLowerCase()
         const isSel = selectedRow.value?.id === d[4] || (selectedRow.value && selectedRow.value.site_name === d[2])
+        const modelId = d[5] || ''
+        const seriesName = d[6] || ''
+        const isSeriesMode = scatterDimensionMode.value === 'series'
         return `
           <div class="font-sans font-bold text-[#1D1D1F] flex items-center space-x-1">
             <span>${d[2]}</span>
             ${isBm ? '<span class="text-[#0071E3] font-bold text-[10px] ml-1">🎯(比价基准)</span>' : ''}
             ${isSel ? '<span class="text-[#FF9500] font-bold text-[10px] ml-1">📍(当前选中)</span>' : ''}
           </div>
-          <div class="text-[#6E6E73] text-[10px]">输入价格: <strong class="text-[#34C759]">${store.currency === 'USD' ? '$' : '¥'}${d[0]}</strong></div>
-          <div class="text-[#6E6E73] text-[10px]">实测速率: <strong class="text-[#0071E3]">${d[1]} TPS</strong></div>
+          ${isSeriesMode ? `<div class="text-[#8E24AA] text-[10px] font-mono mt-0.5">📦 系列: ${seriesName} | 🏷️ 标识: ${modelId}</div>` : ''}
+          <div class="text-[#6E6E73] text-[10px] mt-0.5">输入价格: <strong class="text-[#34C759] font-mono font-bold">${store.currency === 'USD' ? '$' : '¥'}${Number(d[0]).toFixed(3)}</strong></div>
+          <div class="text-[#6E6E73] text-[10px]">实测速率: <strong class="text-[#0071E3] font-mono font-bold">${d[1]} TPS</strong></div>
           <div class="text-[9px] text-[#0071E3] mt-0.5 font-sans">💡 点击可直接定位列表并高亮</div>
         `
       }
