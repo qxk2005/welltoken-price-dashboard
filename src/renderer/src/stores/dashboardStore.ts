@@ -25,8 +25,8 @@ export const useDashboardStore = defineStore('dashboard', {
     // 收藏夹渠道 ID 集合 (持久化至 localStorage)
     favoriteSiteIds: JSON.parse(localStorage.getItem('welltoken_fav_sites') || '[]') as number[],
     
-    // 侧边栏折叠状态 (持久化至 localStorage)
-    isSidebarCollapsed: localStorage.getItem('welltoken_sidebar_collapsed') === 'true',
+    // 侧边栏折叠状态 (支持 URL 参数覆盖与 localStorage 持久化)
+    isSidebarCollapsed: typeof window !== 'undefined' && (window.location.search.includes('collapsed=true') || localStorage.getItem('welltoken_sidebar_collapsed') === 'true'),
     
     // 数据集合
     comparisonMatrix: [] as ComparisonItem[],

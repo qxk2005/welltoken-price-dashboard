@@ -46,7 +46,7 @@
           class="w-full flex items-center rounded-xl text-xs font-medium transition-all group relative cursor-pointer"
           :class="[
             store.isSidebarCollapsed
-              ? 'justify-center py-2.5 px-0'
+              ? 'justify-center h-10 px-0'
               : 'justify-between px-3 py-2',
             store.activeTab === item.id
               ? 'bg-[#0071E3] text-white shadow-sm font-bold'
@@ -60,12 +60,12 @@
           </div>
 
           <!-- 收拢态内容 (仅图标) -->
-          <div v-else class="flex items-center justify-center relative">
-            <SystemIcon :name="item.iconName" custom-class="w-4.5 h-4.5" />
+          <div v-else class="flex items-center justify-center relative w-full h-full">
+            <SystemIcon :name="item.iconName" custom-class="w-5 h-5" />
             <!-- 收拢态小圆点徽标 -->
             <span
               v-if="item.badge !== undefined && item.badge !== '' && item.badge !== '0'"
-              class="absolute -top-1 -right-1.5 w-2 h-2 rounded-full border border-white"
+              class="absolute top-1.5 right-2 w-2 h-2 rounded-full border border-white"
               :class="store.activeTab === item.id ? 'bg-white' : 'bg-[#0071E3]'"
             ></span>
           </div>
@@ -88,7 +88,7 @@
             v-if="store.isSidebarCollapsed"
             class="absolute left-full ml-3 px-3 py-2 bg-[#1D1D1F] text-white text-xs rounded-xl shadow-[0_10px_25px_rgba(0,0,0,0.25)] whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-150 z-50 flex items-center space-x-2 border border-white/10"
           >
-            <SystemIcon :name="item.iconName" custom-class="w-3.5 h-3.5" />
+            <SystemIcon :name="item.iconName" custom-class="w-4 h-4" />
             <span class="font-medium">{{ item.label }}</span>
             <span
               v-if="item.badge !== undefined && item.badge !== ''"

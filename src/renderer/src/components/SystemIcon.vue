@@ -132,6 +132,14 @@
       <path d="M15 9.5a3 3 0 0 0-6 0c0 2 3 3 3 5a3 3 0 0 1-6 0" />
     </template>
 
+    <!-- 日历 / 日期 / 时间范围 -->
+    <template v-else-if="name === 'calendar' || name === 'date'">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </template>
+
     <!-- 搜索 -->
     <template v-else-if="name === 'search'">
       <circle cx="11" cy="11" r="8" />

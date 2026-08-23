@@ -31,6 +31,8 @@ async def get_paginated_comparison(
     site: Optional[List[str]] = Query(None, description="渠道多选"),
     search: Optional[str] = Query(None, description="全局搜索"),
     exclude_zero: bool = Query(True, description="是否过滤0价格/未标价条目"),
+    date_start: Optional[str] = Query(None, description="更新日期范围起始 YYYY-MM-DD"),
+    date_end: Optional[str] = Query(None, description="更新日期范围截止 YYYY-MM-DD"),
     sort_by: str = Query("calculated_input_usd", description="排序字段"),
     sort_order: str = Query("asc", description="排序顺序 (asc/desc)"),
     page: int = Query(1, ge=1, description="页码"),
@@ -49,6 +51,8 @@ async def get_paginated_comparison(
         sites=effective_sites,
         search_query=search,
         exclude_zero_price=exclude_zero,
+        date_start=date_start,
+        date_end=date_end,
         sort_field=sort_by,
         sort_order=sort_order,
         page=page,
@@ -62,7 +66,9 @@ async def get_filter_options(
     series: Optional[List[str]] = Query(None, description="已选系列"),
     model: Optional[List[str]] = Query(None, description="已选模型"),
     site: Optional[List[str]] = Query(None, description="已选渠道"),
-    exclude_zero: bool = Query(True, description="是否过滤0价格/未标价条目")
+    exclude_zero: bool = Query(True, description="是否过滤0价格/未标价条目"),
+    date_start: Optional[str] = Query(None, description="更新日期范围起始 YYYY-MM-DD"),
+    date_end: Optional[str] = Query(None, description="更新日期范围截止 YYYY-MM-DD")
 ):
     """轻量级获取筛选器候选选项及统计条数 (支持四级联动收敛与 0 价格过滤)"""
     effective_providers = get_query_list(request, "provider", "providers") or provider
@@ -75,7 +81,9 @@ async def get_filter_options(
         selected_series=effective_series,
         selected_models=effective_models,
         selected_sites=effective_sites,
-        exclude_zero_price=exclude_zero
+        exclude_zero_price=exclude_zero,
+        date_start=date_start,
+        date_end=date_end
     )
 
 @router.get("/matrix", response_model=List[ComparisonItemSchema])

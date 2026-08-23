@@ -21,6 +21,9 @@ export interface ComparisonItem {
   site_score: number
   site_status: string
   last_latency_ms: number
+  source_updated_at?: string
+  source_time_type?: 'models_dev' | 'manual'
+  is_official_catalog?: boolean
   updated_at: string
 }
 

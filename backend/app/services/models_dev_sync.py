@@ -410,6 +410,9 @@ class ModelsDevSyncService:
                     context_w = int(limit.get("context") or m.get("context_window") or 128000)
                     max_out = int(limit.get("output") or m.get("max_output") or 8192)
 
+                    release_d = str(m.get("release_date") or "")
+                    last_upd = str(m.get("last_updated") or m.get("release_date") or "")
+
                     if m_id in model_map:
                         exist_m = model_map[m_id]
                         exist_m.name = name
@@ -418,6 +421,8 @@ class ModelsDevSyncService:
                         exist_m.family = family
                         exist_m.context_window = context_w
                         exist_m.max_output = max_out
+                        exist_m.release_date = release_d or exist_m.release_date
+                        exist_m.last_updated = last_upd or exist_m.last_updated
                         if in_price > 0:
                             exist_m.official_input_price = in_price
                         if out_price > 0:
@@ -438,6 +443,8 @@ class ModelsDevSyncService:
                             official_cache_price=cache_price,
                             modalities="text",
                             capabilities="tool_calling",
+                            release_date=release_d,
+                            last_updated=last_upd,
                             is_featured=False,
                             description=m.get("description") or f"models.dev 官方标准模型 {m_id}"
                         )
@@ -536,6 +543,8 @@ class ModelsDevSyncService:
                                 else 0.0
                             )
 
+                            m_src_time = str(m_data.get("last_updated") or m_data.get("release_date") or getattr(meta_m, "last_updated", "") or getattr(meta_m, "release_date", "") or "")
+
                             p_tuple = (site.id, meta_m.model_id)
                             if p_tuple in pricing_map:
                                 exist_p = pricing_map[p_tuple]
@@ -543,6 +552,7 @@ class ModelsDevSyncService:
                                 exist_p.calculated_output_usd = out_p
                                 exist_p.calculated_cache_usd = cache_p
                                 exist_p.discount_percent = discount
+                                exist_p.source_updated_at = m_src_time
                                 exist_p.updated_at = datetime.utcnow()
                             else:
                                 new_p = SiteModelPricing(
@@ -556,7 +566,8 @@ class ModelsDevSyncService:
                                     calculated_cache_usd=cache_p,
                                     discount_percent=discount,
                                     is_available=True,
-                                    last_tested_tps=55.0
+                                    last_tested_tps=55.0,
+                                    source_updated_at=m_src_time
                                 )
                                 session.add(new_p)
                                 pricing_map[p_tuple] = new_p

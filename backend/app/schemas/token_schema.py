@@ -130,6 +130,9 @@ class ComparisonItemSchema(BaseModel):
     site_score: float
     site_status: str
     last_latency_ms: float
+    source_updated_at: Optional[str] = ""
+    source_time_type: Optional[str] = "models_dev" # "models_dev" 或 "manual"
+    is_official_catalog: bool = True
     updated_at: datetime
 
     class Config:

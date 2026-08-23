@@ -297,12 +297,14 @@ class DashboardService:
         sites: Optional[List[str]] = None,
         search_query: Optional[str] = None,
         exclude_zero_price: bool = True,
+        date_start: Optional[str] = None,
+        date_end: Optional[str] = None,
         sort_field: str = "calculated_input_usd",
         sort_order: str = "asc",
         page: int = 1,
         page_size: int = 50
     ) -> PaginatedComparisonResponse:
-        """高性能分页查询全网 Token 比价矩阵 (支持多列升降序排序与 0 元过滤)"""
+        """高性能分页查询全网 Token 比价矩阵 (支持多列升降序排序、日期范围与 0 元过滤)"""
         await self.ensure_settings_loaded()
         async with AsyncSessionLocal() as session:
             # 基础条件构建
@@ -375,6 +377,25 @@ class DashboardService:
                     )
                 )
 
+            # 6. 更新日期范围过滤 (兼容 models.dev 原生时间与手工渠道同步时间)
+            if date_start and date_start.strip():
+                ds = date_start.strip()
+                base_conditions.append(
+                    or_(
+                        and_(SiteModelPricing.source_updated_at != "", SiteModelPricing.source_updated_at.isnot(None), SiteModelPricing.source_updated_at >= ds),
+                        and_(or_(SiteModelPricing.source_updated_at == "", SiteModelPricing.source_updated_at.is_(None)), func.date(SiteModelPricing.updated_at) >= ds)
+                    )
+                )
+            if date_end and date_end.strip():
+                de = date_end.strip()
+                de_full = de + " 23:59:59" if len(de) == 10 else de
+                base_conditions.append(
+                    or_(
+                        and_(SiteModelPricing.source_updated_at != "", SiteModelPricing.source_updated_at.isnot(None), SiteModelPricing.source_updated_at <= de_full),
+                        and_(or_(SiteModelPricing.source_updated_at == "", SiteModelPricing.source_updated_at.is_(None)), func.date(SiteModelPricing.updated_at) <= de)
+                    )
+                )
+
             # 统计总数
             count_stmt = select(func.count(SiteModelPricing.id)).join(
                 RelaySite, SiteModelPricing.site_id == RelaySite.id
@@ -397,7 +418,9 @@ class DashboardService:
                 "model_id": ModelMetadata.model_id,
                 "site_name": RelaySite.name,
                 "provider": ModelMetadata.provider,
-                "series": ModelMetadata.series
+                "series": ModelMetadata.series,
+                "source_updated_at": SiteModelPricing.source_updated_at,
+                "updated_at": SiteModelPricing.source_updated_at
             }
             order_col = sort_col_map.get(sort_field, SiteModelPricing.calculated_input_usd)
             order_expr = order_col.desc() if sort_order.lower() == "desc" else order_col.asc()
@@ -419,6 +442,14 @@ class DashboardService:
             for p, site, model in rows:
                 in_cny = round(p.calculated_input_usd * self.usd_to_cny_rate, 4)
                 out_cny = round(p.calculated_output_usd * self.usd_to_cny_rate, 4)
+
+                is_official = getattr(site, "is_official_catalog", True)
+                if is_official:
+                    src_time = getattr(p, "source_updated_at", "") or getattr(model, "last_updated", "") or getattr(model, "release_date", "") or ""
+                    time_type = "models_dev"
+                else:
+                    src_time = p.updated_at.strftime("%Y-%m-%d %H:%M") if p.updated_at else (site.last_sync_time.strftime("%Y-%m-%d %H:%M") if getattr(site, "last_sync_time", None) else "")
+                    time_type = "manual"
 
                 items.append(
                     ComparisonItemSchema(
@@ -444,6 +475,9 @@ class DashboardService:
                         site_score=site.score,
                         site_status=site.last_status,
                         last_latency_ms=site.last_latency_ms,
+                        source_updated_at=src_time,
+                        source_time_type=time_type,
+                        is_official_catalog=is_official,
                         updated_at=p.updated_at
                     )
                 )
@@ -462,11 +496,33 @@ class DashboardService:
         selected_series: Optional[List[str]] = None,
         selected_models: Optional[List[str]] = None,
         selected_sites: Optional[List[str]] = None,
-        exclude_zero_price: bool = True
+        exclude_zero_price: bool = True,
+        date_start: Optional[str] = None,
+        date_end: Optional[str] = None
     ) -> ComparisonFilterOptionsResponse:
-        """轻量级快速获取各筛选维度的去重候选列表与计数 (四级完全级联联动与 0 价格过滤)"""
+        """轻量级快速获取各筛选维度的去重候选列表与计数 (四级完全级联联动、日期范围与 0 价格过滤)"""
         await self.ensure_settings_loaded()
         async with AsyncSessionLocal() as session:
+            # 基础日期过滤条件
+            date_conds = []
+            if date_start and date_start.strip():
+                ds = date_start.strip()
+                date_conds.append(
+                    or_(
+                        and_(SiteModelPricing.source_updated_at != "", SiteModelPricing.source_updated_at.isnot(None), SiteModelPricing.source_updated_at >= ds),
+                        and_(or_(SiteModelPricing.source_updated_at == "", SiteModelPricing.source_updated_at.is_(None)), func.date(SiteModelPricing.updated_at) >= ds)
+                    )
+                )
+            if date_end and date_end.strip():
+                de = date_end.strip()
+                de_full = de + " 23:59:59" if len(de) == 10 else de
+                date_conds.append(
+                    or_(
+                        and_(SiteModelPricing.source_updated_at != "", SiteModelPricing.source_updated_at.isnot(None), SiteModelPricing.source_updated_at <= de_full),
+                        and_(or_(SiteModelPricing.source_updated_at == "", SiteModelPricing.source_updated_at.is_(None)), func.date(SiteModelPricing.updated_at) <= de)
+                    )
+                )
+
             # 1. 厂商列表与计数 (严格与「厂商与模型系列」30 大权威 Lab 对齐)
             official_labs_order = [
                 "alibaba", "openai", "google", "anthropic", "deepseek", "zhipuai",
@@ -489,6 +545,8 @@ class DashboardService:
                         SiteModelPricing.calculated_output_usd > 0
                     )
                 )
+            if date_conds:
+                p_stmt = p_stmt.where(*date_conds)
             p_stmt = p_stmt.group_by(ModelMetadata.provider)
             p_res = await session.execute(p_stmt)
             raw_counts = {p.lower(): cnt for p, cnt in p_res.all() if p}
@@ -527,6 +585,8 @@ class DashboardService:
                         SiteModelPricing.calculated_output_usd > 0
                     )
                 )
+            if date_conds:
+                s_stmt = s_stmt.where(*date_conds)
             if selected_providers and len(selected_providers) > 0 and "all" not in selected_providers:
                 has_other = "other" in [p.lower() for p in selected_providers]
                 normal_p = [p.lower() for p in selected_providers if p.lower() != "other"]
@@ -573,6 +633,8 @@ class DashboardService:
                         SiteModelPricing.calculated_output_usd > 0
                     )
                 )
+            if date_conds:
+                m_stmt = m_stmt.where(*date_conds)
             if selected_providers and len(selected_providers) > 0 and "all" not in selected_providers:
                 has_other = "other" in [p.lower() for p in selected_providers]
                 normal_p = [p.lower() for p in selected_providers if p.lower() != "other"]
@@ -623,6 +685,8 @@ class DashboardService:
                         SiteModelPricing.calculated_output_usd > 0
                     )
                 )
+            if date_conds:
+                st_stmt = st_stmt.where(*date_conds)
             if selected_providers and len(selected_providers) > 0 and "all" not in selected_providers:
                 has_other = "other" in [p.lower() for p in selected_providers]
                 normal_p = [p.lower() for p in selected_providers if p.lower() != "other"]

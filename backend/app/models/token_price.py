@@ -54,6 +54,7 @@ class ModelMetadata(Base):
     capabilities = Column(String(200), default="tool_calling") # reasoning, vision, tool_calling, structured_outputs
     open_weights = Column(Boolean, default=False)
     release_date = Column(String(30), default="")
+    last_updated = Column(String(30), default="")
     is_featured = Column(Boolean, default=False)
     description = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -79,6 +80,7 @@ class SiteModelPricing(Base):
     discount_percent = Column(Float, default=0.0)      # 相对官方基准价折扣百分比 (如 -50.0%)
     is_available = Column(Boolean, default=True)
     last_tested_tps = Column(Float, default=0.0)
+    source_updated_at = Column(String(40), default="") # models.dev 原生更新时间或手工渠道更新时间
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # 关系

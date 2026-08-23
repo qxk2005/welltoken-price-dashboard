@@ -41,7 +41,109 @@
             @update:model-value="handleSiteChange"
           />
 
-          <!-- 5. 仅看已收藏渠道快捷胶囊 -->
+          <!-- 5. 更新日期范围筛选胶囊与下拉弹层 -->
+          <div class="relative" ref="dateFilterContainerRef">
+            <button
+              @click.stop="toggleDateFilterPopover"
+              class="px-3 py-1.5 rounded-xl border text-xs font-medium transition-all flex items-center space-x-1.5 cursor-pointer shadow-2xs group select-none"
+              :class="isDateFilterActive
+                ? 'bg-[#E8F2FD] border-[#0071E3] text-[#0071E3] font-bold shadow-xs'
+                : 'bg-[#FFFFFF] hover:bg-[#F2F2F7] border-[#E5E5EA] text-[#6E6E73] hover:text-[#1D1D1F]'"
+              :title="`当前更新日期范围: ${dateFilterLabel}`"
+            >
+              <SystemIcon name="calendar" custom-class="w-3.5 h-3.5" :class="isDateFilterActive ? 'text-[#0071E3]' : 'text-[#86868B] group-hover:text-[#1D1D1F]'" />
+              <span>{{ dateFilterLabel }}</span>
+              <span class="text-[10px] opacity-60">▾</span>
+              <!-- 已选状态下的一键清除按钮 -->
+              <span
+                v-if="isDateFilterActive"
+                @click.stop="clearDateFilter"
+                class="hover:text-[#FF3B30] ml-1 cursor-pointer font-bold"
+                title="清除日期筛选"
+              >✕</span>
+            </button>
+
+            <!-- 日期范围弹层 Popover -->
+            <div
+              v-if="isDateFilterOpen"
+              class="absolute left-0 top-10 w-72 bg-[#FFFFFF] border border-[#E5E5EA] rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.14)] z-40 p-3 animate-fade-in text-xs space-y-3"
+            >
+              <div class="flex items-center justify-between pb-2 border-b border-[#E5E5EA]">
+                <div class="flex items-center space-x-1.5 font-bold text-[#1D1D1F]">
+                  <SystemIcon name="calendar" custom-class="w-3.5 h-3.5 text-[#0071E3]" />
+                  <span>更新日期范围</span>
+                </div>
+                <button
+                  v-if="isDateFilterActive"
+                  @click="clearDateFilter"
+                  class="text-[11px] text-[#FF3B30] hover:underline cursor-pointer"
+                >
+                  重置
+                </button>
+              </div>
+
+              <!-- 快捷预设按钮 -->
+              <div class="space-y-1.5">
+                <div class="text-[11px] text-[#86868B] font-medium">快捷预设</div>
+                <div class="grid grid-cols-3 gap-1.5">
+                  <button
+                    v-for="preset in datePresets"
+                    :key="preset.id"
+                    @click="applyDatePreset(preset.id)"
+                    class="px-2 py-1.5 rounded-lg text-center transition-all cursor-pointer text-xs font-medium border"
+                    :class="selectedDatePreset === preset.id
+                      ? 'bg-[#0071E3] text-white border-[#0071E3] shadow-xs font-bold'
+                      : 'bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] border-[#E5E5EA]'"
+                  >
+                    {{ preset.label }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- 自定义起止时间 -->
+              <div class="space-y-2 pt-2 border-t border-[#E5E5EA]/80">
+                <div class="text-[11px] text-[#86868B] font-medium flex items-center justify-between">
+                  <span>自定义起止日期</span>
+                  <span v-if="selectedDatePreset === 'custom'" class="text-[10px] text-[#0071E3] font-bold">已启用自定义</span>
+                </div>
+                <div class="space-y-1.5 font-mono">
+                  <div class="flex items-center space-x-2">
+                    <span class="text-[10px] text-[#86868B] w-8">起始:</span>
+                    <input
+                      type="date"
+                      v-model="customDateStart"
+                      class="flex-1 bg-[#F2F2F7] border border-[#E5E5EA] rounded-lg px-2 py-1 text-xs text-[#1D1D1F] focus:bg-white focus:border-[#0071E3] focus:outline-none transition-all"
+                    />
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <span class="text-[10px] text-[#86868B] w-8">截止:</span>
+                    <input
+                      type="date"
+                      v-model="customDateEnd"
+                      class="flex-1 bg-[#F2F2F7] border border-[#E5E5EA] rounded-lg px-2 py-1 text-xs text-[#1D1D1F] focus:bg-white focus:border-[#0071E3] focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
+                <div class="flex items-center justify-end space-x-2 pt-1">
+                  <button
+                    @click="isDateFilterOpen = false"
+                    class="px-2.5 py-1 rounded-lg text-[#6E6E73] hover:bg-[#F2F2F7] text-xs cursor-pointer"
+                  >
+                    取消
+                  </button>
+                  <button
+                    @click="applyCustomDateRange"
+                    :disabled="!customDateStart && !customDateEnd"
+                    class="px-3 py-1 rounded-lg bg-[#0071E3] hover:bg-[#0077ED] disabled:opacity-40 text-white text-xs font-bold shadow-xs cursor-pointer transition-all"
+                  >
+                    应用区间
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 6. 仅看已收藏渠道快捷胶囊 -->
           <button
             @click="toggleOnlyFavorites"
             class="px-3 py-1.5 rounded-xl border text-xs font-medium transition-all flex items-center space-x-1.5 cursor-pointer shadow-2xs"
@@ -254,7 +356,17 @@
             </div>
           </div>
 
-          <!-- 6. 基准渠道指示 Chip -->
+          <!-- 6. 更新时间范围 Chip -->
+          <span
+            v-if="isDateFilterActive"
+            class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-[#E8F2FD] border border-[#CCE4FB] text-[#0071E3] text-[11px] font-medium shadow-2xs animate-fade-in"
+          >
+            <SystemIcon name="calendar" custom-class="w-3 h-3 text-[#0071E3]" />
+            <span>更新时间: {{ dateFilterLabel }}</span>
+            <button @click.stop="clearDateFilter" class="hover:text-[#FF3B30] ml-0.5 cursor-pointer font-bold" title="清除更新时间筛选">✕</button>
+          </span>
+
+          <!-- 7. 基准渠道指示 Chip -->
           <span
             v-if="store.highlightBenchmarkSiteName"
             class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-[#E8F2FD] border border-[#0071E3] text-[#0071E3] text-[11px] font-bold shadow-2xs animate-fade-in"
@@ -287,31 +399,52 @@
           </div>
         </div>
 
-        <table class="w-full text-left text-xs border-collapse min-w-[1000px]">
+        <table class="w-full text-left text-xs border-collapse min-w-full">
           <!-- 表头 (支持点击多列排序) -->
-          <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans select-none">
+          <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans select-none whitespace-nowrap">
             <tr>
-              <th @click="toggleSort('series')" class="py-3 px-3 cursor-pointer hover:text-[#1D1D1F] transition-colors w-48">
+              <th @click="toggleSort('series')" class="py-3 px-2 cursor-pointer hover:text-[#1D1D1F] transition-colors w-36">
                 模型系列 / 厂商 <span class="text-[10px] font-mono" :class="sortField === 'series' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('series') }}</span>
               </th>
-              <th @click="toggleSort('model_id')" class="py-3 px-3 cursor-pointer hover:text-[#1D1D1F] transition-colors">
+              <th @click="toggleSort('model_id')" class="py-3 px-2 cursor-pointer hover:text-[#1D1D1F] transition-colors">
                 模型标准标识 <span class="text-[10px] font-mono" :class="sortField === 'model_id' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('model_id') }}</span>
               </th>
-              <th @click="toggleSort('site_name')" class="py-3 px-3 cursor-pointer hover:text-[#1D1D1F] transition-colors w-52">
+              <th @click="toggleSort('site_name')" class="py-3 px-2 cursor-pointer hover:text-[#1D1D1F] transition-colors w-40">
                 渠道 / 供应商 <span class="text-[10px] font-mono" :class="sortField === 'site_name' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('site_name') }}</span>
               </th>
-              <th class="py-3 px-3 text-center w-24">类型</th>
-              <th @click="toggleSort('calculated_input_usd')" class="py-3 px-3 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-28">
-                输入单价 ({{ store.currency }}) <span class="text-[10px] font-mono" :class="sortField === 'calculated_input_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('calculated_input_usd') }}</span>
+              <th class="py-3 px-1.5 text-center w-16">类型</th>
+              <th @click="toggleSort('calculated_input_usd')" class="py-3 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
+                输入单价 <span class="text-[10px] font-mono" :class="sortField === 'calculated_input_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('calculated_input_usd') }}</span>
               </th>
-              <th @click="toggleSort('calculated_output_usd')" class="py-3 px-3 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-28">
-                输出单价 ({{ store.currency }}) <span class="text-[10px] font-mono" :class="sortField === 'calculated_output_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('calculated_output_usd') }}</span>
+              <th @click="toggleSort('calculated_output_usd')" class="py-3 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
+                输出单价 <span class="text-[10px] font-mono" :class="sortField === 'calculated_output_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('calculated_output_usd') }}</span>
               </th>
-              <th @click="toggleSort('model_ratio')" class="py-3 px-3 text-center cursor-pointer hover:text-[#1D1D1F] transition-colors w-20">
+              <th @click="toggleSort('model_ratio')" class="py-3 px-1.5 text-center cursor-pointer hover:text-[#1D1D1F] transition-colors w-14">
                 倍率 <span class="text-[10px] font-mono" :class="sortField === 'model_ratio' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('model_ratio') }}</span>
               </th>
-              <th @click="toggleSort('last_tested_tps')" class="py-3 px-3 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
+              <th @click="toggleSort('last_tested_tps')" class="py-3 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-20">
                 实测 TPS <span class="text-[10px] font-mono" :class="sortField === 'last_tested_tps' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('last_tested_tps') }}</span>
+              </th>
+              <th class="py-3 px-2 text-right w-36 select-none">
+                <div class="flex items-center justify-end space-x-1">
+                  <span
+                    @click="toggleTimeDisplayMode"
+                    class="cursor-pointer hover:text-[#0071E3] transition-colors inline-flex items-center space-x-1"
+                    :title="`当前模式: ${timeDisplayMode === 'relative' ? '人性化相对时间' : '绝对日期时间'}。点击表头文字一键切换`"
+                  >
+                    <span>更新时间</span>
+                    <span class="text-[9px] font-normal text-[#86868B]">({{ timeDisplayMode === 'relative' ? '相对' : '绝对' }})</span>
+                  </span>
+                  <button
+                    @click.stop="toggleSort('updated_at')"
+                    class="p-0.5 hover:bg-[#E5E5EA] rounded cursor-pointer transition-colors"
+                    title="点击按更新时间升/降序排序"
+                  >
+                    <span class="text-[10px] font-mono" :class="sortField === 'updated_at' || sortField === 'source_updated_at' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">
+                      {{ getSortIndicator('updated_at') }}
+                    </span>
+                  </button>
+                </div>
               </th>
             </tr>
           </thead>
@@ -334,7 +467,7 @@
               ]"
             >
               <!-- 1. 系列与厂商 -->
-              <td class="py-3 px-3">
+              <td class="py-3 px-2">
                 <div class="flex items-center space-x-1.5 truncate">
                   <button
                     @click.stop="openVendorDrawer(row.provider)"
@@ -349,14 +482,14 @@
               </td>
 
               <!-- 2. 模型标准标识 -->
-              <td class="py-3 px-3">
+              <td class="py-3 px-2">
                 <div class="flex items-center space-x-1.5 truncate">
                   <span class="font-bold text-[#0071E3] font-mono truncate text-xs" :title="row.model_id">{{ row.model_id }}</span>
                 </div>
               </td>
 
               <!-- 3. 渠道站点与收藏星标 -->
-              <td class="py-3 px-3">
+              <td class="py-3 px-2">
                 <div class="flex items-center space-x-1.5 truncate">
                   <button
                     @click.stop="toggleFavoriteByName(row.site_name)"
@@ -400,7 +533,7 @@
               </td>
 
               <!-- 4. 类型徽标 -->
-              <td class="py-3 px-3 text-center">
+              <td class="py-3 px-1.5 text-center">
                 <span
                   class="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold uppercase"
                   :class="getTypeBadgeClass(row.site_type)"
@@ -410,23 +543,40 @@
               </td>
 
               <!-- 5. 输入价格 -->
-              <td class="py-3 px-3 text-right font-mono font-bold text-[#34C759] text-xs">
+              <td class="py-3 px-2 text-right font-mono font-bold text-[#34C759] text-xs">
                 {{ formatPrice(row.calculated_input_usd, row.calculated_input_cny) }}
               </td>
 
               <!-- 6. 输出价格 -->
-              <td class="py-3 px-3 text-right font-mono text-[#1D1D1F] text-xs">
+              <td class="py-3 px-2 text-right font-mono text-[#1D1D1F] text-xs">
                 {{ formatPrice(row.calculated_output_usd, row.calculated_output_cny) }}
               </td>
 
               <!-- 7. 倍率 -->
-              <td class="py-3 px-3 text-center font-mono text-[#6E6E73] font-semibold text-xs">
+              <td class="py-3 px-1.5 text-center font-mono text-[#6E6E73] font-semibold text-xs">
                 {{ row.model_ratio }}x
               </td>
 
               <!-- 8. 实测 TPS -->
-              <td class="py-3 px-3 text-right font-mono text-[#0071E3] font-bold text-xs">
+              <td class="py-3 px-2 text-right font-mono text-[#0071E3] font-bold text-xs">
                 {{ row.last_tested_tps }} <span class="text-[9px] text-[#86868B] font-normal">tps</span>
+              </td>
+
+              <!-- 9. 数据更新时间 (区分 models.dev 原生时间与手工渠道同步时间) -->
+              <td class="py-3 px-2 text-right whitespace-nowrap">
+                <div class="flex items-center justify-end space-x-1.5" :title="getSourceTimeTooltip(row)">
+                  <span
+                    class="w-4 h-4 rounded inline-flex items-center justify-center font-mono font-bold text-[10px] flex-shrink-0"
+                    :class="row.is_official_catalog !== false && row.source_time_type !== 'manual'
+                      ? 'bg-[#E8F2FD] text-[#0071E3] border border-[#CCE4FB]'
+                      : 'bg-[#E8F8EE] text-[#34C759] border border-[#34C759]/20'"
+                  >
+                    {{ row.is_official_catalog !== false && row.source_time_type !== 'manual' ? 'm' : 'c' }}
+                  </span>
+                  <span class="font-mono text-xs text-[#6E6E73]">
+                    {{ formatSourceTime(row) }}
+                  </span>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -727,6 +877,127 @@ const selectedModels = ref<string[]>([])
 const selectedSites = ref<string[]>([])
 const onlyFavorites = ref(false)
 
+// 更新日期范围筛选状态与预设配置
+type DatePresetType = 'all' | '7d' | '30d' | '90d' | '180d' | 'custom'
+
+const datePresets = [
+  { id: 'all' as DatePresetType, label: '不限' },
+  { id: '7d' as DatePresetType, label: '近1周' },
+  { id: '30d' as DatePresetType, label: '近1月' },
+  { id: '90d' as DatePresetType, label: '近3月' },
+  { id: '180d' as DatePresetType, label: '近半年' },
+  { id: 'custom' as DatePresetType, label: '自定义' }
+]
+
+const selectedDatePreset = ref<DatePresetType>('all')
+const customDateStart = ref<string>('')
+const customDateEnd = ref<string>('')
+const activeDateStart = ref<string>('')
+const activeDateEnd = ref<string>('')
+const isDateFilterOpen = ref(false)
+const dateFilterContainerRef = ref<HTMLElement | null>(null)
+
+const isDateFilterActive = computed(() => {
+  return selectedDatePreset.value !== 'all' || !!activeDateStart.value || !!activeDateEnd.value
+})
+
+const dateFilterLabel = computed(() => {
+  if (selectedDatePreset.value === '7d') return '更新: 近1周'
+  if (selectedDatePreset.value === '30d') return '更新: 近1月'
+  if (selectedDatePreset.value === '90d') return '更新: 近3月'
+  if (selectedDatePreset.value === '180d') return '更新: 近半年'
+  if (selectedDatePreset.value === 'custom') {
+    if (activeDateStart.value && activeDateEnd.value) {
+      return `${activeDateStart.value.slice(5)} ~ ${activeDateEnd.value.slice(5)}`
+    }
+    if (activeDateStart.value) return `自 ${activeDateStart.value.slice(5)} 起`
+    if (activeDateEnd.value) return `至 ${activeDateEnd.value.slice(5)} 止`
+    return '自定义日期'
+  }
+  return '更新时间: 全部'
+})
+
+function formatDateString(d: Date): string {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const toggleDateFilterPopover = () => {
+  isDateFilterOpen.value = !isDateFilterOpen.value
+}
+
+const applyDatePreset = (presetId: DatePresetType) => {
+  selectedDatePreset.value = presetId
+  const now = new Date()
+  const todayStr = formatDateString(now)
+
+  if (presetId === 'all') {
+    activeDateStart.value = ''
+    activeDateEnd.value = ''
+    customDateStart.value = ''
+    customDateEnd.value = ''
+    isDateFilterOpen.value = false
+    currentPage.value = 1
+    fetchFilterOptions()
+    fetchPaginatedMatrix()
+    return
+  }
+
+  if (presetId === '7d') {
+    const d = new Date()
+    d.setDate(d.getDate() - 7)
+    activeDateStart.value = formatDateString(d)
+    activeDateEnd.value = todayStr
+  } else if (presetId === '30d') {
+    const d = new Date()
+    d.setDate(d.getDate() - 30)
+    activeDateStart.value = formatDateString(d)
+    activeDateEnd.value = todayStr
+  } else if (presetId === '90d') {
+    const d = new Date()
+    d.setDate(d.getDate() - 90)
+    activeDateStart.value = formatDateString(d)
+    activeDateEnd.value = todayStr
+  } else if (presetId === '180d') {
+    const d = new Date()
+    d.setDate(d.getDate() - 180)
+    activeDateStart.value = formatDateString(d)
+    activeDateEnd.value = todayStr
+  } else if (presetId === 'custom') {
+    // 切换至自定义，保持弹层打开以便用户选择日期
+    return
+  }
+
+  isDateFilterOpen.value = false
+  currentPage.value = 1
+  fetchFilterOptions()
+  fetchPaginatedMatrix()
+}
+
+const applyCustomDateRange = () => {
+  selectedDatePreset.value = 'custom'
+  activeDateStart.value = customDateStart.value
+  activeDateEnd.value = customDateEnd.value
+  isDateFilterOpen.value = false
+  currentPage.value = 1
+  fetchFilterOptions()
+  fetchPaginatedMatrix()
+}
+
+const clearDateFilter = () => {
+  selectedDatePreset.value = 'all'
+  activeDateStart.value = ''
+  activeDateEnd.value = ''
+  customDateStart.value = ''
+  customDateEnd.value = ''
+  isDateFilterOpen.value = false
+  currentPage.value = 1
+  fetchFilterOptions()
+  fetchPaginatedMatrix()
+}
+
 // 筛选候选项原始数据
 const rawProviderOptions = ref<FilterOption[]>([])
 const rawSeriesOptions = ref<FilterOption[]>([])
@@ -826,6 +1097,8 @@ const fetchFilterOptions = async (
     if (seriesToUse.length > 0) params.series = seriesToUse
     if (modelsToUse.length > 0) params.model = modelsToUse
     if (selectedSites.value.length > 0) params.site = selectedSites.value
+    if (activeDateStart.value) params.date_start = activeDateStart.value
+    if (activeDateEnd.value) params.date_end = activeDateEnd.value
 
     const sp = buildSearchParams(params)
     const res = await axios.get(`${store.apiUrl}/api/v1/comparison/filter-options?${sp.toString()}`)
@@ -847,8 +1120,8 @@ const toggleSort = (field: string) => {
     sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
   } else {
     sortField.value = field
-    // 实测 TPS 默认从高到低排序，价格/倍率默认从低到高排序
-    sortOrder.value = field === 'last_tested_tps' ? 'desc' : 'asc'
+    // 实测 TPS 与更新时间默认从高到低 / 最新排序，价格/倍率默认从低到高排序
+    sortOrder.value = field === 'last_tested_tps' || field === 'updated_at' || field === 'source_updated_at' ? 'desc' : 'asc'
   }
   currentPage.value = 1
   fetchPaginatedMatrix()
@@ -884,6 +1157,8 @@ const fetchPaginatedMatrix = async () => {
     if (selectedSeries.value.length > 0) params.series = selectedSeries.value
     if (selectedModels.value.length > 0) params.model = selectedModels.value
     if (effectiveSites.length > 0) params.site = effectiveSites
+    if (activeDateStart.value) params.date_start = activeDateStart.value
+    if (activeDateEnd.value) params.date_end = activeDateEnd.value
 
     const sp = buildSearchParams(params)
     const res = await axios.get(`${store.apiUrl}/api/v1/comparison/paginated?${sp.toString()}`)
@@ -1023,6 +1298,7 @@ const hasAnyFilter = computed(() => {
     selectedSeries.value.length > 0 ||
     selectedModels.value.length > 0 ||
     selectedSites.value.length > 0 ||
+    isDateFilterActive.value ||
     !excludeZeroPrice.value ||
     !!store.highlightBenchmarkSiteName
   )
@@ -1036,6 +1312,12 @@ const resetAllFilters = () => {
   onlyFavorites.value = false
   excludeZeroPrice.value = true
   store.highlightBenchmarkSiteName = null
+  selectedDatePreset.value = 'all'
+  activeDateStart.value = ''
+  activeDateEnd.value = ''
+  customDateStart.value = ''
+  customDateEnd.value = ''
+  isDateFilterOpen.value = false
   currentPage.value = 1
   fetchFilterOptions()
   fetchPaginatedMatrix()
@@ -1144,6 +1426,65 @@ const getTypeBadgeClass = (type: string) => {
   if (type === 'cloud') return 'bg-[#F3E8FF] text-[#9333EA] border border-[#E9D5FF]'
   if (type === 'newapi') return 'bg-[#E6F4EA] text-[#137333] border border-[#CEEAD6]'
   return 'bg-[#FFF8E1] text-[#B78103] border border-[#FFE082]'
+}
+
+// 时间列展示格式 (默认: 人性化相对时间 'relative'，支持一键切换为 'absolute' 紧凑绝对时间)
+const timeDisplayMode = ref<'relative' | 'absolute'>('relative')
+
+const toggleTimeDisplayMode = () => {
+  timeDisplayMode.value = timeDisplayMode.value === 'relative' ? 'absolute' : 'relative'
+}
+
+const formatSourceTime = (row: ComparisonItem): string => {
+  const raw = row.source_updated_at || (row.is_official_catalog !== false && row.source_time_type !== 'manual' ? '' : row.updated_at)
+  if (!raw) return '—'
+
+  // 绝对时间模式: 如 2026-04-24 或 04-24 14:30
+  if (timeDisplayMode.value === 'absolute') {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      return raw
+    }
+    const d = new Date(raw)
+    if (!isNaN(d.getTime())) {
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      const h = String(d.getHours()).padStart(2, '0')
+      const min = String(d.getMinutes()).padStart(2, '0')
+      if (raw.length <= 10) return raw
+      return `${m}-${day} ${h}:${min}`
+    }
+    return raw
+  }
+
+  // 相对时间模式: 如 4个月前, 10分钟前, 刚刚
+  const d = new Date(raw)
+  if (!isNaN(d.getTime())) {
+    const now = new Date()
+    const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000)
+    if (diffSec < 0) return raw
+    const diffMin = Math.floor(diffSec / 60)
+    const diffHour = Math.floor(diffMin / 60)
+    const diffDay = Math.floor(diffHour / 24)
+    const diffMonth = Math.floor(diffDay / 30)
+    const diffYear = Math.floor(diffDay / 365)
+
+    if (diffMin < 1) return '刚刚'
+    if (diffMin < 60) return `${diffMin}分钟前`
+    if (diffHour < 24) return `${diffHour}小时前`
+    if (diffDay < 30) return `${diffDay}天前`
+    if (diffMonth < 12) return `${diffMonth}个月前`
+    return `${diffYear}年前`
+  }
+  return raw
+}
+
+const getSourceTimeTooltip = (row: ComparisonItem): string => {
+  const isOfficial = row.is_official_catalog !== false && row.source_time_type !== 'manual'
+  const rawTime = row.source_updated_at || row.updated_at || ''
+  if (isOfficial) {
+    return `[m 标 = models.dev 官方基准更新时间] ${rawTime}\n（点击表头文字可切换 相对时间/绝对日期 样式）`
+  }
+  return `[c 标 = 自定义渠道最后同步时间] ${rawTime}\n（点击表头文字可切换 相对时间/绝对日期 样式）`
 }
 
 // 手动选择分析的散点图模型
@@ -1313,13 +1654,20 @@ const updateScatterChart = () => {
   })
 }
 
+const handleGlobalClick = (e: MouseEvent) => {
+  closeDimensionPopover()
+  if (isDateFilterOpen.value && dateFilterContainerRef.value && !dateFilterContainerRef.value.contains(e.target as Node)) {
+    isDateFilterOpen.value = false
+  }
+}
+
 onMounted(async () => {
   checkAndApplyTargetFilters()
   await fetchFilterOptions()
   await fetchPaginatedMatrix()
   initScatterChart()
   window.addEventListener('resize', handleResize)
-  window.addEventListener('click', closeDimensionPopover)
+  window.addEventListener('click', handleGlobalClick)
 })
 
 watch(
@@ -1336,7 +1684,7 @@ watch(
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
-  window.removeEventListener('click', closeDimensionPopover)
+  window.removeEventListener('click', handleGlobalClick)
   chartInstance?.dispose()
 })
 
