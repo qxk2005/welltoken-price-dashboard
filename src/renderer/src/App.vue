@@ -22,7 +22,7 @@
         <span>数据规范: models.dev + relaywatch + speed-tester</span>
       </div>
       <div class="flex items-center space-x-3">
-        <span>WellToken 价格与测评看板 v1.0.0</span>
+        <span>WellToken 价格与测评看板 v1.2.0</span>
         <span>•</span>
         <span class="flex items-center space-x-1">
           <span class="w-1.5 h-1.5 rounded-full" :class="store.isConnected ? 'bg-[#34C759]' : 'bg-[#FF3B30]'"></span>
