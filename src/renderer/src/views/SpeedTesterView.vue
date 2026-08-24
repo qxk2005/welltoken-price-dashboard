@@ -597,8 +597,9 @@ const startBenchmark = async () => {
       prompt_type: form.promptType
     }
 
+    const dynamicTimeout = Math.max(60000, Math.ceil(form.rounds / Math.max(1, form.concurrency)) * 18000 + 15000)
     const res = await axios.post(`${store.apiUrl}/api/v1/speed-test/benchmark`, payload, {
-      timeout: 60000 // 允许 60 秒宽裕超时
+      timeout: dynamicTimeout
     })
     benchmarkResult.value = res.data
 
@@ -607,7 +608,7 @@ const startBenchmark = async () => {
       if (d.is_success) {
         appendLog('success', '●', `[${d.thread_id}] 状态: 200 OK | TTFB: ${d.ttfb_ms}ms | TTFT: ${d.ttft_ms}ms | ITL: ${d.itl_ms}ms | TPS: ${d.tps}tok/s | 生成: ${d.completion_tokens} tokens`)
       } else {
-        appendLog('error', '❌', `[${d.thread_id}] 请求异常: ${d.error_msg || d.status_code}`)
+        appendLog('error', '❌', `[${d.thread_id}] 失败: ${d.error_msg || `HTTP ${d.status_code}`}`)
       }
     }
 
@@ -619,7 +620,10 @@ const startBenchmark = async () => {
     await store.fetchComparisonMatrix()
     appendLog('info', '🔄', `大盘比价矩阵与渠道列表已同步最新实测指标`)
   } catch (e: any) {
-    const errMsg = e.response?.data?.detail || e.message
+    let errMsg = e.response?.data?.detail || e.message
+    if (e.code === 'ECONNABORTED' || (e.message && e.message.includes('timeout'))) {
+      errMsg = '压测等待超时：目标渠道端点响应时间过长（请检查该渠道的 Base URL、Key 或所测模型是否可用）'
+    }
     appendLog('error', '❌', `性能压测遇到异常: ${errMsg}`)
     console.error('Benchmark failed:', e)
   } finally {

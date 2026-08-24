@@ -334,13 +334,20 @@ class SpeedTesterService:
                 # 真实请求分支
                 if api_key:
                     try:
-                        async with httpx.AsyncClient(timeout=30.0) as client:
+                        timeout_cfg = httpx.Timeout(timeout=12.0, connect=5.0, read=10.0, write=5.0)
+                        async with httpx.AsyncClient(timeout=timeout_cfg, follow_redirects=True) as client:
                             async with client.stream("POST", chat_url, headers=headers, json=payload) as response:
                                 ttfb_time = time.time()
                                 status_code = response.status_code
                                 if response.status_code != 200:
                                     err_body = await response.aread()
-                                    error_msg = f"HTTP {response.status_code}: {err_body.decode('utf-8', errors='ignore')[:120]}"
+                                    err_text = err_body.decode('utf-8', errors='ignore')
+                                    try:
+                                        err_json = json.loads(err_text)
+                                        err_msg_parsed = err_json.get("error", {}).get("message") or err_json.get("message") or err_text
+                                    except Exception:
+                                        err_msg_parsed = err_text
+                                    error_msg = f"HTTP {response.status_code}: {err_msg_parsed[:120]}"
                                     is_success = False
                                 else:
                                     async for line in response.aiter_lines():
@@ -362,26 +369,34 @@ class SpeedTesterService:
                                                 full_text += content
                                         except Exception:
                                             continue
+                    except httpx.ConnectTimeout:
+                        error_msg = "连接端点超时 (Connect Timeout, >5s)"
+                        is_success = False
+                        status_code = 504
+                    except httpx.ReadTimeout:
+                        error_msg = "端点响应等待超时 (Read Timeout, >10s)"
+                        is_success = False
+                        status_code = 504
                     except Exception as ex:
-                        error_msg = f"Network Error: {str(ex)[:100]}"
+                        error_msg = f"网络请求异常: {str(ex)[:100]}"
                         is_success = False
                         status_code = 500
 
-                # 仿真回退分支（未配置 Key 或网络无法直连）
-                if not api_key or not is_success:
-                    sim_ttfb = random.uniform(50, 110)
+                # 仿真回退分支（仅在未填写 API Key 时供离线演示使用）
+                else:
+                    sim_ttfb = random.uniform(35, 75)
                     await asyncio.sleep(sim_ttfb / 1000.0)
                     ttfb_time = time.time()
                     
-                    sim_ttft_extra = random.uniform(60, 150)
+                    sim_ttft_extra = random.uniform(40, 80)
                     await asyncio.sleep(sim_ttft_extra / 1000.0)
                     first_token_time = time.time()
 
                     target_tps = random.uniform(60, 95) if "flash" in model_id.lower() or "deepseek" in model_id.lower() else random.uniform(45, 70)
-                    total_tokens = random.randint(120, 220)
+                    total_tokens = random.randint(60, 120)
                     sim_words = ["VERIFIED\n", "区块链与大模型结合具备巨大潜力，", "去中心化网络为模型提供抗审查算力，", "智能合约实现自动化微支付与结算，", "零知识证明可保障用户隐私与模型权重安全，", "实现透明可信的分布式智能生态。"]
                     for i in range(1, total_tokens + 1):
-                        interval = (1.0 / target_tps) * random.uniform(0.8, 1.2)
+                        interval = (1.0 / target_tps) * random.uniform(0.7, 1.1)
                         await asyncio.sleep(interval)
                         now_t = time.time()
                         token_timestamps.append(now_t)
