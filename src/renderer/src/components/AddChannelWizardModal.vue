@@ -397,10 +397,10 @@
                   <th class="py-2 px-2.5 text-center w-9">收录</th>
                   <th class="py-2 px-3 w-40">渠道模型 & 分组</th>
                   <th class="py-2 px-1 text-center w-5">➔</th>
-                  <th class="py-2 px-3">对应 models.dev 标准模型</th>
-                  <th class="py-2 px-2.5 text-center w-36">标准官方原价</th>
-                  <th class="py-2 px-2.5 text-center w-26">计费倍率 & 机制</th>
-                  <th class="py-2 px-3 text-center w-38">折算实际单价 (每1M)</th>
+                  <th class="py-2 px-3 min-w-[240px]">对应 models.dev 标准模型</th>
+                  <th class="py-2 px-2.5 text-center w-36 font-semibold">标准官方原价 ({{ form.currency === 'USD' ? '$' : '¥' }})</th>
+                  <th class="py-2 px-2.5 text-center w-26 font-semibold">计费倍率 & 机制</th>
+                  <th class="py-2 px-3 text-center w-40 font-semibold">折算实际单价 (每1M - {{ form.currency === 'USD' ? 'USD $' : 'CNY ¥' }})</th>
                   <th class="py-2 px-2 text-center w-14">操作</th>
                 </tr>
               </thead>
@@ -442,23 +442,17 @@
                   <!-- 3. 箭头 -->
                   <td class="py-2 px-1 text-center text-[#86868B]">➔</td>
 
-                  <!-- 4. 目标标准模型下拉选择 -->
-                  <td class="py-2 px-3">
-                    <select
+                  <!-- 4. 目标标准模型下拉选择 (支持模糊搜索与新建别名) -->
+                  <td class="py-2 px-3 min-w-[240px]">
+                    <ModelSearchSelect
                       v-model="item.standard_model_id"
+                      :models-catalog="store.modelsCatalog"
+                      :raw-model-name="item.channel_model_name"
+                      :current-price-usd="item.input_price_usd"
+                      :current-price-cny="item.input_price_cny"
+                      :currency="form.currency"
                       @change="onStandardModelChange(item)"
-                      class="w-full bg-[#FFFFFF] border rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-[#0071E3]"
-                      :class="item.standard_model_id ? 'border-[#E5E5EA] text-[#1D1D1F]' : 'border-[#FF9500] text-[#FF9500]'"
-                    >
-                      <option value="">-- 请选择关联的标准模型 --</option>
-                      <option
-                        v-for="std in store.modelsCatalog"
-                        :key="std.model_id"
-                        :value="std.model_id"
-                      >
-                        {{ std.model_id }} ({{ std.name }}) - {{ std.provider }}
-                      </option>
-                    </select>
+                    />
                   </td>
 
                   <!-- 5. 【第一段】标准官方原价 (入 / 出 / 缓) -->
@@ -466,15 +460,15 @@
                     <div v-if="item.official_input_cny > 0 || item.official_input_price > 0" class="inline-flex flex-col items-center bg-[#F9F9FB] px-2 py-0.5 rounded-lg border border-[#E5E5EA] text-[10px] font-mono text-[#6E6E73] w-full">
                       <div class="flex items-center justify-between w-full">
                         <span>入:</span>
-                        <span>{{ store.currency === 'USD' ? `$${item.official_input_price.toFixed(3)}` : `¥${(item.official_input_cny || item.official_input_price * (store.usdToCnyRate || 7.25)).toFixed(2)}` }}</span>
+                        <span>{{ form.currency === 'USD' ? `$${item.official_input_price.toFixed(3)}` : `¥${(item.official_input_cny || item.official_input_price * (store.usdToCnyRate || 7.25)).toFixed(2)}` }}</span>
                       </div>
                       <div class="flex items-center justify-between w-full">
                         <span>出:</span>
-                        <span>{{ store.currency === 'USD' ? `$${item.official_output_price.toFixed(3)}` : `¥${(item.official_output_cny || item.official_output_price * (store.usdToCnyRate || 7.25)).toFixed(2)}` }}</span>
+                        <span>{{ form.currency === 'USD' ? `$${item.official_output_price.toFixed(3)}` : `¥${(item.official_output_cny || item.official_output_price * (store.usdToCnyRate || 7.25)).toFixed(2)}` }}</span>
                       </div>
                       <div v-if="(item.official_cache_cny > 0 || item.official_cache_price > 0)" class="flex items-center justify-between w-full text-[9px] text-[#86868B]">
                         <span>缓:</span>
-                        <span>{{ store.currency === 'USD' ? `$${item.official_cache_price.toFixed(3)}` : `¥${(item.official_cache_cny || item.official_cache_price * (store.usdToCnyRate || 7.25)).toFixed(2)}` }}</span>
+                        <span>{{ form.currency === 'USD' ? `$${item.official_cache_price.toFixed(3)}` : `¥${(item.official_cache_cny || item.official_cache_price * (store.usdToCnyRate || 7.25)).toFixed(2)}` }}</span>
                       </div>
                     </div>
                     <span v-else class="text-[10px] text-[#AEAEB2] font-mono">--</span>
@@ -504,18 +498,18 @@
                       <div class="flex items-center justify-between w-full space-x-2">
                         <span class="text-[#86868B]">入:</span>
                         <span class="font-bold text-[#137333]">
-                          {{ store.currency === 'USD' ? `$${item.input_price_usd.toFixed(3)}` : `¥${item.input_price_cny.toFixed(2)}` }}
+                          {{ form.currency === 'USD' ? `$${item.input_price_usd.toFixed(3)}` : `¥${item.input_price_cny.toFixed(2)}` }}
                         </span>
                       </div>
                       <div class="flex items-center justify-between w-full space-x-2">
                         <span class="text-[#86868B]">出:</span>
                         <span class="font-bold text-[#0071E3]">
-                          {{ store.currency === 'USD' ? `$${item.output_price_usd.toFixed(3)}` : `¥${item.output_price_cny.toFixed(2)}` }}
+                          {{ form.currency === 'USD' ? `$${item.output_price_usd.toFixed(3)}` : `¥${item.output_price_cny.toFixed(2)}` }}
                         </span>
                       </div>
-                      <div v-if="item.cache_price_cny > 0" class="flex items-center justify-between w-full space-x-2 text-[10px] text-[#34C759]">
+                      <div v-if="item.cache_price_cny > 0 || item.cache_price_usd > 0" class="flex items-center justify-between w-full space-x-2 text-[10px] text-[#34C759]">
                         <span class="text-[#86868B]">缓:</span>
-                        <span>{{ store.currency === 'USD' ? `$${item.cache_price_usd.toFixed(3)}` : `¥${item.cache_price_cny.toFixed(3)}` }}</span>
+                        <span>{{ form.currency === 'USD' ? `$${item.cache_price_usd.toFixed(3)}` : `¥${item.cache_price_cny.toFixed(3)}` }}</span>
                       </div>
                     </div>
                   </td>
@@ -525,7 +519,7 @@
                     <button
                       v-if="item.standard_model_id"
                       @click="promoteAlias(item)"
-                      class="text-[10px] px-2 py-0.5 rounded bg-[#F2F2F7] hover:bg-[#0071E3] hover:text-white text-[#0071E3] border border-[#E5E5EA] transition-all shadow-2xs"
+                      class="text-[10px] px-2 py-0.5 rounded bg-[#F2F2F7] hover:bg-[#0071E3] hover:text-white text-[#0071E3] border border-[#E5E5EA] transition-all shadow-2xs cursor-pointer"
                       title="将此映射固化为全局智能别名库规则，未来所有渠道自动生效"
                     >
                       ⭐ 固化
@@ -592,9 +586,9 @@
                         🎯 {{ item.group_name }}
                       </span>
                     </td>
-                    <td class="py-1.5 px-3 text-[#0071E3] font-mono">{{ item.standard_model_id }}</td>
-                    <td class="py-1.5 px-3 text-right font-mono font-bold text-[#137333]">
-                      {{ store.currency === 'USD' ? `$${item.input_price_usd.toFixed(3)}` : `¥${item.input_price_cny.toFixed(2)}` }} / 1M
+                    <td class="py-1.5 px-3 font-mono text-[#0071E3] font-semibold">{{ item.standard_model_id }}</td>
+                    <td class="py-1 px-2 text-right font-mono font-bold text-[#137333]">
+                      {{ form.currency === 'USD' ? `$${item.input_price_usd.toFixed(3)}` : `¥${item.input_price_cny.toFixed(2)}` }} / 1M
                     </td>
                   </tr>
                 </tbody>
@@ -680,6 +674,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { useDashboardStore } from '../stores/dashboardStore'
+import ModelSearchSelect from './ModelSearchSelect.vue'
 
 const props = defineProps<{
   initialChannel?: any
@@ -893,11 +888,36 @@ function toggleSelectAll(val: boolean) {
   })
 }
 
+function roundNum(val: number, decimals: number): number {
+  return Number(Math.round(Number(val + 'e' + decimals)) + 'e-' + decimals)
+}
+
 function onStandardModelChange(item: any) {
   if (item.standard_model_id) {
     item.is_matched = true
     item.is_selected = true
     item.match_type = 'channel_custom'
+    const std = store.modelsCatalog.find(m => m.model_id.toLowerCase() === item.standard_model_id.toLowerCase())
+    if (std) {
+      item.standard_model_name = std.name
+      item.provider = std.provider
+      item.series = std.series
+      item.official_input_price = std.official_input_price
+      item.official_output_price = std.official_output_price
+      item.official_cache_price = std.official_cache_price
+      item.official_input_cny = roundNum(std.official_input_price * 7.25, 2)
+      item.official_output_cny = roundNum(std.official_output_price * 7.25, 2)
+      item.official_cache_cny = roundNum(std.official_cache_price * 7.25, 3)
+
+      const ratio = item.custom_ratio !== null ? item.custom_ratio : (item.public_ratio || 1.0)
+      const recharge = form.recharge_rate || 1.0
+      item.input_price_usd = roundNum(std.official_input_price * ratio * recharge, 3)
+      item.output_price_usd = roundNum(std.official_output_price * ratio * recharge, 3)
+      item.cache_price_usd = roundNum(std.official_cache_price * ratio * recharge, 3)
+      item.input_price_cny = roundNum(item.official_input_cny * ratio * recharge, 2)
+      item.output_price_cny = roundNum(item.official_output_cny * ratio * recharge, 2)
+      item.cache_price_cny = roundNum(item.official_cache_cny * ratio * recharge, 3)
+    }
   } else {
     item.is_matched = false
     item.match_type = 'unmapped'

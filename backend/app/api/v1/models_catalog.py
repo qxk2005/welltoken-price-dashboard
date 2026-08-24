@@ -49,6 +49,65 @@ async def get_model_detail(model_id: str, db: AsyncSession = Depends(get_db)):
     m = res.scalar_one_or_none()
     if not m:
         raise HTTPException(status_code=404, detail="Model not found")
+@router.post("", response_model=ModelMetadataSchema)
+async def create_custom_model_metadata(
+    payload: ModelMetadataCreate,
+    raw_alias: Optional[str] = Query(None, description="需要同时固化的渠道原始模型别名"),
+    db: AsyncSession = Depends(get_db)
+):
+    """创建或更新自定义标准模型元数据，并可一键固化渠道原始别名"""
+    from backend.app.models.token_price import ModelAlias
+    from backend.app.services.model_normalizer import model_normalizer
+
+    stmt = select(ModelMetadata).where(ModelMetadata.model_id == payload.model_id)
+    res = await db.execute(stmt)
+    m = res.scalar_one_or_none()
+    
+    if m:
+        m.name = payload.name
+        m.provider = (payload.provider or "custom").lower()
+        m.series = payload.series or m.series or "Custom"
+        m.official_input_price = payload.official_input_price
+        m.official_output_price = payload.official_output_price
+        m.official_cache_price = payload.official_cache_price
+    else:
+        m = ModelMetadata(
+            model_id=payload.model_id,
+            name=payload.name or payload.model_id,
+            provider=(payload.provider or "custom").lower(),
+            series=payload.series or "Custom",
+            official_input_price=payload.official_input_price or 2.0,
+            official_output_price=payload.official_output_price or 2.0,
+            official_cache_price=payload.official_cache_price or 0.2,
+            context_window=payload.context_window or 128000,
+            max_output=payload.max_output or 4096,
+            description=payload.description or "用户自定义大模型",
+            is_featured=False
+        )
+        db.add(m)
+        
+    await db.flush()
+
+    if raw_alias:
+        raw_clean = raw_alias.strip()
+        alias_stmt = select(ModelAlias).where(ModelAlias.raw_pattern == raw_clean)
+        alias_res = await db.execute(alias_stmt)
+        alias_obj = alias_res.scalar_one_or_none()
+        if alias_obj:
+            alias_obj.standard_model_id = payload.model_id
+            alias_obj.match_type = "exact"
+        else:
+            alias_obj = ModelAlias(
+                raw_pattern=raw_clean,
+                standard_model_id=payload.model_id,
+                match_type="exact",
+                notes=f"由向导创建新模型自动固化 ({payload.name})"
+            )
+            db.add(alias_obj)
+
+    await db.commit()
+    await db.refresh(m)
+    await model_normalizer.initialize()
     return m
 
 @router.post("/sync-models-dev")
