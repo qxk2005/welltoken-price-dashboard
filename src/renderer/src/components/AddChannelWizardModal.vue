@@ -1,6 +1,9 @@
 <template>
   <div class="fixed inset-0 bg-black/35 backdrop-blur-xs flex items-center justify-center z-50 animate-fade-in select-none">
-    <div class="bg-[#FFFFFF] border border-[#E5E5EA] rounded-2xl w-[920px] max-h-[88vh] flex flex-col shadow-[0_20px_60px_rgba(0,0,0,0.18)] overflow-hidden font-sans text-xs">
+    <div
+      class="bg-[#FFFFFF] border border-[#E5E5EA] rounded-2xl flex flex-col shadow-[0_20px_60px_rgba(0,0,0,0.18)] overflow-hidden font-sans text-xs transition-all duration-300"
+      :class="currentStep === 3 ? 'w-[1140px] max-w-[96vw] max-h-[90vh]' : 'w-[940px] max-w-[92vw] max-h-[88vh]'"
+    >
       
       <!-- 1. 弹窗顶部：标题与关闭按钮 -->
       <div class="px-6 py-4 border-b border-[#E5E5EA] flex items-center justify-between bg-[#F9F9FB]">
@@ -390,18 +393,18 @@
           </div>
 
           <!-- 映射对照数据表格 -->
-          <div class="flex-1 border border-[#E5E5EA] rounded-xl overflow-hidden overflow-y-auto max-h-[300px]">
-            <table class="w-full text-left border-collapse">
-              <thead class="bg-[#F2F2F7] sticky top-0 z-10 text-[11px] text-[#6E6E73] border-b border-[#E5E5EA]">
+          <div class="flex-1 border border-[#E5E5EA] rounded-xl overflow-x-auto overflow-y-auto max-h-[460px] min-h-[340px] custom-scrollbar shadow-2xs">
+            <table class="w-full min-w-[1040px] text-left border-collapse">
+              <thead class="bg-[#F2F2F7] sticky top-0 z-20 text-[11px] text-[#6E6E73] border-b border-[#E5E5EA] shadow-2xs">
                 <tr>
-                  <th class="py-2 px-2.5 text-center w-9">收录</th>
-                  <th class="py-2 px-3 w-40">渠道模型 & 分组</th>
-                  <th class="py-2 px-1 text-center w-5">➔</th>
-                  <th class="py-2 px-3 min-w-[240px]">对应 models.dev 标准模型</th>
-                  <th class="py-2 px-2.5 text-center w-36 font-semibold">标准官方原价 ({{ form.currency === 'USD' ? '$' : '¥' }})</th>
-                  <th class="py-2 px-2.5 text-center w-26 font-semibold">计费倍率 & 机制</th>
-                  <th class="py-2 px-3 text-center w-40 font-semibold">折算实际单价 (每1M - {{ form.currency === 'USD' ? 'USD $' : 'CNY ¥' }})</th>
-                  <th class="py-2 px-2 text-center w-14">操作</th>
+                  <th class="py-2.5 px-3 text-center w-10">收录</th>
+                  <th class="py-2.5 px-3.5 min-w-[190px]">渠道模型 & 分组</th>
+                  <th class="py-2.5 px-1 text-center w-6">➔</th>
+                  <th class="py-2.5 px-3 min-w-[280px]">对应 models.dev 标准模型</th>
+                  <th class="py-2.5 px-3 text-center w-32 font-semibold">标准官方原价 ({{ form.currency === 'USD' ? '$' : '¥' }})</th>
+                  <th class="py-2.5 px-3 text-center w-28 font-semibold">计费倍率 & 机制</th>
+                  <th class="py-2.5 px-3.5 text-center w-36 font-semibold">折算实际单价 (每1M - {{ form.currency === 'USD' ? 'USD $' : 'CNY ¥' }})</th>
+                  <th class="py-2.5 px-3 text-center w-16">操作</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-[#E5E5EA] text-[11px]">
