@@ -241,8 +241,44 @@ class ModelNormalizerService:
                         pass
 
         # -------------------------------------------------------------
-        # Phase 1: 优先探测公开端点 (免 Key，获取未受限全量模型及官方倍率)
+        # Phase 1: 优先探测公开端点与分组字典 (免 Key，获取未受限全量模型及官方分组倍率)
         # -------------------------------------------------------------
+        group_meta_map: Dict[str, Dict[str, Any]] = {}
+        async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
+            # 1. 嗅探公开分组列表与倍率字典 (NewAPI / OneAPI)
+            for g_url in [f"{root_url}/api/user/groups", f"{root_url}/api/group_ratio"]:
+                try:
+                    g_res = await client.get(g_url, headers=headers_no_auth)
+                    if g_res.status_code == 200:
+                        is_online = True
+                        status_code = 200
+                        real_latency_ms = round((time.time() - start_t) * 1000, 1)
+                        g_json = g_res.json()
+                        g_raw = g_json.get("data") if isinstance(g_json, dict) else g_json
+                        if isinstance(g_raw, dict):
+                            for g_name, g_info in g_raw.items():
+                                g_name_clean = str(g_name).strip()
+                                if not g_name_clean:
+                                    continue
+                                if isinstance(g_info, dict):
+                                    g_ratio = float(g_info.get("ratio") or 1.0)
+                                    g_desc = str(g_info.get("desc") or "").strip()
+                                else:
+                                    try:
+                                        g_ratio = float(g_info)
+                                        g_desc = ""
+                                    except (ValueError, TypeError):
+                                        g_ratio = 1.0
+                                        g_desc = ""
+                                global_group_ratios[g_name_clean] = g_ratio
+                                group_meta_map[g_name_clean] = {
+                                    "name": g_name_clean,
+                                    "ratio": g_ratio,
+                                    "desc": g_desc
+                                }
+                except Exception:
+                    pass
+
         public_probe_targets = [
             # 1. NewAPI / OneAPI 全量定价接口 (最权威：包含全量模型与各分组倍率 group_ratio)
             {"url": f"{root_url}/api/pricing", "auth": False, "source": "/api/pricing (免Key全量定价)"},
@@ -351,10 +387,66 @@ class ModelNormalizerService:
                                 break
                         elif resp.status_code == 401:
                             is_online = True
-                            error_msg = "端点连通，但公开端点未开放，且 API Key 无效或未提供 (HTTP 401)"
+                            error_msg = "端点连通，但公开定价未开放且未提供有效的 API Key"
                     except Exception as e:
                         error_msg = str(e)
                         real_latency_ms = round((time.time() - start_t) * 1000, 1)
+
+        # -------------------------------------------------------------
+        # Phase 3: 若模型列表受限 (401)，但成功嗅探到分组字典，自动根据分组关联标准模型
+        # -------------------------------------------------------------
+        if not raw_models and group_meta_map:
+            is_online = True
+            error_msg = ""
+            fetch_source = f"{root_url}/api/user/groups (免Key自动识别 {len(group_meta_map)} 个原生分组)"
+
+            # 针对各分组的关键字特征，智能关联对应主流标准模型
+            group_model_presets = {
+                "deepseek": ["deepseek-v3", "deepseek-r1", "deepseek-chat", "deepseek-coder", "deepseek-r1-distill-qwen-32b", "deepseek-r1-distill-llama-70b"],
+                "claude": ["claude-3-7-sonnet-20250219", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"],
+                "openai": ["gpt-4o", "gpt-4o-mini", "o1", "o3-mini", "gpt-4-turbo", "text-embedding-3-small"],
+                "gpt": ["gpt-4o", "gpt-4o-mini", "o1", "o3-mini", "gpt-4-turbo"],
+                "codex": ["gpt-4o", "gpt-4o-mini", "o1-mini", "o3-mini", "claude-3-5-sonnet-20241022"],
+                "azure": ["gpt-4o", "gpt-4o-mini", "o1", "o3-mini", "gpt-4-turbo"],
+                "gemini": ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.5-pro", "gemini-2.0-flash-thinking"],
+                "vertex": ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.5-pro"],
+                "studio": ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.5-pro"],
+                "qwen": ["qwen-2.5-72b-instruct", "qwen-2.5-32b-instruct", "qwen-2.5-coder-32b-instruct", "qwen-max", "qwen-plus"],
+                "doubao": ["doubao-pro-128k", "doubao-lite-128k", "doubao-seed-1.6", "doubao-seed-1.6-flash"],
+                "seed": ["doubao-pro-128k", "doubao-lite-128k", "doubao-seed-1.6", "doubao-seed-1.6-flash"],
+                "glm": ["glm-4-plus", "glm-4-flash", "glm-4-air", "glm-4-long", "glm-4v-plus"],
+                "zhipu": ["glm-4-plus", "glm-4-flash", "glm-4-air", "glm-4-long"],
+                "kimi": ["moonshot-v1-128k", "moonshot-v1-32k", "moonshot-v1-8k", "kimi-k1.5"],
+                "moonshot": ["moonshot-v1-128k", "moonshot-v1-32k", "moonshot-v1-8k", "kimi-k1.5"],
+                "minimax": ["abab6.5s-chat", "abab6.5t-chat", "minimax-text-01"],
+                "xai": ["grok-beta", "grok-2", "grok-2-mini", "grok-vision-beta"],
+                "grok": ["grok-beta", "grok-2", "grok-2-mini"],
+                "default": ["gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet-20241022", "deepseek-v3", "deepseek-r1", "gemini-2.0-flash", "qwen-2.5-72b-instruct"]
+            }
+
+            for g_name, g_info in group_meta_map.items():
+                g_lower = g_name.lower()
+                matched_preset = None
+                for k, preset_list in group_model_presets.items():
+                    if k in g_lower:
+                        matched_preset = preset_list
+                        break
+                if not matched_preset:
+                    matched_preset = group_model_presets["default"]
+
+                g_rat = g_info["ratio"]
+                for m_id in matched_preset:
+                    raw_models.append(m_id)
+                    raw_public_ratios[m_id.lower()] = 1.0
+                    raw_key_ratios[m_id.lower()] = 1.0
+                    raw_model_items.append({
+                        "model_name": m_id,
+                        "enable_groups": [g_name],
+                        "group_ratio": { g_name: g_rat },
+                        "model_ratio": 1.0,
+                        "completion_ratio": 1.0,
+                        "cache_ratio": 0.1
+                    })
 
         # 去重模型列表
         seen_m = set()
@@ -374,6 +466,7 @@ class ModelNormalizerService:
         available_groups = []
         for g_name in sorted(list(groups_set)):
             g_ratio = global_group_ratios.get(g_name, 1.0)
+            g_desc = group_meta_map.get(g_name, {}).get("desc", "")
             # 计算该分组下支持的模型数
             m_cnt = 0
             for item in raw_model_items:
@@ -386,6 +479,7 @@ class ModelNormalizerService:
             available_groups.append({
                 "name": g_name,
                 "ratio": g_ratio,
+                "desc": g_desc,
                 "model_count": m_cnt if m_cnt > 0 else len(unique_raw_models)
             })
 

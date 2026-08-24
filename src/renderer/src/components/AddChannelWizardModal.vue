@@ -268,7 +268,7 @@
                     :key="g.name"
                     :value="g.name"
                   >
-                    {{ g.name }} (倍率: {{ g.ratio }}x, 覆盖 {{ g.model_count }} 款模型)
+                    {{ g.name }} (倍率: {{ g.ratio }}x{{ g.desc ? ` · ${g.desc}` : '' }}, 覆盖 {{ g.model_count }} 款模型)
                   </option>
                 </select>
               </div>
