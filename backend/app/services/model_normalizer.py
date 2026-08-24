@@ -299,6 +299,9 @@ class ModelNormalizerService:
                     real_latency_ms = round((time.time() - start_t) * 1000, 1)
 
                     if resp.status_code == 200:
+                        txt = resp.text.strip()
+                        if txt.startswith("<") or "<html" in txt.lower():
+                            continue
                         is_online = True
                         data = resp.json()
                         raw_list = data if isinstance(data, list) else (data.get("data") or data.get("models") or [])
@@ -347,6 +350,7 @@ class ModelNormalizerService:
 
                         if raw_models:
                             fetch_source = target["source"]
+                            error_msg = ""
                             break # 成功免 Key 获取到全量模型
                 except Exception:
                     pass
@@ -369,6 +373,9 @@ class ModelNormalizerService:
                         real_latency_ms = round((time.time() - start_t) * 1000, 1)
 
                         if resp.status_code == 200:
+                            txt = resp.text.strip()
+                            if txt.startswith("<") or "<html" in txt.lower():
+                                continue
                             is_online = True
                             data = resp.json()
                             raw_list = data if isinstance(data, list) else (data.get("data") or data.get("models") or [])
@@ -384,12 +391,14 @@ class ModelNormalizerService:
                                     raw_models.append(m_id.strip())
                             if raw_models:
                                 fetch_source = target["source"]
+                                error_msg = ""
                                 break
                         elif resp.status_code == 401:
                             is_online = True
                             error_msg = "端点连通，但公开定价未开放且未提供有效的 API Key"
                     except Exception as e:
-                        error_msg = str(e)
+                        if not raw_models:
+                            error_msg = str(e)
                         real_latency_ms = round((time.time() - start_t) * 1000, 1)
 
         # -------------------------------------------------------------
@@ -494,6 +503,9 @@ class ModelNormalizerService:
             if m_low in raw_public_ratios and m_low in raw_key_ratios:
                 if raw_public_ratios[m_low] != raw_key_ratios[m_low]:
                     special_cnt += 1
+
+        if unique_raw_models:
+            error_msg = ""
 
         return {
             "is_online": is_online,
