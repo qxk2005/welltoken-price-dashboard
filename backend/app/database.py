@@ -26,19 +26,21 @@ async def init_db():
         await conn.exec_driver_sql("PRAGMA busy_timeout=30000;")
         await conn.exec_driver_sql("PRAGMA synchronous=NORMAL;")
         await conn.run_sync(Base.metadata.create_all)
-        # 自动迁移检查：若表存在但无 group_name 则自动补齐
-        try:
-            await conn.exec_driver_sql("ALTER TABLE relay_sites ADD COLUMN group_name VARCHAR(100) DEFAULT '';")
-        except Exception:
-            pass
-        try:
-            await conn.exec_driver_sql("ALTER TABLE site_model_pricings ADD COLUMN group_name VARCHAR(100) DEFAULT '';")
-        except Exception:
-            pass
-        try:
-            await conn.exec_driver_sql("ALTER TABLE relay_sites ADD COLUMN currency VARCHAR(10) DEFAULT 'CNY';")
-        except Exception:
-            pass
+        # 自动迁移检查：若表存在但缺少新字段则自动补齐
+        migrations = [
+            "ALTER TABLE relay_sites ADD COLUMN group_name VARCHAR(100) DEFAULT '';",
+            "ALTER TABLE relay_sites ADD COLUMN currency VARCHAR(10) DEFAULT 'CNY';",
+            "ALTER TABLE site_model_pricings ADD COLUMN group_name VARCHAR(100) DEFAULT '';",
+            "ALTER TABLE site_model_pricings ADD COLUMN source_updated_at VARCHAR(40) DEFAULT '';",
+            "ALTER TABLE model_metadata ADD COLUMN last_updated VARCHAR(30) DEFAULT '';",
+            "ALTER TABLE model_metadata ADD COLUMN family VARCHAR(80) DEFAULT '';",
+        ]
+        for sql in migrations:
+            try:
+                await conn.exec_driver_sql(sql)
+            except Exception:
+                pass
+
         try:
             await conn.exec_driver_sql("PRAGMA foreign_keys=ON;")
             await conn.exec_driver_sql("DELETE FROM site_model_pricings WHERE site_id NOT IN (SELECT id FROM relay_sites);")

@@ -50,9 +50,11 @@ export interface RelaySite {
   score: number
   notes: string
   created_at: string
+  updated_at?: string
   model_count: number
   groups?: string[]
   group_count?: number
+  provider_type?: string
 }
 
 export interface ModelMetadata {

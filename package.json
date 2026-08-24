@@ -19,6 +19,7 @@
     "build:mac": "npm run build:backend && electron-vite build && electron-builder --mac",
     "build:win": "npm run build:backend && electron-vite build && electron-builder --win",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
+    "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "screenshot": "node scripts/screenshot_tester.mjs",
     "test:ui": "node scripts/screenshot_tester.mjs"

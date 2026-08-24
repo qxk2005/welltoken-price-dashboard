@@ -88,8 +88,11 @@ async def fetch_online_exchange_rate(payload: Optional[dict] = None):
 async def trigger_full_system_sync():
     """一键触发 models.dev (models.json + catalog.json + api.json) 全量同步"""
     res1 = await models_dev_sync.full_sync_from_models_dev()
+    if res1.get("status") == "failed":
+        raise HTTPException(status_code=500, detail=res1.get("error") or "全网同步失败")
     await dashboard_service.broadcast_market_update()
     return {
         "status": "success",
         "sync_result": res1
     }
+

@@ -1,3 +1,4 @@
+import asyncio
 import httpx
 import json
 import time
@@ -346,10 +347,15 @@ class ModelsDevSyncService:
             # 阶段 1: 抓取数据源 (15%)
             await report_progress(1, 15, "正在连接并拉取 models.dev 官方 3 大核心数据源...", "正在下载 models.json, catalog.json 与 api.json")
 
-            async with httpx.AsyncClient(timeout=35.0) as client:
-                api_data = await self._fetch_with_cache(client, self.api_url, "models_dev_api.json") or {}
-                models_data = await self._fetch_with_cache(client, self.models_url, "models_dev_models.json") or {}
-                catalog_data = await self._fetch_with_cache(client, self.catalog_url, "models_dev_catalog.json") or {}
+            async with httpx.AsyncClient(timeout=25.0, follow_redirects=True) as client:
+                api_task = self._fetch_with_cache(client, self.api_url, "models_dev_api.json")
+                models_task = self._fetch_with_cache(client, self.models_url, "models_dev_models.json")
+                catalog_task = self._fetch_with_cache(client, self.catalog_url, "models_dev_catalog.json")
+                api_res, models_res, catalog_res = await asyncio.gather(api_task, models_task, catalog_task, return_exceptions=True)
+                
+                api_data = api_res if isinstance(api_res, (dict, list)) else {}
+                models_data = models_res if isinstance(models_res, (dict, list)) else {}
+                catalog_data = catalog_res if isinstance(catalog_res, (dict, list)) else {}
 
             if not api_data and not models_data and not catalog_data:
                 raise Exception("无法从 models.dev 获取数据且本地暂无可用缓存，请检查网络或代理连接")

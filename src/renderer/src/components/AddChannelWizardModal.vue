@@ -980,7 +980,7 @@ async function handleOneClickSync() {
   isSyncingModelsDev.value = true
   try {
     await store.triggerFullSync()
-    emit('saved')
+    emit('success')
     emit('close')
   } catch (e: any) {
     alert(`同步失败: ${e.response?.data?.detail || e.message}`)

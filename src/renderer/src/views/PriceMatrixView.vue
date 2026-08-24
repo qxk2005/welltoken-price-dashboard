@@ -1656,7 +1656,7 @@ const updateScatterChart = () => {
     item.model_name || item.model_id
   ])
 
-  const option: echarts.EChartsOption = {
+  const option: any = {
     backgroundColor: 'transparent',
     grid: {
       left: 50,

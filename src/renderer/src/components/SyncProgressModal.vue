@@ -212,7 +212,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useDashboardStore } from '../stores/dashboardStore'
 
 const store = useDashboardStore()

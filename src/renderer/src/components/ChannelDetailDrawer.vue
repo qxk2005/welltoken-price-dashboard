@@ -281,7 +281,6 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import { useDashboardStore } from '../stores/dashboardStore'
 import ProviderLogo from './ProviderLogo.vue'
-import ScoreBreakdownTooltip from './ScoreBreakdownTooltip.vue'
 import SystemIcon from './SystemIcon.vue'
 import type { RelaySite } from '../types'
 

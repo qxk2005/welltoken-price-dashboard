@@ -244,6 +244,20 @@ export const useDashboardStore = defineStore('dashboard', {
 
       try {
         const res = await axios.post(`${this.apiUrl}/api/v1/settings/full-sync`)
+        const syncRes = res.data?.sync_result
+        if (syncRes && syncRes.status === 'success') {
+          this.syncProgress.stage = 5
+          this.syncProgress.progress = 100
+          this.syncProgress.message = '全网大模型与渠道比价数据同步完成！'
+          this.syncProgress.detail = `已更新 ${syncRes.models_count || this.modelsCatalog.length} 款标准模型 · ${syncRes.providers_count || this.relaySites.length} 家供应商 · ${syncRes.pricings_count || this.comparisonMatrix.length} 条比价`
+          this.syncProgress.stats = {
+            models_count: syncRes.models_count || this.modelsCatalog.length,
+            providers_count: syncRes.providers_count || this.relaySites.length,
+            pricings_count: syncRes.pricings_count || this.comparisonMatrix.length,
+            duration_ms: syncRes.duration_ms || 1200
+          }
+          this.syncProgress.isSyncing = false
+        }
         await this.fetchComparisonMatrix()
         await this.fetchRelaySites()
         await this.fetchModelsCatalog()
