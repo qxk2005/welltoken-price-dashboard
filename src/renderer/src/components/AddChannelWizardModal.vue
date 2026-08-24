@@ -294,6 +294,37 @@
               <span class="text-[11px] text-[#0071E3]/80">已在第3步默认应用优惠特权价</span>
             </div>
 
+            <!-- 站点访问限制与快捷补填 Key 提示卡片 -->
+            <div
+              v-if="!form.api_key && probeResult.fetch_source && probeResult.fetch_source.includes('/api/user/groups')"
+              class="p-3.5 bg-[#FFF9E6] border border-[#FFE082] rounded-xl space-y-2 animate-fade-in text-xs"
+            >
+              <div class="flex items-start space-x-2">
+                <span class="text-base leading-none">💡</span>
+                <div>
+                  <div class="font-bold text-[#8D6E63] text-xs">检测到该站点限制了未登录定价访问</div>
+                  <div class="text-[#8D6E63]/90 text-[11px] mt-0.5 leading-relaxed">
+                    当前免 Key 状态下系统已为您关联了主流基准模型。若该站点包含了商家自定义非标模型（如 <code class="bg-[#FFF3E0] px-1 py-0.5 rounded font-mono font-bold text-[#E65100]">claude-fable-5</code> 等），建议填入 API Key 即可一键拉取 100% 完整的全量真实模型列表！
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center space-x-2 pt-1">
+                <input
+                  v-model="form.api_key"
+                  type="password"
+                  placeholder="填入该站点中转 API Key (sk-...) 嗅探全量模型..."
+                  class="flex-1 bg-white border border-[#E5E5EA] focus:border-[#0071E3] rounded-lg px-3 py-1.5 font-mono text-xs focus:outline-none"
+                />
+                <button
+                  @click="runProbe"
+                  class="px-3.5 py-1.5 bg-[#0071E3] hover:bg-[#0077ED] text-white font-bold rounded-lg text-xs shadow-xs transition-colors shrink-0 flex items-center space-x-1 cursor-pointer"
+                >
+                  <span>📡</span>
+                  <span>带 Key 重新嗅探</span>
+                </button>
+              </div>
+            </div>
+
             <div v-if="probeResult.error" class="p-3 bg-[#FFF3CD] border border-[#FFEEBA] text-[#856404] rounded-xl text-[11px]">
               ⚠️ 探测提示: {{ probeResult.error }}
             </div>
@@ -326,6 +357,15 @@
                 :class="mappingFilter === 'unmatched' ? 'bg-[#FF9500] text-white font-bold' : 'text-[#6E6E73] hover:bg-[#E5E5EA]'"
               >
                 待确认 ({{ unmatchedMappingsCount }})
+              </button>
+
+              <button
+                @click="isAddingCustomModel = !isAddingCustomModel"
+                class="px-2.5 py-1 rounded-lg text-[11px] font-medium border border-[#CCE4FB] bg-[#F0F7FF] text-[#0071E3] hover:bg-[#E8F2FD] transition-all flex items-center space-x-1 cursor-pointer shadow-2xs ml-1"
+                title="手动添加渠道私有或非标模型 (如 claude-fable-5)"
+              >
+                <span>➕</span>
+                <span>手动追加模型</span>
               </button>
             </div>
 
@@ -362,6 +402,43 @@
                 清空
               </button>
             </div>
+          </div>
+
+          <!-- 手动快捷追加自定义模型条目 (如 claude-fable-5) -->
+          <div v-if="isAddingCustomModel" class="p-2.5 bg-[#F0F7FF] border border-[#CCE4FB] rounded-xl flex items-center space-x-2.5 text-xs animate-fade-in">
+            <span class="font-bold text-[#0071E3] shrink-0 text-[11px]">➕ 追加模型:</span>
+            <input
+              v-model="customModelInput.name"
+              type="text"
+              placeholder="输入渠道原始模型名 (如 claude-fable-5)..."
+              class="flex-1 bg-white border border-[#CCE4FB] focus:border-[#0071E3] rounded-lg px-2.5 py-1 font-mono text-xs text-[#1D1D1F] focus:outline-none"
+              @keydown.enter.prevent="addCustomChannelModel"
+            />
+            <select
+              v-model="customModelInput.group"
+              class="bg-white border border-[#CCE4FB] focus:border-[#0071E3] rounded-lg px-2.5 py-1 text-xs text-[#1D1D1F] focus:outline-none"
+            >
+              <option value="">-- 选择所属分组 (默认) --</option>
+              <option
+                v-for="g in probeResult.available_groups"
+                :key="g.name"
+                :value="g.name"
+              >
+                {{ g.name }} ({{ g.ratio }}x)
+              </option>
+            </select>
+            <button
+              @click="addCustomChannelModel"
+              class="px-3 py-1 bg-[#0071E3] hover:bg-[#0077ED] text-white font-bold rounded-lg text-xs shadow-xs transition-colors shrink-0 cursor-pointer"
+            >
+              确认追加
+            </button>
+            <button
+              @click="isAddingCustomModel = false"
+              class="px-2.5 py-1 bg-white border border-[#E5E5EA] hover:bg-[#F2F2F7] text-[#6E6E73] rounded-lg text-xs transition-colors shrink-0 cursor-pointer"
+            >
+              取消
+            </button>
           </div>
 
           <!-- 分组多选胶囊筛选栏 (第二行: 严格按选中分组过滤) -->
@@ -734,6 +811,54 @@ const probeResult = reactive({
 
 const mappingsList = ref<any[]>([])
 const selectedGroupFilters = ref<string[]>(['all'])
+const isAddingCustomModel = ref(false)
+const customModelInput = reactive({
+  name: '',
+  group: ''
+})
+
+function addCustomChannelModel() {
+  if (!customModelInput.name.trim()) return
+  const mName = customModelInput.name.trim()
+  const grp = customModelInput.group || (probeResult.available_groups?.[0]?.name || 'default')
+  const gRatio = probeResult.available_groups?.find(g => g.name === grp)?.ratio || 1.0
+  const newItem = {
+    channel_model_name: mName,
+    group_name: grp,
+    item_key: `${mName}::${grp}`,
+    is_matched: false,
+    match_type: 'unmapped',
+    confidence: 0.0,
+    standard_model_id: '',
+    standard_model_name: '',
+    provider: '',
+    series: '',
+    official_input_price: 2.0,
+    official_output_price: 2.0,
+    official_cache_price: 0.2,
+    official_input_cny: 14.6,
+    official_output_cny: 14.6,
+    official_cache_cny: 1.46,
+    custom_ratio: gRatio,
+    public_ratio: 1.0,
+    key_ratio: 1.0,
+    has_ratio_diff: false,
+    ratio_diff_percent: null,
+    applied_ratio_source: 'public',
+    is_selected: true,
+    input_price_cny: roundNum(14.6 * gRatio * (form.recharge_rate || 1.0), 2),
+    output_price_cny: roundNum(14.6 * gRatio * (form.recharge_rate || 1.0), 2),
+    cache_price_cny: roundNum(1.46 * gRatio * (form.recharge_rate || 1.0), 3),
+    input_price_usd: roundNum(2.0 * gRatio * (form.recharge_rate || 1.0), 3),
+    output_price_usd: roundNum(2.0 * gRatio * (form.recharge_rate || 1.0), 3),
+    cache_price_usd: roundNum(0.2 * gRatio * (form.recharge_rate || 1.0), 3),
+    enable_groups: [grp],
+    group_pricings: {}
+  }
+  mappingsList.value.unshift(newItem)
+  customModelInput.name = ''
+  isAddingCustomModel.value = false
+}
 
 const matchedMappingsCount = computed(() => filteredMappings.value.filter(m => m.is_matched).length)
 const unmatchedMappingsCount = computed(() => filteredMappings.value.filter(m => !m.is_matched).length)
