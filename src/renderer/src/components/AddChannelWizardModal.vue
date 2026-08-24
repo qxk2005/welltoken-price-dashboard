@@ -677,18 +677,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { useDashboardStore } from '../stores/dashboardStore'
 
 const props = defineProps<{
   initialChannel?: any
+  initialStep?: number
 }>()
 
 const emit = defineEmits(['close', 'success'])
 const store = useDashboardStore()
 
-const currentStep = ref(1)
+const currentStep = ref(props.initialStep || 1)
 const isProbing = ref(false)
 const isSubmitting = ref(false)
 const mappingFilter = ref<'all' | 'matched' | 'unmatched'>('all')
@@ -705,10 +706,16 @@ const form = reactive({
   base_url: props.initialChannel?.base_url || '',
   site_type: props.initialChannel?.site_type || 'newapi',
   currency: props.initialChannel?.currency || 'CNY',
-  recharge_rate: props.initialChannel?.recharge_rate || 1.0,
+  recharge_rate: props.initialChannel?.recharge_rate ?? 1.0,
   default_ratio: 0.65,
   api_key: props.initialChannel?.api_key || '',
   notes: props.initialChannel?.notes || ''
+})
+
+onMounted(() => {
+  if (props.initialStep === 2 && form.base_url) {
+    runProbe()
+  }
 })
 
 const probeResult = reactive({

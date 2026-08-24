@@ -39,6 +39,7 @@ class RelaySiteBase(BaseModel):
     provider_id: Optional[str] = ""
     name: str
     base_url: str
+    api_key: Optional[str] = ""
     site_type: str = "official" # official, cloud, newapi, sub2api, oneapi, custom
     group_name: Optional[str] = "" # 渠道绑定的结算分组 (如 deepseek-三方, vip)
     currency: str = "CNY" # 渠道结算货币 (CNY 或 USD)
@@ -53,7 +54,7 @@ class RelaySiteBase(BaseModel):
     notes: Optional[str] = ""
 
 class RelaySiteCreate(RelaySiteBase):
-    api_key: Optional[str] = ""
+    pass
 
 class RelaySiteUpdate(BaseModel):
     name: Optional[str] = None

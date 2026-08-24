@@ -1128,44 +1128,73 @@
     <AddChannelWizardModal
       v-if="showWizardModal"
       :initial-channel="wizardInitialChannel"
-      @close="showWizardModal = false; wizardInitialChannel = null"
+      :initial-step="wizardInitialStep"
+      @close="showWizardModal = false; wizardInitialChannel = null; wizardInitialStep = 1"
       @success="onWizardSuccess"
     />
 
-    <!-- 弹窗：编辑自建渠道基础配置 Modal (苹果灰白质感弹窗) -->
+    <!-- 弹窗：编辑渠道基础配置 Modal (Apple 极简浅色高级风格) -->
     <div
       v-if="showModal"
-      class="fixed inset-0 bg-black/30 backdrop-blur-xs flex items-center justify-center z-50 animate-fade-in"
+      class="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 animate-fade-in"
     >
-      <div class="bg-[#FFFFFF] border border-[#E5E5EA] rounded-2xl w-[520px] p-6 space-y-4 shadow-[0_20px_50px_rgba(0,0,0,0.15)]">
+      <div class="bg-[#FFFFFF] border border-[#E5E5EA] rounded-2xl w-[560px] max-w-[94vw] p-6 space-y-4 shadow-[0_20px_50px_rgba(0,0,0,0.15)]">
         <div class="flex items-center justify-between border-b border-[#E5E5EA] pb-3">
-          <h3 class="font-bold text-sm text-[#1D1D1F]">
-            {{ isEditing ? '✏️ 编辑自添加网站配置' : '➕ 添加自建 NewAPI / OneAPI / Sub2API 中转站' }}
-          </h3>
-          <button @click="showModal = false" class="text-[#86868B] hover:text-[#1D1D1F] text-sm">✕</button>
+          <div class="flex items-center space-x-2">
+            <h3 class="font-bold text-sm text-[#1D1D1F]">
+              {{ isEditing ? '✏️ 编辑渠道基础配置' : '➕ 添加自建中转站' }}
+            </h3>
+            <span v-if="isEditing" class="text-[11px] px-2 py-0.5 rounded-md bg-[#F2F2F7] text-[#6E6E73] font-mono">
+              ID: {{ currentEditId }}
+            </span>
+          </div>
+          <button @click="showModal = false" class="text-[#86868B] hover:text-[#1D1D1F] text-sm p-1 cursor-pointer">✕</button>
         </div>
 
         <div class="space-y-3 text-xs">
+          <!-- 站点名称 -->
           <div>
             <label class="block text-[#6E6E73] font-medium mb-1">站点名称 (Name) *</label>
             <input
               v-model="form.name"
               type="text"
               placeholder="例如: 我的自建 NewAPI 聚合站"
-              class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-3 py-2 text-[#1D1D1F] focus:outline-none"
+              class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-3 py-2 text-[#1D1D1F] focus:outline-none transition-colors"
             />
           </div>
 
+          <!-- Base URL -->
           <div>
             <label class="block text-[#6E6E73] font-medium mb-1">API 基础端点地址 (Base URL) *</label>
             <input
               v-model="form.base_url"
               type="text"
               placeholder="https://api.my-newapi.com/v1"
-              class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-3 py-2 text-[#1D1D1F] font-mono focus:outline-none"
+              class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-3 py-2 text-[#1D1D1F] font-mono focus:outline-none transition-colors"
             />
           </div>
 
+          <!-- API Key (带明文/密文切换) -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-[#6E6E73] font-medium">中转站 API Key (用于流式测速与模型探测)</label>
+              <button
+                type="button"
+                @click="showApiKeyPlain = !showApiKeyPlain"
+                class="text-[11px] text-[#0071E3] hover:underline cursor-pointer"
+              >
+                {{ showApiKeyPlain ? '🙈 隐藏密文' : '👁️ 查看明文' }}
+              </button>
+            </div>
+            <input
+              v-model="form.api_key"
+              :type="showApiKeyPlain ? 'text' : 'password'"
+              placeholder="sk-..."
+              class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-3 py-2 text-[#1D1D1F] font-mono focus:outline-none transition-colors"
+            />
+          </div>
+
+          <!-- 系统类型 + 结算货币基准 -->
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-[#6E6E73] font-medium mb-1">系统类型 (Site Type)</label>
@@ -1175,8 +1204,33 @@
               >
                 <option value="newapi">NewAPI / OneAPI 系统</option>
                 <option value="sub2api">Sub2API 系统</option>
+                <option value="cloud">云服务商聚合</option>
                 <option value="custom">通用自建中转站</option>
               </select>
+            </div>
+
+            <div>
+              <label class="block text-[#6E6E73] font-medium mb-1">结算货币基准 (Currency)</label>
+              <select
+                v-model="form.currency"
+                class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-3 py-2 text-[#1D1D1F] focus:outline-none font-medium"
+              >
+                <option value="CNY">人民币 (CNY ¥)</option>
+                <option value="USD">美元 (USD $)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 默认结算分组 + 充值折算倍率 -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[#6E6E73] font-medium mb-1">默认结算分组 (Default Group)</label>
+              <input
+                v-model="form.group_name"
+                type="text"
+                placeholder="例如: default, vip, 3.5折"
+                class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-3 py-2 text-[#1D1D1F] focus:outline-none"
+              />
             </div>
 
             <div>
@@ -1185,36 +1239,55 @@
                 v-model.number="form.recharge_rate"
                 type="number"
                 step="0.01"
+                min="0.01"
                 placeholder="1.0"
                 class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-3 py-2 text-[#1D1D1F] font-mono focus:outline-none"
               />
             </div>
           </div>
 
+          <!-- 备注说明 -->
           <div>
-            <label class="block text-[#6E6E73] font-medium mb-1">中转站 API Key (用于流式测速与有效性验证)</label>
+            <label class="block text-[#6E6E73] font-medium mb-1">备注说明 (Notes)</label>
             <input
-              v-model="form.api_key"
-              type="password"
-              placeholder="sk-..."
-              class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-3 py-2 text-[#1D1D1F] font-mono focus:outline-none"
+              v-model="form.notes"
+              type="text"
+              placeholder="例如: 充值比例 1:1，支持高并发"
+              class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-3 py-2 text-[#1D1D1F] focus:outline-none"
             />
           </div>
         </div>
 
-        <div class="flex items-center justify-end space-x-2 pt-2 border-t border-[#E5E5EA]">
-          <button
-            @click="showModal = false"
-            class="px-4 py-2 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] text-xs font-medium"
-          >
-            取消
-          </button>
-          <button
-            @click="saveChannel"
-            class="px-4 py-2 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] text-white text-xs font-medium shadow-sm"
-          >
-            {{ isEditing ? '保存修改' : '确认添加' }}
-          </button>
+        <div class="flex items-center justify-between pt-3 border-t border-[#E5E5EA]">
+          <div>
+            <button
+              v-if="isEditing"
+              @click="openWizardFromEdit"
+              type="button"
+              class="px-3 py-1.5 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#0071E3] hover:text-[#0077ED] text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer"
+              title="使用当前配置进入 4 步向导重新探测模型并配置倍率"
+            >
+              <span>🔄</span>
+              <span>进入模型映射向导</span>
+            </button>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <button
+              @click="showModal = false"
+              class="px-4 py-2 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] text-xs font-medium cursor-pointer transition-colors"
+            >
+              取消
+            </button>
+            <button
+              @click="saveChannel"
+              :disabled="isSavingChannel"
+              class="px-5 py-2 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] text-white text-xs font-medium shadow-sm disabled:opacity-50 cursor-pointer transition-colors"
+            >
+              <span v-if="isSavingChannel">保存中...</span>
+              <span v-else>{{ isEditing ? '保存修改' : '确认添加' }}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1316,15 +1389,22 @@ onUnmounted(() => {
 
 // 向导与弹窗状态
 const showWizardModal = ref(false)
+const wizardInitialStep = ref(1)
+const wizardInitialChannel = ref<any>(null)
 const showModal = ref(false)
 const isEditing = ref(false)
+const isSavingChannel = ref(false)
+const showApiKeyPlain = ref(false)
 const currentEditId = ref<number | null>(null)
 const form = ref({
   name: '',
   base_url: '',
   site_type: 'newapi',
+  currency: 'CNY',
+  group_name: '',
   recharge_rate: 1.0,
-  api_key: ''
+  api_key: '',
+  notes: ''
 })
 
 // 分页状态
@@ -1335,15 +1415,27 @@ const pageSize = ref(20)
 const sortField = ref<string>('score')
 const sortOrder = ref<'asc' | 'desc'>('desc')
 
-const wizardInitialChannel = ref<any>(null)
-
 const openWizardForAdd = () => {
   wizardInitialChannel.value = null
+  wizardInitialStep.value = 1
   showWizardModal.value = true
 }
 
 const openSyncModalForCurrent = () => {
   wizardInitialChannel.value = selectedProvider.value
+  wizardInitialStep.value = 2
+  showWizardModal.value = true
+}
+
+const openWizardFromEdit = () => {
+  const currentSite = store.relaySites.find((s) => s.id === currentEditId.value)
+  showModal.value = false
+  wizardInitialChannel.value = {
+    ...(currentSite || {}),
+    id: currentEditId.value,
+    ...form.value
+  }
+  wizardInitialStep.value = 2
   showWizardModal.value = true
 }
 
@@ -1884,17 +1976,26 @@ const goToSpeedTestWithModel = (modelId: string) => {
 const openEditModal = (site: RelaySite) => {
   isEditing.value = true
   currentEditId.value = site.id
+  showApiKeyPlain.value = false
   form.value = {
-    name: site.name,
-    base_url: site.base_url,
-    site_type: site.site_type,
-    recharge_rate: site.recharge_rate || 1.0,
-    api_key: site.api_key || ''
+    name: site.name || '',
+    base_url: site.base_url || '',
+    site_type: site.site_type || 'newapi',
+    currency: site.currency || 'CNY',
+    group_name: site.group_name || '',
+    recharge_rate: site.recharge_rate ?? 1.0,
+    api_key: site.api_key || '',
+    notes: site.notes || ''
   }
   showModal.value = true
 }
 
 const saveChannel = async () => {
+  if (!form.value.name.trim() || !form.value.base_url.trim()) {
+    alert('站点名称与 API 基础端点地址为必填项！')
+    return
+  }
+  isSavingChannel.value = true
   try {
     if (isEditing.value && currentEditId.value) {
       await axios.put(`${store.apiUrl}/api/v1/channels/${currentEditId.value}`, form.value)
@@ -1902,9 +2003,19 @@ const saveChannel = async () => {
       await axios.post(`${store.apiUrl}/api/v1/channels`, form.value)
     }
     await store.fetchRelaySites()
+    await store.fetchComparisonMatrix()
+    if (selectedProvider.value && selectedProvider.value.id === currentEditId.value) {
+      const updated = store.relaySites.find((s: any) => s.id === currentEditId.value)
+      if (updated) {
+        selectedProvider.value = updated
+      }
+    }
     showModal.value = false
-  } catch (e) {
+  } catch (e: any) {
+    alert(`保存失败: ${e.response?.data?.detail || e.message}`)
     console.error('Save channel failed:', e)
+  } finally {
+    isSavingChannel.value = false
   }
 }
 

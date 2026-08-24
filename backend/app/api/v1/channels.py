@@ -488,7 +488,7 @@ async def create_relay_channel(payload: RelaySiteCreate, db: AsyncSession = Depe
 
 @router.put("/{site_id}", response_model=RelaySiteSchema)
 async def update_relay_channel(site_id: int, payload: RelaySiteUpdate, db: AsyncSession = Depends(get_db)):
-    """更新供应商/渠道信息 (如配置 API Key)"""
+    """更新供应商/渠道信息 (如配置 API Key、基础端点、结算货币、倍率等)"""
     stmt = select(RelaySite).where(RelaySite.id == site_id)
     res = await db.execute(stmt)
     site = res.scalar_one_or_none()
@@ -503,6 +503,7 @@ async def update_relay_channel(site_id: int, payload: RelaySiteUpdate, db: Async
         
     await db.commit()
     await db.refresh(site)
+    await dashboard_service.broadcast_market_update()
     return site
 
 @router.delete("/{site_id}")
