@@ -89,3 +89,12 @@
 .flash-up {
   animation: flash-apple-green 0.8s ease-out;
 }
+
+/* Electron 窗口自定义拖拽与交互区域 */
+.app-drag-region {
+  -webkit-app-region: drag;
+}
+
+.app-no-drag {
+  -webkit-app-region: no-drag;
+}

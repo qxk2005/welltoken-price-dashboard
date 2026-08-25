@@ -79,7 +79,26 @@ class ModelNormalizerService:
     async def initialize(self):
         """初始化加载标准模型库与别名规则库"""
         async with AsyncSessionLocal() as session:
-            # 1. 确保内置规则已插入数据库
+            # 1. 确保内置标准模型元数据骨架存在 (避免外键约束报错)
+            m_res = await session.execute(select(ModelMetadata))
+            existing_std_ids = {m.model_id for m in m_res.scalars().all()}
+            for item in BUILTIN_SYSTEM_ALIASES:
+                std_id = item["standard"]
+                if std_id not in existing_std_ids:
+                    std_meta = ModelMetadata(
+                        model_id=std_id,
+                        display_name=std_id,
+                        provider_id=item.get("provider", "unknown"),
+                        official_input_price=0.0,
+                        official_output_price=0.0,
+                        official_cache_price=0.0,
+                        created_at=datetime.utcnow()
+                    )
+                    session.add(std_meta)
+                    existing_std_ids.add(std_id)
+            await session.flush()
+
+            # 2. 确保内置规则已插入数据库
             for item in BUILTIN_SYSTEM_ALIASES:
                 stmt = select(ModelAlias).where(ModelAlias.raw_pattern == item["pattern"])
                 res = await session.execute(stmt)
@@ -94,9 +113,9 @@ class ModelNormalizerService:
                     session.add(alias)
             await session.commit()
 
-            # 2. 缓存所有标准模型
-            m_res = await session.execute(select(ModelMetadata))
-            self._cached_standard_models = {m.model_id: m for m in m_res.scalars().all()}
+            # 3. 缓存所有标准模型
+            m_res_all = await session.execute(select(ModelMetadata))
+            self._cached_standard_models = {m.model_id: m for m in m_res_all.scalars().all()}
 
             # 3. 缓存别名规则
             a_res = await session.execute(select(ModelAlias))

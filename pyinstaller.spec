@@ -7,6 +7,24 @@ block_cipher = None
 # 项目根路径
 project_dir = Path('.').resolve()
 
+from PyInstaller.utils.hooks import collect_submodules, collect_data_files
+
+all_hiddenimports = [
+    *collect_submodules('backend.app'),
+    *collect_submodules('fastapi'),
+    *collect_submodules('starlette'),
+    *collect_submodules('uvicorn'),
+    *collect_submodules('sqlalchemy'),
+    *collect_submodules('aiosqlite'),
+    *collect_submodules('pydantic'),
+    *collect_submodules('pydantic_settings'),
+    *collect_submodules('httpx'),
+    'socksio',
+    'dotenv',
+    'websockets',
+    'anyio'
+]
+
 a = Analysis(
     ['backend/run_server.py'],
     pathex=[str(project_dir)],
@@ -14,34 +32,7 @@ a = Analysis(
     datas=[
         ('backend/app', 'backend/app')
     ],
-    hiddenimports=[
-        'uvicorn.logging',
-        'uvicorn.loops',
-        'uvicorn.loops.auto',
-        'uvicorn.loops.asyncio',
-        'uvicorn.protocols',
-        'uvicorn.protocols.http',
-        'uvicorn.protocols.http.auto',
-        'uvicorn.protocols.http.h11_impl',
-        'uvicorn.protocols.http.httptools_impl',
-        'uvicorn.protocols.websockets',
-        'uvicorn.protocols.websockets.auto',
-        'uvicorn.protocols.websockets.websockets_impl',
-        'uvicorn.lifespan',
-        'uvicorn.lifespan.on',
-        'aiosqlite',
-        'sqlalchemy.ext.asyncio',
-        'sqlalchemy.dialects.sqlite',
-        'sqlalchemy.dialects.sqlite.aiosqlite',
-        'pydantic',
-        'pydantic_settings',
-        'fastapi',
-        'websockets',
-        'httpx',
-        'dotenv',
-        'socksio',
-        'anyio'
-    ],
+    hiddenimports=all_hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

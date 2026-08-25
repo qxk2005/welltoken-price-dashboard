@@ -1,5 +1,8 @@
 <template>
-  <header class="h-12 bg-[#FFFFFF] border-b border-[#E5E5EA] px-4 flex items-center justify-between z-20 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+  <header
+    class="h-12 bg-[#FFFFFF] border-b border-[#E5E5EA] flex items-center justify-between z-20 shadow-[0_1px_2px_rgba(0,0,0,0.03)] select-none app-drag-region"
+    :class="isMac ? 'pl-20 pr-4' : 'px-4'"
+  >
     <!-- 左侧 Logo 与健康状态 -->
     <div class="flex items-center space-x-3">
       <div class="flex items-center space-x-2">
@@ -37,7 +40,7 @@
     </div>
 
     <!-- 中间全局搜索框 -->
-    <div class="w-80 relative">
+    <div class="w-80 relative app-no-drag">
       <input
         v-model="store.searchQuery"
         type="text"
@@ -48,11 +51,11 @@
     </div>
 
     <!-- 右侧功能区：实时汇率、货币切换、全量同步、环境标记 -->
-    <div class="flex items-center space-x-2.5 text-xs">
+    <div class="flex items-center space-x-2.5 text-xs app-no-drag">
       <!-- 汇率切换胶囊 -->
       <button
         @click="store.toggleCurrency"
-        class="px-2.5 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] text-[#1D1D1F] font-mono font-medium transition-all flex items-center space-x-1.5 cursor-pointer shadow-2xs"
+        class="px-2.5 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] border border-[#E5E5EA] text-[#1D1D1F] font-mono font-medium transition-all flex items-center space-x-1.5 cursor-pointer shadow-2xs app-no-drag"
         title="切换 USD 刀 / CNY 人民币定价展示"
       >
         <SystemIcon name="coins" custom-class="w-3.5 h-3.5 text-[#0071E3]" />
@@ -63,7 +66,7 @@
       <button
         @click="store.triggerFullSync"
         :disabled="store.syncProgress.isSyncing"
-        class="px-3 py-1 rounded-lg bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] disabled:opacity-60 text-white font-medium shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer"
+        class="px-3 py-1 rounded-lg bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] disabled:opacity-60 text-white font-medium shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer app-no-drag"
         :title="store.syncProgress.isSyncing ? '正在全量同步中...' : '从 models.dev 同步全网最新大模型与渠道定价数据'"
       >
         <SystemIcon v-if="store.syncProgress.isSyncing" name="refresh" custom-class="w-3.5 h-3.5 animate-spin text-white" />
@@ -73,15 +76,34 @@
 
       <!-- 模式标记 -->
       <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-[#F2F2F7] text-[#6E6E73] border border-[#E5E5EA]">
-        Web 实时调试模式
+        {{ isElectron ? '桌面原生模式' : 'Web 模式' }}
       </span>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { useDashboardStore } from '../stores/dashboardStore'
 import SystemIcon from './SystemIcon.vue'
 
 const store = useDashboardStore()
+const isMac = ref(false)
+const isElectron = ref(false)
+
+onMounted(async () => {
+  if (typeof window !== 'undefined') {
+    if ((window as any).api?.getPlatform) {
+      isElectron.value = true
+      try {
+        const p = await (window as any).api.getPlatform()
+        isMac.value = p === 'darwin'
+      } catch {
+        isMac.value = navigator.userAgent.toLowerCase().includes('mac')
+      }
+    } else {
+      isMac.value = navigator.userAgent.toLowerCase().includes('mac')
+    }
+  }
+})
 </script>

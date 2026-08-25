@@ -16,6 +16,7 @@ else:
 
 import uvicorn
 from backend.app.config import settings
+from backend.app.main import app
 
 def main():
     parser = argparse.ArgumentParser(description="WellToken Price Dashboard Backend Server")
@@ -31,13 +32,21 @@ def main():
 
     print(f"Starting WellToken Backend on http://{args.host}:{args.port} (frozen={is_frozen})")
     
-    uvicorn.run(
-        "backend.app.main:app",
-        host=args.host,
-        port=args.port,
-        reload=reload_mode,
-        log_level="info"
-    )
+    if reload_mode:
+        uvicorn.run(
+            "backend.app.main:app",
+            host=args.host,
+            port=args.port,
+            reload=True,
+            log_level="info"
+        )
+    else:
+        uvicorn.run(
+            app,
+            host=args.host,
+            port=args.port,
+            log_level="info"
+        )
 
 if __name__ == "__main__":
     main()

@@ -73,6 +73,14 @@ export class PythonProcessManager {
       const binaryName = isWin ? 'backend-server.exe' : 'backend-server'
       const binaryPath = join(process.resourcesPath, 'bin', binaryName)
 
+      if (!isWin && fs.existsSync(binaryPath)) {
+        try {
+          fs.chmodSync(binaryPath, 0o755)
+        } catch (e) {
+          console.warn('[PythonManager] Failed to chmod binary:', e)
+        }
+      }
+
       console.log(`[PythonManager] Launching bundled Python binary from: ${binaryPath}`)
       this.pyProcess = spawn(binaryPath, ['--host', this.host, '--port', this.port.toString()], {
         detached: false,
