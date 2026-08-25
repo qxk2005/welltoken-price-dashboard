@@ -23,8 +23,7 @@ all_hiddenimports = [
     'dotenv',
     'websockets',
     'anyio',
-    'certifi',
-    'cryptography'
+    'certifi'
 ]
 
 datas = [
