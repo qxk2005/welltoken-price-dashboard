@@ -4,6 +4,15 @@
 
 ---
 
+## 🚀 [v1.3.5 CI/CD 跨平台构建与种子包打包加固版] - 2026-08-25
+
+### 🛠️ 缺陷修复与体验优化
+- **修复 GitHub Actions 跨平台 PyInstaller 构建失败**：解决 `.gitignore` 误忽略 `data/cache` 目录导致 CI 云端 Runner 在干净环境中无法找到预置种子文件而中断 PyInstaller 编译的问题；
+- **优化 pyinstaller.spec 资源收集与容错机制**：在打包规范中引入目录动态探测与自动创建，并深度内嵌 `certifi` 根证书链与 `cryptography` 加密库，确保 Windows/macOS 双端均能稳定编译为独立便携二进制；
+- **修复 GitHub Actions Artifacts 上传通配符兼容性**：按操作系统平台精准匹配 `.dmg`、`.exe`、`.zip` 及 `.blockmap` 安装制品，杜绝因跨平台文件名不存在触发的上传报错。
+
+---
+
 ## 🚀 [v1.3.4 数据库外键级联容错加固版] - 2026-08-25
 
 ### 🛠️ 缺陷修复与体验优化

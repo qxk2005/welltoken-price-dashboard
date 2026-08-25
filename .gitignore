@@ -93,7 +93,10 @@ resources/bin/*
 *.db-shm
 *.sqlite
 *.sqlite3
-data/
+data/*
+!data/cache/
+!data/cache/*.json
+!data/cache/.gitkeep
 logs/
 *.log
 

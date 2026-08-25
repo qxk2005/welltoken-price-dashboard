@@ -70,14 +70,26 @@ jobs:
         run: |
           npx electron-builder --win --publish never
 
-      - name: Upload Build Artifacts
+      - name: Upload Build Artifacts (macOS)
+        if: matrix.os == 'macos-latest'
         uses: actions/upload-artifact@v4
         with:
           name: binaries-${{ matrix.os }}
           path: |
             release/*.dmg
+            release/*.zip
+            release/*.blockmap
+          if-no-files-found: error
+
+      - name: Upload Build Artifacts (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.os }}
+          path: |
             release/*.exe
             release/*.zip
+            release/*.blockmap
           if-no-files-found: error
 
   release:

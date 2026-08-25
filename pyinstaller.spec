@@ -22,17 +22,26 @@ all_hiddenimports = [
     'socksio',
     'dotenv',
     'websockets',
-    'anyio'
+    'anyio',
+    'certifi',
+    'cryptography'
 ]
+
+datas = [
+    ('backend/app', 'backend/app'),
+    *collect_data_files('certifi')
+]
+
+cache_dir = project_dir / 'data' / 'cache'
+if not cache_dir.exists():
+    cache_dir.mkdir(parents=True, exist_ok=True)
+datas.append(('data/cache', 'data/cache'))
 
 a = Analysis(
     ['backend/run_server.py'],
     pathex=[str(project_dir)],
     binaries=[],
-    datas=[
-        ('backend/app', 'backend/app'),
-        ('data/cache', 'data/cache')
-    ],
+    datas=datas,
     hiddenimports=all_hiddenimports,
     hookspath=[],
     hooksconfig={},
