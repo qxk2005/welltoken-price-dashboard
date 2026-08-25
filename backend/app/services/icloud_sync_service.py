@@ -151,6 +151,45 @@ class ICloudSyncService:
         icloud_root = Path.home() / "Library" / "Mobile Documents" / "com~apple~CloudDocs"
         return icloud_root.exists() and os.access(str(icloud_root), os.W_OK)
 
+    def _trigger_icloud_download(self, path: Path) -> bool:
+        """通过 macOS 原生 JXA (JavaScript for Automation) 调度 bird 守护进程主动从 iCloud 下载文件"""
+        if not self.is_macos:
+            return False
+        try:
+            abs_path = str(path.resolve())
+            js_code = f"""
+            var path = ObjC.wrap("{abs_path}");
+            var url = $.NSURL.fileURLWithPath(path);
+            $.NSFileManager.defaultManager.startDownloadingUbiquitousItemAtURLError(url, null);
+            """
+            subprocess.run(["osascript", "-l", "JavaScript", "-e", js_code], capture_output=True, timeout=3.0)
+            return True
+        except Exception as e:
+            print(f"[iCloudSync] 触发 iCloud 下载失败 ({path}): {e}")
+            return False
+
+    async def _ensure_file_downloaded_from_icloud(self, target_file: Path, wait_timeout_sec: float = 10.0) -> bool:
+        """确保 iCloud 文件已从云端拉取下载至本地磁盘 (处理 Optimize Mac Storage 导致的 .icloud 占位符)"""
+        if target_file.exists():
+            return True
+
+        # 检查是否存在 macOS iCloud 占位文件 (如 .welltoken_sync.json.icloud)
+        placeholder = target_file.parent / f".{target_file.name}.icloud"
+        
+        # 无论是否存在占位符，都主动向 macOS 发出下载指令
+        self._trigger_icloud_download(target_file)
+        if placeholder.exists():
+            self._trigger_icloud_download(placeholder)
+
+        # 循环轮询等待文件落地
+        start_time = time.time()
+        while time.time() - start_time < wait_timeout_sec:
+            if target_file.exists():
+                return True
+            await asyncio.sleep(0.5)
+
+        return target_file.exists()
+
     def get_status(self) -> Dict[str, Any]:
         """获取 iCloud 同步状态与统计信息"""
         self._sync_folder = self._resolve_icloud_folder()
@@ -158,6 +197,15 @@ class ICloudSyncService:
         file_path = self.sync_file_path
         exists = file_path.exists()
         
+        # 若主文件不存在，检查是否有云端待下载占位符
+        placeholder = file_path.parent / f".{file_path.name}.icloud"
+        is_cloud_placeholder = False
+        if not exists and placeholder.exists():
+            is_cloud_placeholder = True
+            exists = True
+            # 后台静默触发下载
+            self._trigger_icloud_download(file_path)
+
         file_size_bytes = 0
         last_modified = None
         is_encrypted = False
@@ -168,7 +216,7 @@ class ICloudSyncService:
         exported_at = None
         device_id = None
 
-        if exists:
+        if file_path.exists():
             try:
                 stat = file_path.stat()
                 file_size_bytes = stat.st_size
@@ -197,6 +245,7 @@ class ICloudSyncService:
             "icloud_available": available,
             "sync_folder_path": str(self._sync_folder),
             "sync_file_exists": exists,
+            "is_cloud_placeholder": is_cloud_placeholder,
             "sync_file_size_bytes": file_size_bytes,
             "sync_file_last_modified": last_modified,
             "schema_version": schema_version,
@@ -424,11 +473,18 @@ class ICloudSyncService:
         if from_backup_file:
             target_file = self._backups_folder / from_backup_file
 
+        # 主动触发 iCloud 下载并等待占位文件转为实体文件 (应对跨设备同步延迟)
+        await self._ensure_file_downloaded_from_icloud(target_file, wait_timeout_sec=12.0)
+
         if not target_file.exists():
             if from_backup_file:
                 raise FileNotFoundError(f"未在 iCloud 备份目录中找到快照文件: {target_file.name}")
             else:
-                raise FileNotFoundError("云端暂无同步数据（未检测到 welltoken_sync.json）。若这是首次使用，请先在一台设备上点击「立即推送到 iCloud」创建云端备份。")
+                raise FileNotFoundError(
+                    "未在当前设备检测到 iCloud 同步文件 (welltoken_sync.json)。\n"
+                    "• 如果您刚在另一台 Mac 上完成推送，苹果云端同步到本机通常需要 10~60 秒，请稍候片刻后再次重试；\n"
+                    "• 您也可以在「系统设置」中点击「在访达中定位」检查 iCloud Drive 文件同步状态。"
+                )
 
         with open(target_file, "r", encoding="utf-8") as f:
             raw_bundle = json.load(f)
@@ -665,6 +721,7 @@ class ICloudSyncService:
             return []
 
         backups = []
+        # A. 正常已下载的 json 备份
         for file in self._backups_folder.glob("*.json"):
             try:
                 stat = file.stat()
@@ -674,8 +731,30 @@ class ICloudSyncService:
                     "filepath": str(file),
                     "size_bytes": stat.st_size,
                     "created_at": created_at,
-                    "is_pre_merge": "pre_merge" in file.name
+                    "is_pre_merge": "pre_merge" in file.name,
+                    "is_cloud_placeholder": False
                 })
+            except Exception:
+                continue
+
+        # B. 尚未下载落地的 .icloud 占位备份
+        for file in self._backups_folder.glob(".*.json.icloud"):
+            try:
+                # 去掉开头的 . 和结尾的 .icloud
+                clean_name = file.name[1:-7] if file.name.startswith(".") and file.name.endswith(".icloud") else file.name
+                if not any(b["filename"] == clean_name for b in backups):
+                    stat = file.stat()
+                    created_at = datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+                    backups.append({
+                        "filename": clean_name,
+                        "filepath": str(file),
+                        "size_bytes": 0,
+                        "created_at": created_at,
+                        "is_pre_merge": "pre_merge" in clean_name,
+                        "is_cloud_placeholder": True
+                    })
+                    # 触发后台下载该快照
+                    self._trigger_icloud_download(file)
             except Exception:
                 continue
 
