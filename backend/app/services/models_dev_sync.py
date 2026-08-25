@@ -283,40 +283,66 @@ def infer_model_series(model_id: str, provider: str, family: str = "") -> str:
 
     return "通用大模型系列"
 
+import sys
+from pathlib import Path
+from backend.app.config import CACHE_DIR, BASE_DIR
+
 class ModelsDevSyncService:
     def __init__(self):
         self.models_url = "https://models.dev/models.json"
         self.catalog_url = "https://models.dev/catalog.json"
         self.api_url = "https://models.dev/api.json"
-        self.cache_dir = "data/cache"
+        self.cache_dir = Path(CACHE_DIR)
         self.last_sync_time: datetime | None = None
 
     async def _fetch_with_cache(self, client: httpx.AsyncClient, url: str, cache_filename: str) -> Any:
-        """优先从远端抓取，成功后写入本地缓存；若网络失败则自动回退加载本地缓存"""
-        import os
-        os.makedirs(self.cache_dir, exist_ok=True)
-        cache_path = os.path.join(self.cache_dir, cache_filename)
+        """优先从远端抓取，成功后写入本地缓存；若网络失败则回退读取用户缓存或安装包内置种子数据"""
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        user_cache_path = self.cache_dir / cache_filename
 
         try:
             resp = await client.get(url)
             if resp.status_code == 200:
                 data = resp.json()
                 try:
-                    with open(cache_path, "w", encoding="utf-8") as f:
+                    with open(user_cache_path, "w", encoding="utf-8") as f:
                         json.dump(data, f, ensure_ascii=False)
                 except Exception as ce:
                     print(f"[ModelsDevSync] 写入缓存文件失败: {ce}")
                 return data
         except Exception as e:
-            print(f"[ModelsDevSync] 抓取远端 {url} 失败: {e}，尝试读取本地缓存...")
+            print(f"[ModelsDevSync] 抓取远端 {url} 失败: {e}，尝试读取本地/预置离线数据...")
 
-        # 尝试读取本地缓存
-        if os.path.exists(cache_path):
+        # 1. 尝试读取用户持久化缓存
+        if user_cache_path.exists():
             try:
-                with open(cache_path, "r", encoding="utf-8") as f:
+                with open(user_cache_path, "r", encoding="utf-8") as f:
                     return json.load(f)
             except Exception as e:
-                print(f"[ModelsDevSync] 读取缓存文件失败: {e}")
+                print(f"[ModelsDevSync] 读取用户缓存文件失败: {e}")
+
+        # 2. 尝试读取打包内嵌的内置预置离线种子数据 (Seed Cache)
+        candidate_seed_paths = []
+        if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+            candidate_seed_paths.append(Path(sys._MEIPASS) / "data" / "cache" / cache_filename)
+        candidate_seed_paths.append(BASE_DIR / "data" / "cache" / cache_filename)
+        candidate_seed_paths.append(Path(__file__).resolve().parent.parent.parent.parent / "data" / "cache" / cache_filename)
+
+        for seed_path in candidate_seed_paths:
+            if seed_path.exists():
+                try:
+                    with open(seed_path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        print(f"[ModelsDevSync] 成功从预置种子包加载离线数据: {seed_path.name}")
+                        # 顺便写一份到用户持久化目录
+                        try:
+                            with open(user_cache_path, "w", encoding="utf-8") as uf:
+                                json.dump(data, uf, ensure_ascii=False)
+                        except Exception:
+                            pass
+                        return data
+                except Exception as se:
+                    print(f"[ModelsDevSync] 读取内置种子包失败 ({seed_path}): {se}")
 
         return None
 

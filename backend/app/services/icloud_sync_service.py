@@ -425,7 +425,10 @@ class ICloudSyncService:
             target_file = self._backups_folder / from_backup_file
 
         if not target_file.exists():
-            raise FileNotFoundError(f"未在 iCloud 目录中找到同步文件: {target_file.name}")
+            if from_backup_file:
+                raise FileNotFoundError(f"未在 iCloud 备份目录中找到快照文件: {target_file.name}")
+            else:
+                raise FileNotFoundError("云端暂无同步数据（未检测到 welltoken_sync.json）。若这是首次使用，请先在一台设备上点击「立即推送到 iCloud」创建云端备份。")
 
         with open(target_file, "r", encoding="utf-8") as f:
             raw_bundle = json.load(f)

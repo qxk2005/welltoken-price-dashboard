@@ -14,6 +14,16 @@ else:
     if str(app_dir) not in sys.path:
         sys.path.insert(0, str(app_dir))
 
+try:
+    import certifi
+    ca_path = certifi.where()
+    if os.path.exists(ca_path):
+        os.environ["SSL_CERT_FILE"] = ca_path
+        os.environ["REQUESTS_CA_BUNDLE"] = ca_path
+        os.environ["SSL_CERT_DIR"] = os.path.dirname(ca_path)
+except Exception:
+    pass
+
 import uvicorn
 from backend.app.config import settings
 from backend.app.main import app

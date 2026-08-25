@@ -2,6 +2,7 @@ import re
 import fnmatch
 import httpx
 import time
+from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple, Set
 from sqlalchemy import select
 from backend.app.database import AsyncSessionLocal
@@ -87,8 +88,8 @@ class ModelNormalizerService:
                 if std_id not in existing_std_ids:
                     std_meta = ModelMetadata(
                         model_id=std_id,
-                        display_name=std_id,
-                        provider_id=item.get("provider", "unknown"),
+                        name=std_id,
+                        provider=item.get("provider", "unknown"),
                         official_input_price=0.0,
                         official_output_price=0.0,
                         official_cache_price=0.0,

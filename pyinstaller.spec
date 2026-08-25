@@ -30,7 +30,8 @@ a = Analysis(
     pathex=[str(project_dir)],
     binaries=[],
     datas=[
-        ('backend/app', 'backend/app')
+        ('backend/app', 'backend/app'),
+        ('data/cache', 'data/cache')
     ],
     hiddenimports=all_hiddenimports,
     hookspath=[],
