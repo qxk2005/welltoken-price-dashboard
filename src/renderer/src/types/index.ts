@@ -184,3 +184,44 @@ export interface SystemHealth {
   database_connected?: boolean
 }
 
+export interface ICloudBackupItem {
+  filename: string
+  filepath: string
+  size_bytes: number
+  created_at: string
+  is_pre_merge: boolean
+}
+
+export interface ICloudSyncStatus {
+  is_macos: boolean
+  icloud_available: boolean
+  sync_folder_path: string
+  sync_file_exists: boolean
+  sync_file_size_bytes: number
+  sync_file_last_modified: string | null
+  schema_version: string
+  exported_at: string | null
+  device_id: string | null
+  is_encrypted: boolean
+  cloud_channels_count: number
+  cloud_mappings_count: number
+  cloud_aliases_count: number
+  backups_count: number
+  latest_backup: ICloudBackupItem | null
+}
+
+export interface ICloudSyncConfig {
+  autoSync: boolean
+  includeApiKeys: boolean
+  usePassword: boolean
+  password: string
+  modules: {
+    custom_channels: boolean
+    custom_aliases: boolean
+    favorites: boolean
+    preferences: boolean
+    speed_tests: boolean
+  }
+}
+
+

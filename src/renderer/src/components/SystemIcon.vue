@@ -176,9 +176,48 @@
       <line x1="6" y1="6" x2="18" y2="18" />
     </template>
 
-    <!-- 下拉箭头 -->
-    <template v-else-if="name === 'chevron-down'">
-      <polyline points="6 9 12 15 18 9" />
+    <!-- 云端 / iCloud -->
+    <template v-else-if="name === 'cloud' || name === 'icloud'">
+      <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+    </template>
+
+    <!-- 锁 / 加密 -->
+    <template v-else-if="name === 'lock'">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </template>
+
+    <!-- 钥匙 / API Key -->
+    <template v-else-if="name === 'key'">
+      <path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4" />
+      <path d="m21 2-9.6 9.6" />
+      <circle cx="7.5" cy="15.5" r="5.5" />
+    </template>
+
+    <!-- 文件夹 / Finder 访达 -->
+    <template v-else-if="name === 'folder'">
+      <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+    </template>
+
+    <!-- 历史记录 / 时钟备份 -->
+    <template v-else-if="name === 'history' || name === 'backup'">
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+      <path d="M12 7v5l4 2" />
+    </template>
+
+    <!-- 上传 -->
+    <template v-else-if="name === 'upload'">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
+    </template>
+
+    <!-- 下载 -->
+    <template v-else-if="name === 'download'">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
     </template>
 
     <!-- 默认兜底 -->

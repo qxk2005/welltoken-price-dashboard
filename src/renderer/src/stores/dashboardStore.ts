@@ -7,7 +7,10 @@ import type {
   SpeedTestResult,
   SpeedTestStreamEvent,
   SyncStatus,
-  SyncLog
+  SyncLog,
+  ICloudSyncStatus,
+  ICloudBackupItem,
+  ICloudSyncConfig
 } from '../types'
 
 export const useDashboardStore = defineStore('dashboard', {
@@ -67,6 +70,25 @@ export const useDashboardStore = defineStore('dashboard', {
       stats: {} as { models_count?: number; providers_count?: number; pricings_count?: number; duration_ms?: number },
       error: ''
     },
+
+    // macOS iCloud 云端同步状态与持久化配置
+    icloudStatus: null as ICloudSyncStatus | null,
+    icloudBackups: [] as ICloudBackupItem[],
+    isICloudLoading: false,
+    isICloudSyncing: false,
+    icloudConfig: (typeof window !== 'undefined' && JSON.parse(localStorage.getItem('welltoken_icloud_config') || 'null')) || ({
+      autoSync: true,
+      includeApiKeys: true,
+      usePassword: false,
+      password: '',
+      modules: {
+        custom_channels: true,
+        custom_aliases: true,
+        favorites: true,
+        preferences: true,
+        speed_tests: false
+      }
+    } as ICloudSyncConfig),
 
     // 系统连接状态
     isConnected: false,
@@ -156,6 +178,7 @@ export const useDashboardStore = defineStore('dashboard', {
       await this.fetchRelaySites()
       await this.fetchModelsCatalog()
       await this.fetchSpeedTestHistory()
+      await this.fetchICloudStatus()
       this.connectWebSocket()
     },
 
@@ -420,6 +443,170 @@ export const useDashboardStore = defineStore('dashboard', {
         }
       } catch (e) {
         setTimeout(() => this.connectWebSocket(), 3000)
+      }
+    },
+
+    // ==================== macOS iCloud 同步 Actions ====================
+    saveICloudConfig(config: ICloudSyncConfig) {
+      this.icloudConfig = { ...config }
+      localStorage.setItem('welltoken_icloud_config', JSON.stringify(this.icloudConfig))
+    },
+
+    async fetchICloudStatus() {
+      try {
+        const res = await axios.get<ICloudSyncStatus>(`${this.apiUrl}/api/v1/icloud/status`)
+        this.icloudStatus = res.data
+        return res.data
+      } catch (e) {
+        console.error('Fetch iCloud status failed:', e)
+        return null
+      }
+    },
+
+    async fetchICloudBackups() {
+      try {
+        const res = await axios.get<{ backups: ICloudBackupItem[]; count: number }>(`${this.apiUrl}/api/v1/icloud/backups`)
+        this.icloudBackups = res.data.backups
+        return res.data.backups
+      } catch (e) {
+        console.error('Fetch iCloud backups failed:', e)
+        return []
+      }
+    },
+
+    async pushToICloud(customPassword?: string): Promise<{ success: boolean; message: string; error?: string }> {
+      this.isICloudSyncing = true
+      try {
+        const pwd = customPassword !== undefined ? customPassword : (this.icloudConfig.usePassword ? this.icloudConfig.password : undefined)
+        const res = await axios.post(`${this.apiUrl}/api/v1/icloud/push`, {
+          sync_modules: this.icloudConfig.modules,
+          include_api_keys: this.icloudConfig.includeApiKeys,
+          password: pwd || undefined,
+          favorites_data: {
+            favorite_site_ids: this.favoriteSiteIds
+          }
+        })
+        await this.fetchICloudStatus()
+        await this.fetchICloudBackups()
+        return { success: true, message: res.data.message || '推送到 iCloud 成功' }
+      } catch (e: any) {
+        const msg = e.response?.data?.detail || e.message
+        return { success: false, message: '推送到 iCloud 失败', error: msg }
+      } finally {
+        this.isICloudSyncing = false
+      }
+    },
+
+    async pullFromICloud(customPassword?: string): Promise<{ success: boolean; message: string; report?: any; error?: string }> {
+      this.isICloudSyncing = true
+      try {
+        const pwd = customPassword !== undefined ? customPassword : (this.icloudConfig.usePassword ? this.icloudConfig.password : undefined)
+        const res = await axios.post(`${this.apiUrl}/api/v1/icloud/pull`, {
+          password: pwd || undefined
+        })
+        
+        // 如果云端恢复了收藏夹
+        if (res.data.favorites?.favorite_site_ids && Array.isArray(res.data.favorites.favorite_site_ids)) {
+          this.favoriteSiteIds = res.data.favorites.favorite_site_ids
+          localStorage.setItem('welltoken_fav_sites', JSON.stringify(this.favoriteSiteIds))
+        }
+
+        await this.fetchComparisonMatrix()
+        await this.fetchRelaySites()
+        await this.fetchModelsCatalog()
+        await this.fetchSyncStatus()
+        await this.fetchICloudStatus()
+        await this.fetchICloudBackups()
+        return { success: true, message: '从 iCloud 拉取合并完成', report: res.data.report }
+      } catch (e: any) {
+        const msg = e.response?.data?.detail || e.message
+        return { success: false, message: '从 iCloud 拉取失败', error: msg }
+      } finally {
+        this.isICloudSyncing = false
+      }
+    },
+
+    async restoreICloudBackup(filename: string, customPassword?: string): Promise<{ success: boolean; message: string; error?: string }> {
+      this.isICloudSyncing = true
+      try {
+        const pwd = customPassword !== undefined ? customPassword : (this.icloudConfig.usePassword ? this.icloudConfig.password : undefined)
+        const res = await axios.post(`${this.apiUrl}/api/v1/icloud/restore`, {
+          backup_filename: filename,
+          password: pwd || undefined
+        })
+
+        if (res.data.details?.favorites?.favorite_site_ids) {
+          this.favoriteSiteIds = res.data.details.favorites.favorite_site_ids
+          localStorage.setItem('welltoken_fav_sites', JSON.stringify(this.favoriteSiteIds))
+        }
+
+        await this.fetchComparisonMatrix()
+        await this.fetchRelaySites()
+        await this.fetchModelsCatalog()
+        await this.fetchSyncStatus()
+        await this.fetchICloudStatus()
+        await this.fetchICloudBackups()
+        return { success: true, message: `已成功还原备份 [${filename}]` }
+      } catch (e: any) {
+        const msg = e.response?.data?.detail || e.message
+        return { success: false, message: '还原备份失败', error: msg }
+      } finally {
+        this.isICloudSyncing = false
+      }
+    },
+
+    async openICloudFolder() {
+      if (this.icloudStatus?.sync_folder_path && window.api?.openPath) {
+        await window.api.openPath(this.icloudStatus.sync_folder_path)
+      } else {
+        try {
+          await axios.post(`${this.apiUrl}/api/v1/icloud/open-finder`)
+        } catch (e) {
+          console.error('Open finder failed:', e)
+        }
+      }
+    },
+
+    async exportLocalBundle(password?: string): Promise<any> {
+      const res = await axios.post(`${this.apiUrl}/api/v1/icloud/export-bundle`, {
+        sync_modules: this.icloudConfig.modules,
+        include_api_keys: this.icloudConfig.includeApiKeys,
+        password: password || (this.icloudConfig.usePassword ? this.icloudConfig.password : undefined),
+        favorites_data: {
+          favorite_site_ids: this.favoriteSiteIds
+        }
+      })
+      return res.data
+    },
+
+    async importLocalBundle(bundle: any, password?: string): Promise<{ success: boolean; message: string; report?: any; error?: string }> {
+      try {
+        const res = await axios.post(`${this.apiUrl}/api/v1/icloud/import-bundle`, {
+          bundle,
+          password: password || (this.icloudConfig.usePassword ? this.icloudConfig.password : undefined)
+        })
+        if (res.data.favorites?.favorite_site_ids) {
+          this.favoriteSiteIds = res.data.favorites.favorite_site_ids
+          localStorage.setItem('welltoken_fav_sites', JSON.stringify(this.favoriteSiteIds))
+        }
+        await this.fetchComparisonMatrix()
+        await this.fetchRelaySites()
+        await this.fetchModelsCatalog()
+        await this.fetchSyncStatus()
+        return { success: true, message: res.data.message || '导入成功', report: res.data.report }
+      } catch (e: any) {
+        const msg = e.response?.data?.detail || e.message
+        return { success: false, message: '导入失败', error: msg }
+      }
+    },
+
+    async triggerAutoICloudSyncIfEnabled() {
+      if (this.icloudConfig.autoSync && this.icloudStatus?.icloud_available) {
+        try {
+          await this.pushToICloud()
+        } catch (e) {
+          console.warn('Auto iCloud sync failed in background:', e)
+        }
       }
     }
   }

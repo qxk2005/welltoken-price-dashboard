@@ -69,6 +69,23 @@ function setupIpc(): void {
   ipcMain.handle('window-close', () => {
     mainWindow?.close()
   })
+
+  ipcMain.handle('open-path', async (_, targetPath: string) => {
+    try {
+      if (targetPath) {
+        await shell.openPath(targetPath)
+        return true
+      }
+      return false
+    } catch (e) {
+      console.error('Failed to open path:', e)
+      return false
+    }
+  })
+
+  ipcMain.handle('get-platform', () => {
+    return process.platform
+  })
 }
 
 // This method will be called when Electron has finished

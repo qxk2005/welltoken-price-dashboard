@@ -6,6 +6,8 @@ interface CustomAPI {
   minimizeWindow: () => Promise<void>
   maximizeWindow: () => Promise<void>
   closeWindow: () => Promise<void>
+  openPath: (targetPath: string) => Promise<boolean>
+  getPlatform: () => Promise<string>
 }
 
 declare global {

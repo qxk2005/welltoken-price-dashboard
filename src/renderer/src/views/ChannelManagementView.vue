@@ -48,6 +48,18 @@
 
         <!-- 右侧精简化操作按钮组 -->
         <div class="flex items-center space-x-2 flex-shrink-0 pl-2">
+          <!-- iCloud 同步状态快捷入口 -->
+          <button
+            @click="handleQuickICloudSync"
+            :title="store.icloudStatus?.is_macos && store.icloudStatus?.icloud_available ? `iCloud 同步: 上次于 ${store.icloudStatus?.sync_file_last_modified || '未同步'}，点击立即推送到 iCloud` : '点击进入设置配置 iCloud 同步'"
+            class="text-xs px-2.5 py-1.5 rounded-lg border font-medium transition-all flex items-center space-x-1.5 whitespace-nowrap cursor-pointer"
+            :class="store.icloudStatus?.is_macos && store.icloudStatus?.icloud_available ? 'bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] border-[#E5E5EA]' : 'bg-[#F9F9FB] text-[#86868B] border-[#E5E5EA]'"
+          >
+            <SystemIcon v-if="store.isICloudSyncing" name="refresh" custom-class="w-3.5 h-3.5 text-[#0071E3] animate-spin" />
+            <SystemIcon v-else name="cloud" custom-class="w-3.5 h-3.5 text-[#0071E3]" />
+            <span>{{ store.isICloudSyncing ? 'iCloud 同步中...' : (store.icloudStatus?.icloud_available ? 'iCloud 同步' : 'iCloud 未就绪') }}</span>
+          </button>
+
           <button
             @click="store.triggerFullSync"
             class="text-xs px-3 py-1.5 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#0071E3] border border-[#E5E5EA] font-medium transition-all flex items-center space-x-1.5 whitespace-nowrap cursor-pointer"
@@ -1439,6 +1451,19 @@ const openWizardFromEdit = () => {
   showWizardModal.value = true
 }
 
+const handleQuickICloudSync = async () => {
+  if (!store.icloudStatus?.icloud_available) {
+    store.activeTab = 'settings'
+    return
+  }
+  const res = await store.pushToICloud()
+  if (res.success) {
+    alert(`✓ 自建渠道商与配置已成功同步到 iCloud Drive`)
+  } else {
+    alert(`❌ iCloud 同步失败: ${res.error}`)
+  }
+}
+
 const onWizardSuccess = async (res: any) => {
   await store.fetchRelaySites()
   await store.fetchComparisonMatrix()
@@ -1449,6 +1474,7 @@ const onWizardSuccess = async (res: any) => {
     }
     await selectProvider(selectedProvider.value)
   }
+  await store.triggerAutoICloudSyncIfEnabled()
   alert(`🎉 恭喜！中转渠道「${res.site_name}」配置与模型同步成功，已精准收录 ${res.imported_models_count} 款模型！`)
 }
 
@@ -2011,6 +2037,7 @@ const saveChannel = async () => {
       }
     }
     showModal.value = false
+    await store.triggerAutoICloudSyncIfEnabled()
   } catch (e: any) {
     alert(`保存失败: ${e.response?.data?.detail || e.message}`)
     console.error('Save channel failed:', e)
@@ -2025,6 +2052,7 @@ const deleteSite = async (siteId: number) => {
     await axios.delete(`${store.apiUrl}/api/v1/channels/${siteId}`)
     await store.fetchRelaySites()
     selectedProvider.value = null
+    await store.triggerAutoICloudSyncIfEnabled()
   } catch (e) {
     console.error('Delete site failed:', e)
   }

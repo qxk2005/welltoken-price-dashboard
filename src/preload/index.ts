@@ -12,7 +12,11 @@ const api = {
   maximizeWindow: (): Promise<void> =>
     ipcRenderer.invoke('window-maximize'),
   closeWindow: (): Promise<void> =>
-    ipcRenderer.invoke('window-close')
+    ipcRenderer.invoke('window-close'),
+  openPath: (targetPath: string): Promise<boolean> =>
+    ipcRenderer.invoke('open-path', targetPath),
+  getPlatform: (): Promise<string> =>
+    ipcRenderer.invoke('get-platform')
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to
