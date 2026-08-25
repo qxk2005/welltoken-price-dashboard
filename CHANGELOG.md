@@ -4,6 +4,15 @@
 
 ---
 
+## 🚀 [v1.3.1 补丁版本] - 2026-08-25
+
+### 🛠️ 缺陷修复与体验优化
+- **修复打包应用 Network Error 离线报错**：解决 PyInstaller 打包时由于动态字符串导入导致 `fastapi.middleware.cors` 及子模块缺失的崩溃问题，在 `pyinstaller.spec` 中全量自动收集 `backend.app`、`fastapi`、`starlette`、`uvicorn`、`sqlalchemy` 等所有依赖，并重构服务端为直接实例加载；
+- **修复 macOS 窗口无法拖动与红绿灯遮挡问题**：为顶部导航栏注入 `-webkit-app-region: drag` 拖拽支持，同时对所有按钮与输入控件应用 `no-drag` 保持交互灵敏，并为 macOS 原生红绿灯按钮配置 `trafficLightPosition` 避让间距与 `pl-20` 内边距；
+- **优化初次启动数据库冷启动健壮性**：在插入内置别名前预置标准模型元数据骨架，防止 SQLite 在空库初始化时触发外键检查失败。
+
+---
+
 ## 🚀 [v1.3.0 主版本发布] - 2026-08-25
 
 ### 🌟 重大新增与核心改进
