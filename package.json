@@ -18,6 +18,7 @@
     "build:all": "npm run build:backend && electron-vite build && electron-builder",
     "build:mac": "npm run build:backend && electron-vite build && electron-builder --mac",
     "build:win": "npm run build:backend && electron-vite build && electron-builder --win",
+    "release:sync": "bash ./scripts/release_sync.sh",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
