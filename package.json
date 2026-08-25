@@ -1,6 +1,6 @@
 {
   "name": "welltoken-price-dashboard",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "description": "Cross-platform Token & Crypto Price Dashboard built with Electron, Vue 3, SQLite and Python FastAPI",
   "main": "./out/main/index.js",
   "author": "qxk2005",

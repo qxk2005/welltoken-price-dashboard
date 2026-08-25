@@ -651,6 +651,21 @@ class ICloudSyncService:
                     c_name = m_item.get("channel_model_name", "").strip()
                     if not std_id or not c_name:
                         continue
+
+                    # 自动确保标准模型元数据骨架存在，防止 SQLite 外键约束校验失败
+                    if std_id not in standard_models:
+                        new_meta = ModelMetadata(
+                            model_id=std_id,
+                            name=std_id,
+                            provider=target_site.provider_id or "custom",
+                            official_input_price=0.0,
+                            official_output_price=0.0,
+                            official_cache_price=0.0,
+                            created_at=datetime.utcnow()
+                        )
+                        session.add(new_meta)
+                        await session.flush()
+                        standard_models[std_id] = new_meta
                     
                     cm = ChannelModelMapping(
                         site_id=target_site.id,
@@ -694,6 +709,21 @@ class ICloudSyncService:
                 std_id = a_item.get("standard_model_id", "").strip()
                 if not pat or not std_id:
                     continue
+
+                # 自动确保标准模型元数据骨架存在
+                if std_id not in standard_models:
+                    new_meta = ModelMetadata(
+                        model_id=std_id,
+                        name=std_id,
+                        provider="custom",
+                        official_input_price=0.0,
+                        official_output_price=0.0,
+                        official_cache_price=0.0,
+                        created_at=datetime.utcnow()
+                    )
+                    session.add(new_meta)
+                    await session.flush()
+                    standard_models[std_id] = new_meta
 
                 a_stmt = select(ModelAlias).where(ModelAlias.raw_pattern == pat)
                 a_res = await session.execute(a_stmt)
