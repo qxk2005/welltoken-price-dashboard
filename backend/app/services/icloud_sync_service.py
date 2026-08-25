@@ -152,6 +152,38 @@ class ICloudSyncService:
         icloud_root = Path.home() / "Library" / "Mobile Documents" / "com~apple~CloudDocs"
         return icloud_root.exists() and os.access(str(icloud_root), os.W_OK)
 
+    def _resolve_active_sync_file(self) -> Path:
+        """多层级自适应检索 iCloud 同步主文件 (兼容标准 iCloud 云盘、桌面文稿同步与全局 Spotlight 索引)"""
+        primary = self._sync_folder / self.MAIN_SYNC_FILENAME
+        if primary.exists():
+            return primary
+        
+        primary_ph = self._sync_folder / f".{self.MAIN_SYNC_FILENAME}.icloud"
+        if primary_ph.exists():
+            return primary
+
+        if self.is_macos:
+            # 兼容文稿目录下的同名同步夹
+            doc_sync = Path.home() / "Library" / "Mobile Documents" / "com~apple~CloudDocs" / "Documents" / self.SYNC_DIR_NAME / self.MAIN_SYNC_FILENAME
+            if doc_sync.exists() or (doc_sync.parent / f".{doc_sync.name}.icloud").exists():
+                return doc_sync
+
+            # 利用 macOS Spotlight 元数据引擎全局定位
+            try:
+                res = subprocess.run(["mdfind", "kMDItemFSName == *welltoken_sync.json*"], capture_output=True, text=True, timeout=2.0)
+                lines = [l.strip() for l in res.stdout.strip().split("\n") if l.strip()]
+                for line in lines:
+                    if "com~apple~CloudDocs" in line:
+                        p = Path(line)
+                        if p.name == self.MAIN_SYNC_FILENAME:
+                            return p
+                        elif p.name == f".{self.MAIN_SYNC_FILENAME}.icloud":
+                            return p.parent / self.MAIN_SYNC_FILENAME
+            except Exception:
+                pass
+
+        return primary
+
     def _trigger_icloud_download(self, path: Path) -> bool:
         """通过 macOS 原生 JXA (JavaScript for Automation) 调度 bird 守护进程主动从 iCloud 下载文件"""
         if not self.is_macos:
@@ -169,23 +201,31 @@ class ICloudSyncService:
             print(f"[iCloudSync] 触发 iCloud 下载失败 ({path}): {e}")
             return False
 
-    async def _ensure_file_downloaded_from_icloud(self, target_file: Path, wait_timeout_sec: float = 10.0) -> bool:
+    async def _ensure_file_downloaded_from_icloud(self, target_file: Path, wait_timeout_sec: float = 12.0) -> bool:
         """确保 iCloud 文件已从云端拉取下载至本地磁盘 (处理 Optimize Mac Storage 导致的 .icloud 占位符)"""
         if target_file.exists():
             return True
 
-        # 检查是否存在 macOS iCloud 占位文件 (如 .welltoken_sync.json.icloud)
-        placeholder = target_file.parent / f".{target_file.name}.icloud"
-        
-        # 无论是否存在占位符，都主动向 macOS 发出下载指令
+        # 无论是否存在占位符，都主动向 macOS 发出下载指令 (触发自身与父目录)
         self._trigger_icloud_download(target_file)
+        self._trigger_icloud_download(target_file.parent)
+        
+        placeholder = target_file.parent / f".{target_file.name}.icloud"
         if placeholder.exists():
             self._trigger_icloud_download(placeholder)
+
+        # 唤醒 iCloud 根目录
+        if self.is_macos:
+            icloud_root = Path.home() / "Library" / "Mobile Documents" / "com~apple~CloudDocs"
+            self._trigger_icloud_download(icloud_root)
 
         # 循环轮询等待文件落地
         start_time = time.time()
         while time.time() - start_time < wait_timeout_sec:
             if target_file.exists():
+                return True
+            discovered = self._resolve_active_sync_file()
+            if discovered.exists():
                 return True
             await asyncio.sleep(0.5)
 
@@ -195,7 +235,7 @@ class ICloudSyncService:
         """获取 iCloud 同步状态与统计信息"""
         self._sync_folder = self._resolve_icloud_folder()
         available = self.is_icloud_available()
-        file_path = self.sync_file_path
+        file_path = self._resolve_active_sync_file()
         exists = file_path.exists()
         
         # 若主文件不存在，检查是否有云端待下载占位符
@@ -206,6 +246,7 @@ class ICloudSyncService:
             exists = True
             # 后台静默触发下载
             self._trigger_icloud_download(file_path)
+            self._trigger_icloud_download(placeholder)
 
         file_size_bytes = 0
         last_modified = None
@@ -450,6 +491,11 @@ class ICloudSyncService:
 
         self._rotate_backups(max_keep=20)
 
+        # 主动唤醒 macOS iCloud 同步上传新文件
+        self._trigger_icloud_download(main_file)
+        self._trigger_icloud_download(backup_file)
+        self._trigger_icloud_download(self._sync_folder)
+
         channels_cnt = len(bundle.get("payload", {}).get("channels", [])) if not bundle.get("is_encrypted") else -1
 
         return {
@@ -470,7 +516,7 @@ class ICloudSyncService:
         """从 iCloud Drive 主文件或指定历史备份中拉取并智能双向合并到本地数据库"""
         self._sync_folder = self._resolve_icloud_folder()
         
-        target_file = self.sync_file_path
+        target_file = self._resolve_active_sync_file()
         if from_backup_file:
             target_file = self._backups_folder / from_backup_file
 

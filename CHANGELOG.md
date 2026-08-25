@@ -4,6 +4,16 @@
 
 ---
 
+## 🚀 [v1.3.3 多层级 iCloud 跨设备同步加固版] - 2026-08-25
+
+### 🛠️ 缺陷修复与体验优化
+- **全方位多层级 iCloud 同步自适应发现**：在 `backend/app/services/icloud_sync_service.py` 中引入 5 级自适应检索算法（主路径、`.icloud` 占位符、iCloud 文稿同步目录、macOS Spotlight 元数据引擎全局定位以及递归遍历）；
+- **修复拉取时缺少 `import asyncio` 的运行时异常**：彻底修复跨设备 JXA 轮询等待时的异步调度异常；
+- **主动触发双端 iCloud 同步唤醒**：在推送到 iCloud 和拉取时，主动调用 macOS 原生 JXA (`NSFileManager.startDownloadingUbiquitousItem`) 唤醒苹果 `bird` 云端守护进程，极大缩短跨设备数据传输的等待延迟；
+- **双轨自动化打包与发布 SOP 固化**：提供一键执行本地与云端双轨打包脚本，确保本地 DMG 与 GitHub Actions Release 版本始终 100% 绝对一致。
+
+---
+
 ## 🚀 [v1.3.2 深度加固版本] - 2026-08-25
 
 ### 🛠️ 缺陷修复与体验优化
