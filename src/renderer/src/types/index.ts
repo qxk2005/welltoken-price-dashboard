@@ -24,6 +24,7 @@ export interface ComparisonItem {
   source_updated_at?: string
   source_time_type?: 'models_dev' | 'manual'
   is_official_catalog?: boolean
+  site_model_name?: string
   updated_at: string
 }
 

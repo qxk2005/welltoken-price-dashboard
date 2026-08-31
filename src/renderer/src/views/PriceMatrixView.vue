@@ -481,10 +481,24 @@
                 </div>
               </td>
 
-              <!-- 2. 模型标准标识 -->
+              <!-- 2. 模型标准标识 与 梯度/分段定价标签 -->
               <td class="py-3 px-2">
                 <div class="flex items-center space-x-1.5 truncate">
                   <span class="font-bold text-[#0071E3] font-mono truncate text-xs" :title="row.model_id">{{ row.model_id }}</span>
+                  <!-- 分段/区间定价或自定义别名徽章 -->
+                  <span
+                    v-if="row.site_model_name && row.site_model_name !== row.model_id"
+                    class="inline-flex items-center space-x-1 text-[#86868B] text-[11px] font-mono truncate max-w-[260px]"
+                    :title="`渠道定价规格/区间说明: ${row.site_model_name}`"
+                  >
+                    <span
+                      v-if="isTieredModel(row.site_model_name)"
+                      class="px-1.5 py-0.2 rounded bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[9px] font-bold shrink-0"
+                    >
+                      分段
+                    </span>
+                    <span class="truncate">({{ row.site_model_name }})</span>
+                  </span>
                 </div>
               </td>
 
@@ -1523,6 +1537,12 @@ const getSourceTimeTooltip = (row: ComparisonItem): string => {
   return `[c 标 = 自定义渠道最后同步时间] ${rawTime}\n（点击表头文字可切换 相对时间/绝对日期 样式）`
 }
 
+// 判断模型是否属于区间/分段定价模型
+const isTieredModel = (siteModelName?: string): boolean => {
+  if (!siteModelName) return false
+  return /\[|\~|\～|\+∞|分段|时段|阶梯|区间/.test(siteModelName)
+}
+
 // 散点图分析维度切换 ('model' = 按模型标识, 'series' = 按模型系列)
 type ScatterDimensionMode = 'model' | 'series'
 const scatterDimensionMode = ref<ScatterDimensionMode>('model')
@@ -1627,7 +1647,7 @@ const updateScatterChart = () => {
     targetItems = pagedItems.value.filter((item) => (item.series || '通用系列') === targetSeries)
   }
 
-  // data: [price, tps, site_name, model_ratio, id, model_id, series, model_name]
+  // data: [price, tps, site_name, model_ratio, id, model_id, series, model_name, site_model_name]
   const data = targetItems.map((item) => [
     store.currency === 'USD' ? item.calculated_input_usd : item.calculated_input_cny,
     item.last_tested_tps || 50,
@@ -1636,7 +1656,8 @@ const updateScatterChart = () => {
     item.id,
     item.model_id,
     item.series || '通用系列',
-    item.model_name || item.model_id
+    item.model_name || item.model_id,
+    item.site_model_name || ''
   ])
 
   const option: any = {
@@ -1657,7 +1678,9 @@ const updateScatterChart = () => {
         const isSel = selectedRow.value?.id === d[4] || (selectedRow.value && selectedRow.value.site_name === d[2])
         const modelId = d[5] || ''
         const seriesName = d[6] || ''
+        const siteModelName = d[8] || ''
         const isSeriesMode = scatterDimensionMode.value === 'series'
+        const hasTierOrAlias = siteModelName && siteModelName !== modelId
         return `
           <div class="font-sans font-bold text-[#1D1D1F] flex items-center space-x-1">
             <span>${d[2]}</span>
@@ -1665,6 +1688,7 @@ const updateScatterChart = () => {
             ${isSel ? '<span class="text-[#FF9500] font-bold text-[10px] ml-1">📍(当前选中)</span>' : ''}
           </div>
           ${isSeriesMode ? `<div class="text-[#8E24AA] text-[10px] font-mono mt-0.5">📦 系列: ${seriesName} | 🏷️ 标识: ${modelId}</div>` : ''}
+          ${hasTierOrAlias ? `<div class="text-[#AF52DE] text-[10px] font-mono mt-0.5">📊 规格区间: <strong>${siteModelName}</strong></div>` : ''}
           <div class="text-[#6E6E73] text-[10px] mt-0.5">输入价格: <strong class="text-[#34C759] font-mono font-bold">${store.currency === 'USD' ? '$' : '¥'}${Number(d[0]).toFixed(3)}</strong></div>
           <div class="text-[#6E6E73] text-[10px]">实测速率: <strong class="text-[#0071E3] font-mono font-bold">${d[1]} TPS</strong></div>
           <div class="text-[9px] text-[#0071E3] mt-0.5 font-sans">💡 点击可直接定位列表并高亮</div>

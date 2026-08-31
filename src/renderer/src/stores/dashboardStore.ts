@@ -111,7 +111,8 @@ export const useDashboardStore = defineStore('dashboard', {
           (item) =>
             item.model_id.toLowerCase().includes(q) ||
             item.model_name.toLowerCase().includes(q) ||
-            item.site_name.toLowerCase().includes(q)
+            item.site_name.toLowerCase().includes(q) ||
+            (item.site_model_name && item.site_model_name.toLowerCase().includes(q))
         )
       }
       return list

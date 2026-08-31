@@ -215,8 +215,9 @@
                       <div class="font-bold text-[#1D1D1F] group-hover:text-[#0071E3] text-xs">
                         {{ item.name }}
                       </div>
-                      <div class="text-[10px] text-[#0071E3] font-mono">
-                        {{ item.model_id }}
+                      <div class="text-[10px] text-[#0071E3] font-mono flex items-center space-x-1">
+                        <span>{{ item.model_id }}</span>
+                        <span v-if="item.site_model_name && item.site_model_name !== item.model_id" class="text-[#86868B] truncate max-w-[200px]" :title="item.site_model_name">({{ item.site_model_name }})</span>
                       </div>
                     </td>
 

@@ -373,7 +373,8 @@ class DashboardService:
                         func.lower(ModelMetadata.name).like(q),
                         func.lower(ModelMetadata.series).like(q),
                         func.lower(RelaySite.name).like(q),
-                        func.lower(ModelMetadata.provider).like(q)
+                        func.lower(ModelMetadata.provider).like(q),
+                        func.lower(SiteModelPricing.site_model_name).like(q)
                     )
                 )
 
@@ -478,6 +479,7 @@ class DashboardService:
                         source_updated_at=src_time,
                         source_time_type=time_type,
                         is_official_catalog=is_official,
+                        site_model_name=getattr(p, "site_model_name", "") or "",
                         updated_at=p.updated_at
                     )
                 )
