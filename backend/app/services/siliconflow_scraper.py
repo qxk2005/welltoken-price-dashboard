@@ -9,7 +9,7 @@ import time
 import asyncio
 from datetime import datetime
 from typing import List, Dict, Any, Optional
-from sqlalchemy import select
+from sqlalchemy import select, delete
 
 from backend.app.database import AsyncSessionLocal
 from backend.app.models.token_price import RelaySite, ModelMetadata, SiteModelPricing, ChannelSnapshot
@@ -532,6 +532,7 @@ class SiliconFlowScraperService:
                     return results;
                 }""")
 
+                self.last_raw_html = await page.content()
                 await browser.close()
 
         except Exception as e:
@@ -678,24 +679,19 @@ class SiliconFlowScraperService:
                     if not model_meta:
                         continue
 
-                    # 2b. 创建或更新 SiteModelPricing
-                    # 对于分段定价模型，每个区间段各建一行
-                    if item.has_tiered_pricing and item.price_tiers and len(item.price_tiers) > 1:
-                        # 先删除旧的单行 "(分段定价)" 记录 (迁移旧数据)
-                        old_stmt = select(SiteModelPricing).where(
-                            SiteModelPricing.site_id == site.id,
-                            SiteModelPricing.model_id == model_meta.model_id
-                        )
-                        old_res = await session.execute(old_stmt)
-                        old_rows = old_res.scalars().all()
-                        for old_row in old_rows:
-                            await session.delete(old_row)
+                    # 3a. 先清理该渠道下此模型的旧定价条目，保证幂等
+                    old_stmt = delete(SiteModelPricing).where(
+                        SiteModelPricing.site_id == site.id,
+                        SiteModelPricing.model_id == model_meta.model_id
+                    )
+                    await session.execute(old_stmt)
 
-                        # 为每个区间段创建独立行
+                    # 3b. 写入分段阶梯定价或普通定价
+                    if item.has_tiered_pricing and item.price_tiers and len(item.price_tiers) > 1:
                         for tier in item.price_tiers:
-                            tier_input_usd = round(tier.input_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0
-                            tier_output_usd = round(tier.output_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0
-                            tier_cache_usd = round((tier.cache_price_cny or 0) / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0
+                            tier_input_usd = round(tier.input_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0.0
+                            tier_output_usd = round(tier.output_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0.0
+                            tier_cache_usd = round(tier.cache_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0.0
 
                             tier_discount = 0.0
                             if model_meta.official_input_price > 0 and tier_input_usd > 0:
@@ -720,50 +716,32 @@ class SiliconFlowScraperService:
                             session.add(tier_pricing)
                             prices_created += 1
                     else:
-                        # 非分段定价：正常单行入库
-                        input_usd = round(item.input_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0
-                        output_usd = round(item.output_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0
-                        cache_usd = round(item.cache_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0
+                        input_usd = round(item.input_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0.0
+                        output_usd = round(item.output_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0.0
+                        cache_usd = round((item.cache_price_cny or 0) / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0.0
 
-                        p_stmt = select(SiteModelPricing).where(
-                            SiteModelPricing.site_id == site.id,
-                            SiteModelPricing.model_id == model_meta.model_id
-                        )
-                        p_res = await session.execute(p_stmt)
-                        pricing = p_res.scalar_one_or_none()
-
-                        if pricing:
-                            pricing.calculated_input_usd = input_usd
-                            pricing.calculated_output_usd = output_usd
-                            pricing.calculated_cache_usd = cache_usd
-                            pricing.is_available = True
-                            pricing.source_updated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
-                            pricing.group_name = item.category
-                            pricing.site_model_name = item.display_name
-                            prices_updated += 1
-                        else:
-                            discount = 0.0
-                            if model_meta.official_input_price > 0 and input_usd > 0:
-                                discount = round(
-                                    ((input_usd - model_meta.official_input_price) / model_meta.official_input_price) * 100, 1
-                                )
-
-                            new_pricing = SiteModelPricing(
-                                site_id=site.id,
-                                model_id=model_meta.model_id,
-                                group_name=item.category,
-                                site_model_name=item.display_name,
-                                model_ratio=1.0,
-                                group_ratio=1.0,
-                                calculated_input_usd=input_usd,
-                                calculated_output_usd=output_usd,
-                                calculated_cache_usd=cache_usd,
-                                discount_percent=discount,
-                                is_available=True,
-                                source_updated_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+                        discount = 0.0
+                        if model_meta.official_input_price > 0 and input_usd > 0:
+                            discount = round(
+                                ((input_usd - model_meta.official_input_price) / model_meta.official_input_price) * 100, 1
                             )
-                            session.add(new_pricing)
-                            prices_created += 1
+
+                        new_pricing = SiteModelPricing(
+                            site_id=site.id,
+                            model_id=model_meta.model_id,
+                            group_name=item.category,
+                            site_model_name=item.display_name,
+                            model_ratio=1.0,
+                            group_ratio=1.0,
+                            calculated_input_usd=input_usd,
+                            calculated_output_usd=output_usd,
+                            calculated_cache_usd=cache_usd,
+                            discount_percent=discount,
+                            is_available=True,
+                            source_updated_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+                        )
+                        session.add(new_pricing)
+                        prices_created += 1
 
                 await session.commit()
 

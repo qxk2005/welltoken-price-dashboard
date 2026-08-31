@@ -1030,12 +1030,12 @@ const form = reactive({
 })
 
 onMounted(() => {
-  if (props.initialStep === 2 && form.base_url) {
+  if (props.initialStep === 2) {
     if (form.site_type === 'siliconflow') {
       runSiliconFlowScrape()
     } else if (form.site_type === 'aliyun_bailian') {
       runBailianScrape()
-    } else {
+    } else if (form.base_url) {
       runProbe()
     }
   }
