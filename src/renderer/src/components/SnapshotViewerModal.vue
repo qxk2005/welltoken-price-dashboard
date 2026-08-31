@@ -153,7 +153,7 @@
           ref="iframeRef"
           :srcdoc="sanitizedHtmlDoc"
           class="w-full h-full border-0 bg-white"
-          sandbox="allow-same-origin allow-scripts"
+          sandbox="allow-same-origin"
           @load="onIframeLoad"
         ></iframe>
       </div>
@@ -222,9 +222,14 @@ const fetchSnapshot = async () => {
   }
 }
 
-// 构造完全独立的 iframe HTML 文档，并注入高亮呼吸动画与清除固定导航栏样式
+// 构造完全独立的 iframe HTML 文档，剥离全部 script 标签，并注入高亮呼吸动画与清除固定导航栏样式
 const sanitizedHtmlDoc = computed(() => {
   if (!rawHtml.value) return ''
+
+  // 1. 彻底移除所有外部与内联 script 标签，防止 React/Next.js 在静态沙箱中发生客户端 Hydration 崩溃
+  let html = rawHtml.value
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, '')
 
   // 注入专门针对高亮与去噪的样式
   const injectStyles = `
@@ -273,7 +278,6 @@ const sanitizedHtmlDoc = computed(() => {
     </style>
   `
 
-  let html = rawHtml.value
   // 如果有 </head> 则在 head 前注入，否则在最前面注入
   if (html.includes('</head>')) {
     html = html.replace('</head>', `${injectStyles}</head>`)

@@ -532,7 +532,9 @@ class SiliconFlowScraperService:
                     return results;
                 }""")
 
-                self.last_raw_html = await page.content()
+                raw_content = await page.content()
+                # 剥离所有 script 标签，保留纯静态 DOM 与样式，减少体积并杜绝 Next.js hydration 错误
+                self.last_raw_html = re.sub(r'<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>', '', raw_content, flags=re.IGNORECASE)
                 await browser.close()
 
         except Exception as e:
