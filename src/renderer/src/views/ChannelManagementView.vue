@@ -496,7 +496,15 @@
           <!-- 右侧操作 -->
           <div class="flex items-center space-x-2">
             <button
-              v-if="isCustomSite(selectedProvider)"
+              v-if="selectedProvider.site_type === 'aliyun_bailian' || selectedProvider.site_type === 'siliconflow'"
+              @click="openSnapshotModal()"
+              class="px-3 py-1.5 rounded-xl bg-[#F3E8FD] hover:bg-[#EBD6FA] text-[#8E24AA] border border-[#E1BEE7] text-xs font-semibold flex items-center space-x-1 transition-colors cursor-pointer shadow-2xs"
+              title="查看抓取的官方定价完整快照与证据链，并支持一键定位高亮"
+            >
+              <span>📸</span>
+              <span>定价网页快照</span>
+            </button>
+            <button
               @click="openSyncModalForCurrent"
               class="px-3 py-1.5 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#0071E3] border border-[#E5E5EA] text-xs font-medium flex items-center space-x-1"
               title="使用 Relay-Watch 重新探测当前站点的最新模型并自动映射"
@@ -920,6 +928,14 @@
                       <span>一键测速</span>
                     </button>
                     <button
+                      @click="openSnapshotModal(item); closeAllDropdowns()"
+                      class="w-full px-3 py-1.5 hover:bg-[#F3E8FD] flex items-center space-x-2 text-[#8E24AA] font-medium transition-colors"
+                      title="打开官方定价网页快照，高亮核验该模型价格与区间"
+                    >
+                      <span>📸</span>
+                      <span>快照核对</span>
+                    </button>
+                    <button
                       v-if="isCustomSite(selectedProvider)"
                       @click="removeModelPricing(item); closeAllDropdowns()"
                       class="w-full px-3 py-1.5 hover:bg-[#FDE8E8] flex items-center space-x-2 text-[#FF3B30] transition-colors border-t border-[#F2F2F7]"
@@ -1007,6 +1023,7 @@
                       <td class="py-2 px-2.5 text-center font-mono text-[#0071E3] font-bold">{{ item.last_tested_tps }} tps</td>
                       <td class="py-2 px-2.5 text-center whitespace-nowrap">
                         <div class="flex items-center justify-center space-x-1">
+                          <button @click="openSnapshotModal(item)" class="px-1.5 py-0.5 rounded bg-[#F3E8FD] hover:bg-[#EBD6FA] text-[#8E24AA] border border-[#E1BEE7] text-[10px] font-medium" title="快照核对">📸</button>
                           <button @click="goToMatrixWithModel(item.model_id)" class="px-2 py-0.5 rounded bg-[#F2F2F7] hover:bg-[#E8F2FD] text-[#0071E3] border border-[#E5E5EA] text-[10px] font-medium" title="去全网比价">比价</button>
                           <button @click="goToSpeedTestWithModel(item.model_id)" class="px-2 py-0.5 rounded bg-[#F2F2F7] hover:bg-[#EAF8EE] text-[#34C759] border border-[#E5E5EA] text-[10px] font-medium" title="一键测速">测速</button>
                         </div>
@@ -1164,6 +1181,15 @@
       :initial-step="wizardInitialStep"
       @close="showWizardModal = false; wizardInitialChannel = null; wizardInitialStep = 1"
       @success="onWizardSuccess"
+    />
+
+    <!-- 定价网页快照与证据链比对 Modal -->
+    <SnapshotViewerModal
+      v-if="showSnapshotModal && snapshotSiteId"
+      :site-id="snapshotSiteId"
+      :site-name="snapshotSiteName"
+      :target-model="snapshotTargetModel"
+      @close="showSnapshotModal = false"
     />
 
     <!-- 弹窗：编辑渠道基础配置 Modal (Apple 极简浅色高级风格) -->
@@ -1333,6 +1359,7 @@ import axios from 'axios'
 import { useDashboardStore } from '../stores/dashboardStore'
 import ProviderLogo from '../components/ProviderLogo.vue'
 import AddChannelWizardModal from '../components/AddChannelWizardModal.vue'
+import SnapshotViewerModal from '../components/SnapshotViewerModal.vue'
 import ScoreBreakdownTooltip from '../components/ScoreBreakdownTooltip.vue'
 import SystemIcon from '../components/SystemIcon.vue'
 import type { RelaySite } from '../types'
@@ -1347,6 +1374,20 @@ const providerModelSearchQuery = ref('')
 const excludeZeroPrice = ref(true)
 const providerModelsList = ref<any[]>([])
 const isDetailLoading = ref(false)
+
+// 定价网页快照比对 Modal 状态
+const showSnapshotModal = ref(false)
+const snapshotTargetModel = ref<any>(null)
+const snapshotSiteId = ref<number | null>(null)
+const snapshotSiteName = ref<string>('')
+
+const openSnapshotModal = (modelItem?: any) => {
+  if (!selectedProvider.value) return
+  snapshotSiteId.value = selectedProvider.value.id
+  snapshotSiteName.value = selectedProvider.value.name
+  snapshotTargetModel.value = modelItem || null
+  showSnapshotModal.value = true
+}
 
 const handleExportChannelModels = () => {
   if (!selectedProvider.value) return

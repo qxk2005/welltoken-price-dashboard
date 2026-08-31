@@ -12,7 +12,7 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy import select
 
 from backend.app.database import AsyncSessionLocal
-from backend.app.models.token_price import RelaySite, ModelMetadata, SiteModelPricing
+from backend.app.models.token_price import RelaySite, ModelMetadata, SiteModelPricing, ChannelSnapshot
 from backend.app.schemas.token_schema import (
     SiliconFlowModelItem, SiliconFlowPriceTier,
     SiliconFlowScrapeResponse, SiliconFlowImportResponse
@@ -84,6 +84,9 @@ def _is_free_text(text: str) -> bool:
 class SiliconFlowScraperService:
     """硅基流动官网定价爬取服务"""
 
+    def __init__(self):
+        self.last_raw_html: str = ""
+
     async def scrape_pricing(self) -> SiliconFlowScrapeResponse:
         """
         爬取硅基流动官网定价页全部模型价格。
@@ -144,6 +147,7 @@ class SiliconFlowScraperService:
                     await asyncio.sleep(0.5)
 
                 print("[SiliconFlowScraper] 所有展开按钮已点击，开始解析 DOM...")
+                self.last_raw_html = await page.content()
 
                 # 解析各分类的模型
                 sections = await page.query_selector_all("section:has(h2)")
@@ -636,7 +640,30 @@ class SiliconFlowScraperService:
                 site.last_sync_time = datetime.utcnow()
                 site.last_status = "online"
 
-                # 2. 逐个处理模型
+                # 2. 持久化定价页面快照 ChannelSnapshot
+                if self.last_raw_html:
+                    snap_stmt = select(ChannelSnapshot).where(ChannelSnapshot.site_id == site.id)
+                    snap_res = await session.execute(snap_stmt)
+                    snapshot = snap_res.scalars().first()
+                    if not snapshot:
+                        snapshot = ChannelSnapshot(
+                            site_id=site.id,
+                            source_url=SILICONFLOW_PRICING_URL,
+                            page_title="硅基流动 SiliconFlow 模型定价与推理服务说明",
+                            doc_updated_at=datetime.utcnow().strftime("%Y-%m-%d"),
+                            fetched_at=datetime.utcnow(),
+                            raw_html=self.last_raw_html,
+                            models_count=len(models)
+                        )
+                        session.add(snapshot)
+                    else:
+                        snapshot.source_url = SILICONFLOW_PRICING_URL
+                        snapshot.doc_updated_at = datetime.utcnow().strftime("%Y-%m-%d")
+                        snapshot.fetched_at = datetime.utcnow()
+                        snapshot.raw_html = self.last_raw_html
+                        snapshot.models_count = len(models)
+
+                # 3. 逐个处理模型
                 for item in models:
                     # 2a. 智能匹配或创建 ModelMetadata
                     model_meta = await self._match_or_create_model(

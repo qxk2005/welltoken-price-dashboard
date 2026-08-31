@@ -257,8 +257,15 @@
                       {{ item.last_tested_tps || 55 }}
                     </td>
 
-                    <!-- 快捷比价/测速 -->
+                    <!-- 快捷比价/测速/快照 -->
                     <td class="py-2 px-2 text-center whitespace-nowrap">
+                      <button
+                        @click="openSnapshotModal(item)"
+                        class="px-1.5 py-0.5 rounded bg-[#F3E8FD] hover:bg-[#EBD6FA] text-[#8E24AA] border border-[#E1BEE7] text-[10px] font-medium transition-all cursor-pointer mr-1 inline-flex items-center space-x-0.5"
+                        title="打开官方定价快照并定位核验"
+                      >
+                        <span>📸</span>
+                      </button>
                       <button
                         @click="triggerModelCompare(item.model_id)"
                         class="px-2 py-0.5 rounded bg-[#E8F2FD] hover:bg-[#0071E3] text-[#0071E3] hover:text-white border border-[#CCE4FB] text-[10px] font-medium transition-all cursor-pointer mr-1 inline-flex items-center space-x-0.5"
@@ -295,6 +302,15 @@
         </div>
       </div>
     </div>
+
+    <!-- 定价快照核对 Modal -->
+    <SnapshotViewerModal
+      v-if="showSnapshotModal && currentSite"
+      :site-id="currentSite.id"
+      :site-name="currentSite.name"
+      :target-model="snapshotTargetModel"
+      @close="showSnapshotModal = false"
+    />
   </Teleport>
 </template>
 
@@ -304,6 +320,7 @@ import axios from 'axios'
 import { useDashboardStore } from '../stores/dashboardStore'
 import ProviderLogo from './ProviderLogo.vue'
 import SystemIcon from './SystemIcon.vue'
+import SnapshotViewerModal from './SnapshotViewerModal.vue'
 import type { RelaySite } from '../types'
 import { exportChannelModelsToExcel } from '../utils/excelExport'
 
@@ -332,6 +349,16 @@ const searchQuery = ref('')
 const excludeZeroPrice = ref(true)
 const providerModelsList = ref<any[]>([])
 const viewScope = ref<'filtered' | 'all'>('filtered')
+
+// 快照 Modal 状态
+const showSnapshotModal = ref(false)
+const snapshotTargetModel = ref<any>(null)
+
+const openSnapshotModal = (modelItem?: any) => {
+  if (!currentSite.value) return
+  snapshotTargetModel.value = modelItem || null
+  showSnapshotModal.value = true
+}
 
 const handleExportChannelModels = () => {
   if (!currentSite.value) return

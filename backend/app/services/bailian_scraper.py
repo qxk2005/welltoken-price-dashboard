@@ -18,7 +18,7 @@ from bs4 import BeautifulSoup
 from sqlalchemy import select, delete
 
 from backend.app.database import AsyncSessionLocal
-from backend.app.models.token_price import RelaySite, ModelMetadata, SiteModelPricing
+from backend.app.models.token_price import RelaySite, ModelMetadata, SiteModelPricing, ChannelSnapshot
 from backend.app.schemas.token_schema import (
     BailianModelItem, BailianPriceTier,
     BailianScrapeResponse, BailianImportResponse
@@ -119,6 +119,8 @@ class BailianScraper:
 
     def __init__(self, pricing_url: str = BAILIAN_PRICING_URL):
         self.pricing_url = pricing_url
+        self.last_raw_html: str = ""
+        self.last_doc_updated_at: str = ""
 
     async def fetch_page_content(self) -> str:
         """拉取阿里百炼定价帮助文档 HTML"""
@@ -143,12 +145,17 @@ class BailianScraper:
             import json
             try:
                 data = json.loads(m.group(1))
-                doc_content = data["docDetailData"]["storeData"]["data"]["content"]
+                doc_data = data.get("docDetailData", {}).get("storeData", {}).get("data", {})
+                doc_content = doc_data.get("content", "")
+                self.last_doc_updated_at = doc_data.get("updateTime", "") or datetime.utcnow().strftime("%Y-%m-%d")
+                self.last_raw_html = doc_content or html_content
                 soup = BeautifulSoup(doc_content, "html.parser")
             except Exception as e:
                 print(f"[BailianScraper] 解析 __ICE_PAGE_PROPS__ 失败，回退至全局 HTML: {e}")
+                self.last_raw_html = html_content
                 soup = BeautifulSoup(html_content, "html.parser")
         else:
+            self.last_raw_html = html_content
             soup = BeautifulSoup(html_content, "html.parser")
 
         # 临时聚合字典，模型 ID -> 模型详情与分段
@@ -436,8 +443,33 @@ class BailianScraper:
 
                 site.last_sync_time = datetime.utcnow()
                 site.last_status = "online"
+                now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
 
-                # 2. 清理历史可能产生的非法 ModelMetadata 与 SiteModelPricing 脏数据
+                # 2. 持久化定价页面快照 ChannelSnapshot
+                if self.last_raw_html:
+                    snap_stmt = select(ChannelSnapshot).where(ChannelSnapshot.site_id == site.id)
+                    snap_res = await session.execute(snap_stmt)
+                    snapshot = snap_res.scalars().first()
+                    doc_date = self.last_doc_updated_at or datetime.utcnow().strftime("%Y-%m-%d")
+                    if not snapshot:
+                        snapshot = ChannelSnapshot(
+                            site_id=site.id,
+                            source_url=self.pricing_url,
+                            page_title="阿里云百炼 (Model Studio) 模型定价与规格说明",
+                            doc_updated_at=doc_date,
+                            fetched_at=datetime.utcnow(),
+                            raw_html=self.last_raw_html,
+                            models_count=len(models)
+                        )
+                        session.add(snapshot)
+                    else:
+                        snapshot.source_url = self.pricing_url
+                        snapshot.doc_updated_at = doc_date
+                        snapshot.fetched_at = datetime.utcnow()
+                        snapshot.raw_html = self.last_raw_html
+                        snapshot.models_count = len(models)
+
+                # 3. 清理历史可能产生的非法 ModelMetadata 与 SiteModelPricing 脏数据
                 stmt_del_p = delete(SiteModelPricing).where(
                     (SiteModelPricing.model_id.like("%<%"))
                     | (SiteModelPricing.model_id.like("%≤%"))

@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, func, update
 from sqlalchemy.orm import selectinload
 from backend.app.database import get_db, AsyncSessionLocal
-from backend.app.models.token_price import RelaySite, SiteModelPricing, ModelMetadata, ChannelModelMapping, ModelAlias
+from backend.app.models.token_price import RelaySite, SiteModelPricing, ModelMetadata, ChannelModelMapping, ModelAlias, ChannelSnapshot
 from backend.app.schemas.token_schema import (
     RelaySiteSchema, RelaySiteCreate, RelaySiteUpdate,
     ChannelProbeRequest, ChannelProbeResponse, ModelMappingItem,
@@ -581,4 +581,43 @@ async def import_bailian_pricing(req: BailianImportRequest):
     if result.status == "error":
         raise HTTPException(status_code=500, detail=result.error_message)
     return result
+
+
+@router.get("/{site_id}/has-snapshot")
+async def check_channel_has_snapshot(site_id: int):
+    """检查指定渠道是否保存有网页快照证据链"""
+    async with AsyncSessionLocal() as session:
+        stmt = select(func.count(ChannelSnapshot.id)).where(ChannelSnapshot.site_id == site_id)
+        cnt = (await session.execute(stmt)).scalar() or 0
+        return {"has_snapshot": cnt > 0, "site_id": site_id}
+
+
+@router.get("/{site_id}/snapshot")
+async def get_channel_snapshot(site_id: int):
+    """获取指定渠道最新网页抓取快照与证据链数据"""
+    async with AsyncSessionLocal() as session:
+        site_stmt = select(RelaySite).where(RelaySite.id == site_id)
+        site = (await session.execute(site_stmt)).scalars().first()
+        if not site:
+            raise HTTPException(status_code=404, detail="渠道不存在")
+
+        stmt = select(ChannelSnapshot).where(ChannelSnapshot.site_id == site_id).order_by(ChannelSnapshot.id.desc())
+        res = await session.execute(stmt)
+        snapshot = res.scalars().first()
+
+        if not snapshot:
+            raise HTTPException(status_code=404, detail=f"渠道「{site.name}」暂无存储的定价网页快照")
+
+        return {
+            "id": snapshot.id,
+            "site_id": site.id,
+            "site_name": site.name,
+            "site_type": site.site_type,
+            "source_url": snapshot.source_url,
+            "page_title": snapshot.page_title,
+            "doc_updated_at": snapshot.doc_updated_at,
+            "fetched_at": snapshot.fetched_at.strftime("%Y-%m-%d %H:%M:%S") if snapshot.fetched_at else "",
+            "raw_html": snapshot.raw_html,
+            "models_count": snapshot.models_count
+        }
 

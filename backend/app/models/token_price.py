@@ -34,6 +34,7 @@ class RelaySite(Base):
     pricings = relationship("SiteModelPricing", back_populates="site", cascade="all, delete-orphan")
     test_histories = relationship("SpeedTestHistory", back_populates="site", cascade="all, delete-orphan")
     mappings = relationship("ChannelModelMapping", back_populates="site", cascade="all, delete-orphan")
+    snapshots = relationship("ChannelSnapshot", back_populates="site", cascade="all, delete-orphan")
 
 class ModelMetadata(Base):
     """大模型标准元数据 (基于 models.dev/models.json 与 api.json 标准化定义)"""
@@ -160,5 +161,22 @@ class SystemSetting(Base):
     value = Column(Text, nullable=False)
     description = Column(String(255), default="")
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class ChannelSnapshot(Base):
+    """渠道网页抓取定价页面的原始 HTML 快照与证据链"""
+    __tablename__ = "channel_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    site_id = Column(Integer, ForeignKey("relay_sites.id"), index=True, nullable=False)
+    source_url = Column(String(500), nullable=False)
+    page_title = Column(String(200), default="")
+    doc_updated_at = Column(String(50), default="")     # 页面文档本身标注的更新时间 (如 "2026-08-31")
+    fetched_at = Column(DateTime, default=datetime.utcnow, index=True) # 快照抓取时间
+    raw_html = Column(Text, nullable=False)             # 抓取到的 HTML 内容
+    models_count = Column(Integer, default=0)           # 快照收录模型数
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # 关系
+    site = relationship("RelaySite", back_populates="snapshots")
 
 
