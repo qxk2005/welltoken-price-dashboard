@@ -13,7 +13,7 @@ import re
 import time
 import httpx
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from bs4 import BeautifulSoup
 from sqlalchemy import select, delete
 
@@ -114,6 +114,41 @@ def _is_tier_text(text: str) -> bool:
     return any(k in t for k in ["Token≤", "Token<", "0<", "K<", "M<", "<Token", "≤Token", "无阶梯计价", "阶梯", "单次请求"])
 
 
+def _clean_spec_segment(text: str) -> str:
+    """清洗单项规格修饰词，去除多余的技术参数与列头"""
+    t = text.strip()
+    if not t:
+        return ""
+    if any(k in t for k in ["免费额度", "刊例价", "模型名称", "规格名称", "计费单元", "单价"]):
+        return ""
+    if "audio=true" in t or t in ["有声视频", "有声"]:
+        return "有声"
+    if "audio=false" in t or t in ["无声视频", "无声"]:
+        return "无声"
+    if "有参考" in t:
+        return "有参考视频"
+    if "无参考" in t:
+        return "无参考视频"
+    if "首尾帧" in t:
+        return "首尾帧"
+    if re.match(r"^\d+P$", t, re.I):
+        return t.upper()
+    return t
+
+
+def _generate_spec_model_id(base_id: str, spec_desc: str) -> str:
+    """为多规格拆分模型生成规范唯一的 model_id"""
+    if not spec_desc:
+        return base_id
+    slug = spec_desc
+    slug = slug.replace("有参考视频", "ref").replace("无参考视频", "noref")
+    slug = slug.replace("有声", "audio").replace("无声", "noaudio")
+    slug = slug.replace("首尾帧", "kf")
+    slug = slug.replace(" · ", "-").replace(" ", "-")
+    slug = re.sub(r"[^a-zA-Z0-9.\-_/]", "", slug)
+    return f"{base_id}-{slug}".strip("-")
+
+
 class BailianScraper:
     """阿里百炼官方定价页抓取与解析器"""
 
@@ -138,7 +173,7 @@ class BailianScraper:
             return resp.text
 
     def parse_pricing_html(self, html_content: str) -> List[BailianModelItem]:
-        """从 HTML / SSR JSON 中解析出全部模型定价清单"""
+        """从 HTML / SSR JSON 中解析出全部模型定价清单 (使用 2D 矩阵填充还原多维跨行表格)"""
         # 尝试提取 window.__ICE_PAGE_PROPS__
         m = re.search(r"window\.__ICE_PAGE_PROPS__\s*=\s*(\{.*?\});", html_content, re.DOTALL)
         if m:
@@ -158,7 +193,7 @@ class BailianScraper:
             self.last_raw_html = html_content
             soup = BeautifulSoup(html_content, "html.parser")
 
-        # 临时聚合字典，模型 ID -> 模型详情与分段
+        # 临时聚合字典，item_key -> 模型项
         models_map: Dict[str, BailianModelItem] = {}
         current_category = "千问系列"
 
@@ -167,7 +202,7 @@ class BailianScraper:
                 h2_text = elem.get_text(strip=True)
                 if "第三方" in h2_text:
                     current_category = "第三方开源模型"
-                elif "图像" in h2_text:
+                elif "图像" in h2_text or "生图" in h2_text:
                     current_category = "生图与视觉"
                 elif "语音" in h2_text or "音频" in h2_text:
                     current_category = "语音与音频"
@@ -183,114 +218,157 @@ class BailianScraper:
                 if sec_id in ["美国-弗吉尼亚", "新加坡", "德国-法兰克福", "日本-东京"]:
                     continue
             elif elem.name == "table":
-                # 检查 table 是否包含在海外地域 section 内
                 parent_sec = elem.find_parent("section")
                 if parent_sec and parent_sec.get("id") in ["美国-弗吉尼亚", "新加坡", "德国-法兰克福", "日本-东京"]:
-                    continue
-
-                headers = [th.get_text(strip=True) for th in elem.find_all("th")]
-                if not headers:
                     continue
 
                 tbody = elem.find("tbody")
                 if not tbody:
                     continue
 
-                active_model_id = ""
-                active_display_name = ""
+                trs = tbody.find_all("tr")
+                if not trs:
+                    continue
 
-                for tr in tbody.find_all("tr"):
-                    tds = tr.find_all("td")
-                    if not tds:
+                # 1. 构建 2D 虚拟矩阵，完美解决多重 rowspan / colspan 错位问题
+                grid: Dict[Tuple[int, int], str] = {}
+                for r_idx, tr in enumerate(trs):
+                    c_idx = 0
+                    for td in tr.find_all(["td", "th"]):
+                        while (r_idx, c_idx) in grid:
+                            c_idx += 1
+
+                        rowspan = int(td.get("rowspan", 1))
+                        colspan = int(td.get("colspan", 1))
+                        text = td.get_text(" ", strip=True)
+
+                        for dr in range(rowspan):
+                            for dc in range(colspan):
+                                grid[(r_idx + dr, c_idx + dc)] = text
+
+                        c_idx += colspan
+
+                max_r = len(trs)
+                max_c = max(c for (r, c) in grid.keys()) + 1 if grid else 0
+
+                # 2. 逐行解析矩阵中的完整实体数据
+                for r in range(max_r):
+                    row_cells = [grid.get((r, c), "").strip() for c in range(max_c)]
+                    if not row_cells or not row_cells[0]:
                         continue
 
-                    td_texts = []
-                    for td in tds:
-                        p_first = td.find("p")
-                        if p_first:
-                            td_texts.append(p_first.get_text(strip=True))
+                    first_cell = row_cells[0]
+                    # 过滤纯说明行与过长文字
+                    if any(k in first_cell for k in ["注：", "说明", "规则", "http://", "https://"]) or len(first_cell) > 100:
+                        continue
+
+                    base_model_id = re.split(r"[\n（(]", first_cell)[0].strip()
+                    if not base_model_id or _is_tier_text(base_model_id):
+                        continue
+
+                    # 3. 定位价格列与提取价格
+                    price_idx = -1
+                    price_val = 0.0
+                    for ci, cell in enumerate(row_cells):
+                        if any(u in cell for u in ["元", "¥", "免费"]) and not _is_tier_text(cell):
+                            price_val = _parse_price_text(cell)
+                            price_idx = ci
+                            break
+
+                    if price_idx == -1:
+                        continue
+
+                    # 4. 提取中间规格列与阶梯区间
+                    specs: List[str] = []
+                    tier_label = ""
+                    for ci in range(1, price_idx):
+                        c_text = row_cells[ci]
+                        if not c_text:
+                            continue
+                        if _is_tier_text(c_text):
+                            tier_label = c_text
                         else:
-                            td_texts.append(td.get_text(strip=True))
+                            cleaned_seg = _clean_spec_segment(c_text)
+                            if cleaned_seg and cleaned_seg not in specs:
+                                specs.append(cleaned_seg)
 
-                    first_text = td_texts[0] if len(td_texts) > 0 else ""
+                    spec_desc = " · ".join(specs)
+                    provider = _infer_provider(base_model_id, current_category)
 
-                    # 1. 严格检查第一列是否为阶梯区间（由于上一行 rowspan 产生的跨行）
-                    if _is_tier_text(first_text):
-                        tier_label = first_text
-                    else:
-                        clean_id = re.split(r"[\n（(]", first_text)[0].strip()
-                        # 过滤非法模型名称 (如包含比较符、说明性文字等)
-                        if (
-                            clean_id
-                            and not _is_tier_text(clean_id)
-                            and not any(k in clean_id for k in ["<", ">", "≤", "≥", "限时", "免费", "注：", "说明", "规则"])
-                            and not clean_id.startswith("http")
-                        ):
-                            active_model_id = clean_id
-                            active_display_name = clean_id
-                        tier_label = ""
+                    # 5. 分类组织与拆分模型项
+                    if spec_desc:
+                        # 视频/生图等多规格模型：拆分为独立规格行展示
+                        full_display_name = f"{base_model_id} ({spec_desc})"
+                        spec_model_id = _generate_spec_model_id(base_model_id, spec_desc)
+                        item_key = f"{spec_model_id}::{current_category}"
 
-                    if not active_model_id:
-                        continue
-
-                    # 2. 提取阶梯区间与单价
-                    input_price = 0.0
-                    output_price = 0.0
-                    price_note = ""
-
-                    for t_val in td_texts:
-                        if _is_tier_text(t_val):
-                            tier_label = t_val
-                        elif "元" in t_val or "¥" in t_val or "免费" in t_val:
-                            p = _parse_price_text(t_val)
-                            if "折" in t_val:
-                                price_note = t_val
-                            if input_price == 0.0:
-                                input_price = p
-                            elif output_price == 0.0:
-                                output_price = p
-
-                    if output_price == 0.0 and input_price > 0.0:
-                        output_price = input_price
-
-                    provider = _infer_provider(active_model_id, current_category)
-
-                    # 3. 构造或更新模型项
-                    if active_model_id not in models_map:
                         item = BailianModelItem(
-                            model_id=active_model_id,
-                            display_name=active_display_name,
+                            model_id=spec_model_id,
+                            display_name=full_display_name,
                             provider=provider,
                             category=current_category,
-                            input_price_cny=input_price,
-                            output_price_cny=output_price,
+                            input_price_cny=price_val,
+                            output_price_cny=price_val,
                             cache_price_cny=0.0,
-                            is_free=(input_price == 0.0 and output_price == 0.0),
-                            has_tiered_pricing=bool(tier_label),
+                            is_free=(price_val == 0.0),
+                            has_tiered_pricing=False,
                             price_tiers=[],
-                            price_note=price_note
+                            price_note=spec_desc
                         )
-                        if tier_label:
+                        models_map[item_key] = item
+
+                    elif tier_label:
+                        # LLM 阶梯分段定价模型 (如千问 0-128k, 128k-256k)：归纳在同一个模型下
+                        item_key = f"{base_model_id}::{current_category}"
+                        if item_key not in models_map:
+                            item = BailianModelItem(
+                                model_id=base_model_id,
+                                display_name=base_model_id,
+                                provider=provider,
+                                category=current_category,
+                                input_price_cny=price_val,
+                                output_price_cny=price_val,
+                                cache_price_cny=0.0,
+                                is_free=(price_val == 0.0),
+                                has_tiered_pricing=True,
+                                price_tiers=[],
+                                price_note=""
+                            )
                             item.price_tiers.append(BailianPriceTier(
                                 tier_label=tier_label,
-                                input_price_cny=input_price,
-                                output_price_cny=output_price,
+                                input_price_cny=price_val,
+                                output_price_cny=price_val,
                                 cache_price_cny=0.0
                             ))
-                        models_map[active_model_id] = item
-                    else:
-                        existing = models_map[active_model_id]
-                        if tier_label:
-                            # 避免重复添加完全相同区间的阶梯（去重）
+                            models_map[item_key] = item
+                        else:
+                            existing = models_map[item_key]
                             existing_labels = {t.tier_label for t in existing.price_tiers}
                             if tier_label not in existing_labels:
                                 existing.has_tiered_pricing = True
                                 existing.price_tiers.append(BailianPriceTier(
                                     tier_label=tier_label,
-                                    input_price_cny=input_price,
-                                    output_price_cny=output_price,
+                                    input_price_cny=price_val,
+                                    output_price_cny=price_val,
                                     cache_price_cny=0.0
                                 ))
+                    else:
+                        # 普通无规格模型
+                        item_key = f"{base_model_id}::{current_category}"
+                        item = BailianModelItem(
+                            model_id=base_model_id,
+                            display_name=base_model_id,
+                            provider=provider,
+                            category=current_category,
+                            input_price_cny=price_val,
+                            output_price_cny=price_val,
+                            cache_price_cny=0.0,
+                            is_free=(price_val == 0.0),
+                            has_tiered_pricing=False,
+                            price_tiers=[],
+                            price_note=""
+                        )
+                        models_map[item_key] = item
 
         return list(models_map.values())
 
@@ -474,12 +552,16 @@ class BailianScraper:
                     (SiteModelPricing.model_id.like("%<%"))
                     | (SiteModelPricing.model_id.like("%≤%"))
                     | (SiteModelPricing.model_id.like("%Token%"))
+                    | (SiteModelPricing.model_id.like("%参考视频%"))
+                    | (SiteModelPricing.model_id.like("%声视频%"))
                 )
                 await session.execute(stmt_del_p)
                 stmt_del_m = delete(ModelMetadata).where(
                     (ModelMetadata.model_id.like("%<%"))
                     | (ModelMetadata.model_id.like("%≤%"))
                     | (ModelMetadata.model_id.like("%Token%"))
+                    | (ModelMetadata.model_id.like("%参考视频%"))
+                    | (ModelMetadata.model_id.like("%声视频%"))
                 )
                 await session.execute(stmt_del_m)
 
