@@ -15,7 +15,7 @@ import httpx
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from bs4 import BeautifulSoup
-from sqlalchemy import select
+from sqlalchemy import select, delete
 
 from backend.app.database import AsyncSessionLocal
 from backend.app.models.token_price import RelaySite, ModelMetadata, SiteModelPricing
@@ -106,6 +106,14 @@ def _parse_price_text(text: str) -> float:
     return 0.0
 
 
+def _is_tier_text(text: str) -> bool:
+    """判定文本是否为阶梯区间描述而非模型名"""
+    if not text:
+        return False
+    t = text.strip()
+    return any(k in t for k in ["Token≤", "Token<", "0<", "K<", "M<", "<Token", "≤Token", "无阶梯计价", "阶梯", "单次请求"])
+
+
 class BailianScraper:
     """阿里百炼官方定价页抓取与解析器"""
 
@@ -191,39 +199,40 @@ class BailianScraper:
 
                     td_texts = []
                     for td in tds:
-                        # 仅提取主段落文字，剥离 blockquote
                         p_first = td.find("p")
                         if p_first:
                             td_texts.append(p_first.get_text(strip=True))
                         else:
                             td_texts.append(td.get_text(strip=True))
 
-                    # 提取第一列模型信息
                     first_text = td_texts[0] if len(td_texts) > 0 else ""
-                    # 剥离括号与版本说明
-                    clean_id_match = re.split(r"[\n（(]", first_text)[0].strip()
 
-                    # 如果具备模型标识特征
-                    is_model_row = any(
-                        clean_id_match.lower().startswith(k)
-                        for k in ["qwen", "deepseek", "glm", "kimi", "llama", "minimax", "wanx", "qwq", "qvq", "cosyvoice", "sensevoice", "bge", "text-embedding", "paraformer", "sambert", "z-image", "happyhorse"]
-                    ) or ("模型 ID" in headers[0] and len(tds) >= 4)
-
-                    if is_model_row and clean_id_match:
-                        active_model_id = clean_id_match
-                        active_display_name = clean_id_match
+                    # 1. 严格检查第一列是否为阶梯区间（由于上一行 rowspan 产生的跨行）
+                    if _is_tier_text(first_text):
+                        tier_label = first_text
+                    else:
+                        clean_id = re.split(r"[\n（(]", first_text)[0].strip()
+                        # 过滤非法模型名称 (如包含比较符、说明性文字等)
+                        if (
+                            clean_id
+                            and not _is_tier_text(clean_id)
+                            and not any(k in clean_id for k in ["<", ">", "≤", "≥", "限时", "免费", "注：", "说明", "规则"])
+                            and not clean_id.startswith("http")
+                        ):
+                            active_model_id = clean_id
+                            active_display_name = clean_id
+                        tier_label = ""
 
                     if not active_model_id:
                         continue
 
-                    # 提取阶梯区间与单价值
-                    tier_label = ""
+                    # 2. 提取阶梯区间与单价
                     input_price = 0.0
                     output_price = 0.0
                     price_note = ""
 
                     for t_val in td_texts:
-                        if "Token≤" in t_val or "Token<" in t_val or "0<" in t_val or "K<" in t_val or "M<" in t_val:
+                        if _is_tier_text(t_val):
                             tier_label = t_val
                         elif "元" in t_val or "¥" in t_val or "免费" in t_val:
                             p = _parse_price_text(t_val)
@@ -239,7 +248,7 @@ class BailianScraper:
 
                     provider = _infer_provider(active_model_id, current_category)
 
-                    # 构造或更新模型项
+                    # 3. 构造或更新模型项
                     if active_model_id not in models_map:
                         item = BailianModelItem(
                             model_id=active_model_id,
@@ -265,13 +274,16 @@ class BailianScraper:
                     else:
                         existing = models_map[active_model_id]
                         if tier_label:
-                            existing.has_tiered_pricing = True
-                            existing.price_tiers.append(BailianPriceTier(
-                                tier_label=tier_label,
-                                input_price_cny=input_price,
-                                output_price_cny=output_price,
-                                cache_price_cny=0.0
-                            ))
+                            # 避免重复添加完全相同区间的阶梯（去重）
+                            existing_labels = {t.tier_label for t in existing.price_tiers}
+                            if tier_label not in existing_labels:
+                                existing.has_tiered_pricing = True
+                                existing.price_tiers.append(BailianPriceTier(
+                                    tier_label=tier_label,
+                                    input_price_cny=input_price,
+                                    output_price_cny=output_price,
+                                    cache_price_cny=0.0
+                                ))
 
         return list(models_map.values())
 
@@ -326,14 +338,14 @@ class BailianScraper:
         # 1. 精确匹配
         stmt = select(ModelMetadata).where(ModelMetadata.model_id == mid)
         res = await session.execute(stmt)
-        match = res.scalar_one_or_none()
+        match = res.scalars().first()
         if match:
             return match
 
         # 2. 小写匹配
         stmt2 = select(ModelMetadata).where(ModelMetadata.model_id == mid_lower)
         res2 = await session.execute(stmt2)
-        match2 = res2.scalar_one_or_none()
+        match2 = res2.scalars().first()
         if match2:
             return match2
 
@@ -341,7 +353,7 @@ class BailianScraper:
         alt_id = f"{item.provider}/{mid_lower}"
         stmt3 = select(ModelMetadata).where(ModelMetadata.model_id == alt_id)
         res3 = await session.execute(stmt3)
-        match3 = res3.scalar_one_or_none()
+        match3 = res3.scalars().first()
         if match3:
             return match3
 
@@ -386,7 +398,6 @@ class BailianScraper:
     ) -> BailianImportResponse:
         """将抓取到的模型列表写入或更新至数据库中"""
         new_models_created = 0
-        prices_updated = 0
         prices_created = 0
 
         try:
@@ -426,7 +437,21 @@ class BailianScraper:
                 site.last_sync_time = datetime.utcnow()
                 site.last_status = "online"
 
-                # 2. 逐个处理模型
+                # 2. 清理历史可能产生的非法 ModelMetadata 与 SiteModelPricing 脏数据
+                stmt_del_p = delete(SiteModelPricing).where(
+                    (SiteModelPricing.model_id.like("%<%"))
+                    | (SiteModelPricing.model_id.like("%≤%"))
+                    | (SiteModelPricing.model_id.like("%Token%"))
+                )
+                await session.execute(stmt_del_p)
+                stmt_del_m = delete(ModelMetadata).where(
+                    (ModelMetadata.model_id.like("%<%"))
+                    | (ModelMetadata.model_id.like("%≤%"))
+                    | (ModelMetadata.model_id.like("%Token%"))
+                )
+                await session.execute(stmt_del_m)
+
+                # 3. 逐个处理模型
                 for item in models:
                     model_meta = await self._match_or_create_model(session, item, usd_to_cny_rate)
                     if model_meta and model_meta not in session:
@@ -437,17 +462,15 @@ class BailianScraper:
                     if not model_meta:
                         continue
 
-                    # 2b. 处理分段阶梯定价或普通定价
-                    if item.has_tiered_pricing and item.price_tiers and len(item.price_tiers) > 1:
-                        # 删除旧记录避免重复
-                        old_stmt = select(SiteModelPricing).where(
-                            SiteModelPricing.site_id == site.id,
-                            SiteModelPricing.model_id == model_meta.model_id
-                        )
-                        old_res = await session.execute(old_stmt)
-                        for old_row in old_res.scalars().all():
-                            await session.delete(old_row)
+                    # 3a. 先清理该渠道下此模型的旧定价条目，保证幂等
+                    old_stmt = delete(SiteModelPricing).where(
+                        SiteModelPricing.site_id == site.id,
+                        SiteModelPricing.model_id == model_meta.model_id
+                    )
+                    await session.execute(old_stmt)
 
+                    # 3b. 写入阶梯定价或单一定价
+                    if item.has_tiered_pricing and item.price_tiers and len(item.price_tiers) > 1:
                         for tier in item.price_tiers:
                             tier_input_usd = round(tier.input_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0.0
                             tier_output_usd = round(tier.output_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0.0
@@ -478,44 +501,28 @@ class BailianScraper:
                         input_usd = round(item.input_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0.0
                         output_usd = round(item.output_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0.0
 
-                        p_stmt = select(SiteModelPricing).where(
-                            SiteModelPricing.site_id == site.id,
-                            SiteModelPricing.model_id == model_meta.model_id
-                        )
-                        p_res = await session.execute(p_stmt)
-                        pricing = p_res.scalar_one_or_none()
-
-                        if pricing:
-                            pricing.calculated_input_usd = input_usd
-                            pricing.calculated_output_usd = output_usd
-                            pricing.is_available = True
-                            pricing.source_updated_at = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
-                            pricing.group_name = item.category
-                            pricing.site_model_name = item.display_name
-                            prices_updated += 1
-                        else:
-                            discount = 0.0
-                            if model_meta.official_input_price > 0 and input_usd > 0:
-                                discount = round(
-                                    ((input_usd - model_meta.official_input_price) / model_meta.official_input_price) * 100, 1
-                                )
-
-                            pricing = SiteModelPricing(
-                                site_id=site.id,
-                                model_id=model_meta.model_id,
-                                group_name=item.category,
-                                site_model_name=item.display_name,
-                                model_ratio=1.0,
-                                group_ratio=1.0,
-                                calculated_input_usd=input_usd,
-                                calculated_output_usd=output_usd,
-                                calculated_cache_usd=0.0,
-                                discount_percent=discount,
-                                is_available=True,
-                                source_updated_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+                        discount = 0.0
+                        if model_meta.official_input_price > 0 and input_usd > 0:
+                            discount = round(
+                                ((input_usd - model_meta.official_input_price) / model_meta.official_input_price) * 100, 1
                             )
-                            session.add(pricing)
-                            prices_created += 1
+
+                        pricing = SiteModelPricing(
+                            site_id=site.id,
+                            model_id=model_meta.model_id,
+                            group_name=item.category,
+                            site_model_name=item.display_name,
+                            model_ratio=1.0,
+                            group_ratio=1.0,
+                            calculated_input_usd=input_usd,
+                            calculated_output_usd=output_usd,
+                            calculated_cache_usd=0.0,
+                            discount_percent=discount,
+                            is_available=True,
+                            source_updated_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+                        )
+                        session.add(pricing)
+                        prices_created += 1
 
                 await session.commit()
 
@@ -525,7 +532,7 @@ class BailianScraper:
                     site_name=site.name,
                     total_imported=len(models),
                     new_models_created=new_models_created,
-                    prices_updated=prices_updated,
+                    prices_updated=0,
                     prices_created=prices_created
                 )
         except Exception as e:

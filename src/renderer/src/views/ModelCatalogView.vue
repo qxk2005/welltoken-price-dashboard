@@ -135,7 +135,7 @@
               :class="excludeZeroPrice ? 'bg-[#EBF5FF] border-[#B9E1FF] text-[#0071E3] font-bold shadow-2xs' : 'bg-[#FFFFFF] hover:bg-[#F2F2F7] border-[#E5E5EA] text-[#6E6E73] hover:text-[#1D1D1F]'"
               title="过滤掉官方未标价或价格为 0 的模型"
             >
-              <span>{{ excludeZeroPrice ? '🚫 隐藏 0 元/未标价' : '👁️ 显示 0 元/未标价' }}</span>
+              <span>{{ excludeZeroPrice ? '🚫 已隐藏 0 元/未标价' : '👁️ 显示全部 (含 0 元)' }}</span>
             </button>
 
             <!-- 搜索过滤 -->

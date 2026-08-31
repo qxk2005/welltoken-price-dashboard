@@ -738,9 +738,9 @@
               @click="excludeZeroPrice = !excludeZeroPrice"
               class="px-2.5 py-1 rounded-xl border text-xs font-medium transition-all flex items-center space-x-1 cursor-pointer select-none flex-shrink-0"
               :class="excludeZeroPrice ? 'bg-[#EBF5FF] border-[#B9E1FF] text-[#0071E3] font-bold shadow-2xs' : 'bg-[#FFFFFF] hover:bg-[#F2F2F7] border-[#E5E5EA] text-[#6E6E73] hover:text-[#1D1D1F]'"
-              title="过滤掉输入和输出单价均为 0 的模型"
+              title="点击切换：隐藏或显示输入与输出均为 0 的免费/未标价模型"
             >
-              <span>{{ excludeZeroPrice ? '🚫 隐藏 0 元/未标价' : '👁️ 显示 0 元/未标价' }}</span>
+              <span>{{ excludeZeroPrice ? '🚫 已隐藏 0 元/未标价' : '👁️ 显示全部 (含 0 元)' }}</span>
             </button>
 
             <!-- 搜索框 -->
@@ -1344,7 +1344,7 @@ const searchKey = ref('')
 const activeCategory = ref('all')
 const selectedProvider = ref<RelaySite | null>(null)
 const providerModelSearchQuery = ref('')
-const excludeZeroPrice = ref(false)
+const excludeZeroPrice = ref(true)
 const providerModelsList = ref<any[]>([])
 const isDetailLoading = ref(false)
 
@@ -1994,15 +1994,15 @@ const filteredProviderModels = computed(() => {
     )
   }
 
-  // 3. 0 元/未标价模型过滤
+  // 3. 0 元/未标价模型过滤 (根据界面显示精度四舍五入过滤 <= 0.0000 的条目)
   if (excludeZeroPrice.value) {
-    list = list.filter(
-      (m: any) =>
-        (m.calculated_input_usd && m.calculated_input_usd > 0) ||
-        (m.calculated_output_usd && m.calculated_output_usd > 0) ||
-        (m.calculated_input_cny && m.calculated_input_cny > 0) ||
-        (m.calculated_output_cny && m.calculated_output_cny > 0)
-    )
+    list = list.filter((m: any) => {
+      const inUsd = Number(m.calculated_input_usd || 0)
+      const outUsd = Number(m.calculated_output_usd || 0)
+      const inCny = Number(m.calculated_input_cny || 0)
+      const outCny = Number(m.calculated_output_cny || 0)
+      return inUsd >= 0.0001 || outUsd >= 0.0001 || inCny >= 0.0001 || outCny >= 0.0001
+    })
   }
 
   list.sort((a: any, b: any) => {

@@ -162,7 +162,7 @@
             title="点击切换是否过滤输入与输出单价均为 0 的免费/占位/未标价条目"
           >
             <SystemIcon :name="excludeZeroPrice ? 'ban' : 'eye'" custom-class="w-3.5 h-3.5" :class="excludeZeroPrice ? 'text-[#0071E3]' : 'text-[#86868B]'" />
-            <span>{{ excludeZeroPrice ? '隐藏 0 元/未标价' : '显示 0 元/未标价' }}</span>
+            <span>{{ excludeZeroPrice ? '已隐藏 0 元/未标价' : '显示全部 (含 0 元)' }}</span>
           </button>
         </div>
 
