@@ -57,29 +57,55 @@
         
         <!-- ==================== Step 1: 基础配置 ==================== -->
         <div v-if="currentStep === 1" class="space-y-4 animate-fade-in">
-          <!-- 快捷操作：一键从 models.dev 导入官方全量数据库 -->
-          <div class="p-4 bg-gradient-to-r from-[#F0F7FF] to-[#F5FAFF] rounded-2xl border border-[#CCE4FB] flex items-center justify-between shadow-xs">
-            <div class="space-y-1">
-              <div class="flex items-center space-x-1.5">
-                <span class="text-base">⚡</span>
-                <span class="font-bold text-[#0071E3] text-xs">一键导入全网官方数据库 (models.dev)</span>
-                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#0071E3] text-white">推荐</span>
+          <!-- 快捷操作区：models.dev + 硅基流动 并排 -->
+          <div class="grid grid-cols-2 gap-3">
+            <!-- 左侧: models.dev 一键导入 (蓝色系) -->
+            <div class="p-4 bg-gradient-to-br from-[#F0F7FF] to-[#F5FAFF] rounded-2xl border border-[#CCE4FB] flex flex-col justify-between shadow-xs">
+              <div class="space-y-1">
+                <div class="flex items-center space-x-1.5">
+                  <span class="text-base">⚡</span>
+                  <span class="font-bold text-[#0071E3] text-xs">全网官方数据库 (models.dev)</span>
+                  <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#0071E3] text-white">推荐</span>
+                </div>
+                <p class="text-[11px] text-[#6E6E73] leading-relaxed">
+                  一键获取 {{ store.syncStatus?.total_active_sites || store.relaySites.length || 193 }} 家供应商渠道与数千条比价条目。
+                </p>
               </div>
-              <p class="text-[11px] text-[#6E6E73]">
-                无需手动配置，一键获取 {{ store.syncStatus?.total_active_sites || store.relaySites.length || 193 }} 家供应商中转渠道与数千条全网比价条目。
-              </p>
+              <button
+                type="button"
+                @click="handleOneClickSync"
+                :disabled="isSyncingModelsDev"
+                class="mt-3 w-full px-4 py-2 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] disabled:opacity-50 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
+              >
+                <span v-if="isSyncingModelsDev" class="animate-spin text-sm">⏳</span>
+                <span v-else>🚀</span>
+                <span>{{ isSyncingModelsDev ? '正在全网同步中...' : '立即一键全量同步' }}</span>
+              </button>
             </div>
 
-            <button
-              type="button"
-              @click="handleOneClickSync"
-              :disabled="isSyncingModelsDev"
-              class="px-4 py-2 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] disabled:opacity-50 text-white font-bold text-xs shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap"
-            >
-              <span v-if="isSyncingModelsDev" class="animate-spin text-sm">⏳</span>
-              <span v-else>🚀</span>
-              <span>{{ isSyncingModelsDev ? '正在全网同步中...' : '立即一键全量同步' }}</span>
-            </button>
+            <!-- 右侧: 硅基流动 SiliconFlow 一键爬取 (紫色系) -->
+            <div class="p-4 bg-gradient-to-br from-[#F3F0FF] to-[#F9F7FF] rounded-2xl border border-[#D8CCFF] flex flex-col justify-between shadow-xs">
+              <div class="space-y-1">
+                <div class="flex items-center space-x-1.5">
+                  <span class="text-base">🔮</span>
+                  <span class="font-bold text-[#6E29F6] text-xs">硅基流动 SiliconFlow</span>
+                  <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#6E29F6] text-white">爬取</span>
+                </div>
+                <p class="text-[11px] text-[#6E6E73] leading-relaxed">
+                  自动爬取硅基流动官网全部模型定价，含对话、生图、语音、视频。
+                </p>
+              </div>
+              <button
+                type="button"
+                @click="handleOneClickSiliconFlow"
+                :disabled="isProbing"
+                class="mt-3 w-full px-4 py-2 rounded-xl bg-[#6E29F6] hover:bg-[#5d20d8] active:bg-[#4A148C] disabled:opacity-50 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
+              >
+                <span v-if="isProbing && form.site_type === 'siliconflow'" class="animate-spin text-sm">⏳</span>
+                <span v-else>🔮</span>
+                <span>{{ (isProbing && form.site_type === 'siliconflow') ? '正在爬取中...' : '一键爬取官网定价' }}</span>
+              </button>
+            </div>
           </div>
 
           <div class="p-3 bg-[#F2F2F7]/70 rounded-xl border border-[#E5E5EA] text-[#6E6E73] text-[11px] leading-relaxed">
@@ -119,6 +145,7 @@
                   <option value="newapi">NewAPI / OneAPI 架构</option>
                   <option value="sub2api">Sub2API 包月/额度架构</option>
                   <option value="custom">通用自建 OpenAI 兼容网关</option>
+                  <option value="siliconflow">🔮 硅基流动 SiliconFlow (自动爬取官网定价)</option>
                 </select>
               </div>
 
@@ -158,7 +185,7 @@
               </div>
             </div>
 
-            <div>
+            <div v-if="form.site_type !== 'siliconflow'">
               <label class="block text-[#6E6E73] font-medium mb-1">中转站 API Key (用于鉴权、模型拉取与实时测速)</label>
               <input
                 v-model="form.api_key"
@@ -166,6 +193,17 @@
                 placeholder="sk-..."
                 class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-3 py-2 text-[#1D1D1F] font-mono focus:outline-none transition-all"
               />
+            </div>
+
+            <!-- 硅基流动特殊提示 -->
+            <div v-if="form.site_type === 'siliconflow'" class="p-3.5 bg-gradient-to-r from-[#F3F0FF] to-[#F9F7FF] rounded-xl border border-[#D8CCFF] text-xs text-[#6E29F6] leading-relaxed">
+              <div class="flex items-center space-x-2 mb-1">
+                <span class="text-base">🔮</span>
+                <span class="font-bold">硅基流动自动爬取模式</span>
+              </div>
+              <p class="text-[11px] text-[#6E6E73]">
+                下一步将自动访问硅基流动官网定价页 (siliconflow.cn/pricing)，通过 headless 浏览器爬取全部模型价格（包括对话、生图、语音、视频），无需手动配置 API Key。
+              </p>
             </div>
 
             <div>
@@ -184,14 +222,83 @@
         <div v-else-if="currentStep === 2" class="space-y-5 animate-fade-in flex flex-col items-center justify-center py-6">
           <div v-if="isProbing" class="flex flex-col items-center space-y-4 py-8">
             <div class="relative w-16 h-16 flex items-center justify-center">
-              <div class="absolute inset-0 rounded-full border-4 border-[#0071E3]/20 animate-ping"></div>
-              <div class="w-12 h-12 rounded-full bg-[#0071E3] flex items-center justify-center text-white text-xl shadow-lg">
-                📡
+              <div class="absolute inset-0 rounded-full border-4 animate-ping" :class="form.site_type === 'siliconflow' ? 'border-[#6E29F6]/20' : 'border-[#0071E3]/20'"></div>
+              <div class="w-12 h-12 rounded-full flex items-center justify-center text-white text-xl shadow-lg" :class="form.site_type === 'siliconflow' ? 'bg-[#6E29F6]' : 'bg-[#0071E3]'">
+                {{ form.site_type === 'siliconflow' ? '🔮' : '📡' }}
               </div>
             </div>
             <div class="text-center">
-              <div class="font-bold text-sm text-[#1D1D1F]">正在探测端点连通性并抓取模型列表...</div>
-              <div class="text-[#86868B] text-xs mt-1 font-mono">{{ form.base_url }}</div>
+              <div class="font-bold text-sm text-[#1D1D1F]">
+                {{ form.site_type === 'siliconflow' ? '正在爬取硅基流动官网全量模型定价...' : '正在探测端点连通性并抓取模型列表...' }}
+              </div>
+              <div class="text-[#86868B] text-xs mt-1 font-mono">
+                {{ form.site_type === 'siliconflow' ? 'siliconflow.cn/pricing' : form.base_url }}
+              </div>
+              <div v-if="form.site_type === 'siliconflow'" class="text-[10px] text-[#86868B] mt-2">
+                正在自动点击展开所有隐藏模型，请稍候...
+              </div>
+            </div>
+          </div>
+
+          <!-- 硅基流动爬取结果 -->
+          <div v-else-if="!isProbing && form.site_type === 'siliconflow' && sfScrapeResult" class="w-full space-y-4">
+            <div class="p-4 rounded-xl border bg-[#F3F0FF]/40 border-[#D8CCFF] flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold bg-[#6E29F6] text-white">✓</div>
+                <div>
+                  <div class="font-bold text-xs text-[#4A148C]">硅基流动定价爬取完成</div>
+                  <div class="text-[11px] text-[#6E6E73] mt-0.5 font-mono">耗时 {{ (sfScrapeResult.scrape_duration_ms / 1000).toFixed(1) }}s · 共发现 {{ sfScrapeResult.total_models }} 个模型</div>
+                </div>
+              </div>
+              <button @click="runSiliconFlowScrape" class="px-3 py-1.5 rounded-lg bg-[#FFFFFF] border border-[#D8CCFF] hover:bg-[#F3F0FF] text-[#6E29F6] font-medium transition-all cursor-pointer">
+                🔄 重新爬取
+              </button>
+            </div>
+
+            <!-- 分类统计 -->
+            <div class="grid grid-cols-4 gap-3">
+              <div v-for="(count, cat) in sfScrapeResult.category_counts" :key="cat" class="p-3 bg-[#F9F9FB] rounded-xl border border-[#E5E5EA] text-center">
+                <div class="text-[#86868B] text-[11px]">{{ cat }}模型</div>
+                <div class="text-lg font-bold font-mono text-[#1D1D1F] mt-1">{{ count }}</div>
+              </div>
+            </div>
+
+            <!-- 免费 + 分段定价统计 -->
+            <div class="flex items-center space-x-4 text-[11px] text-[#6E6E73]">
+              <span>🆓 免费模型: <b class="text-[#34C759] font-mono">{{ sfScrapeResult.free_models_count }}</b> 个</span>
+              <span>📊 分段定价: <b class="text-[#FF9500] font-mono">{{ sfScrapeResult.tiered_models_count }}</b> 个</span>
+            </div>
+
+            <!-- 样本价格预览 -->
+            <div class="bg-[#F9F9FB] rounded-xl border border-[#E5E5EA] overflow-hidden">
+              <div class="px-4 py-2 bg-[#F2F2F7] border-b border-[#E5E5EA] text-[11px] font-bold text-[#6E6E73]">
+                模型价格预览 (前 8 个)
+              </div>
+              <div class="divide-y divide-[#E5E5EA]">
+                <div v-for="m in sfScrapeResult.models.slice(0, 8)" :key="m.model_id" class="px-4 py-2 flex items-center justify-between text-xs">
+                  <div class="flex items-center space-x-2 min-w-0">
+                    <span class="text-[#86868B] text-[10px] px-1.5 py-0.5 rounded bg-[#F2F2F7] shrink-0">{{ m.category }}</span>
+                    <span class="font-medium text-[#1D1D1F] truncate">{{ m.display_name }}</span>
+                    <span v-if="m.is_free" class="px-1.5 py-0.5 rounded-full bg-[#E6F4EA] text-[#137333] text-[10px] font-bold shrink-0">免费</span>
+                    <span v-if="m.has_tiered_pricing" class="px-1.5 py-0.5 rounded-full bg-[#FFF3CD] text-[#856404] text-[10px] font-bold shrink-0">分段</span>
+                  </div>
+                  <div class="flex items-center space-x-3 text-[#6E6E73] font-mono shrink-0">
+                    <span>输入 ¥{{ m.input_price_cny }}</span>
+                    <span>输出 ¥{{ m.output_price_cny }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 硅基流动爬取错误 -->
+          <div v-else-if="!isProbing && form.site_type === 'siliconflow' && sfScrapeError" class="w-full space-y-4">
+            <div class="p-4 rounded-xl border bg-[#FDE8E8]/40 border-[#FAD2D2]">
+              <div class="font-bold text-xs text-[#C5221F] mb-1">爬取失败</div>
+              <div class="text-[11px] text-[#6E6E73]">{{ sfScrapeError }}</div>
+              <button @click="runSiliconFlowScrape" class="mt-2 px-3 py-1.5 rounded-lg bg-[#0071E3] text-white text-xs font-bold cursor-pointer">
+                🔄 重试
+              </button>
             </div>
           </div>
 
@@ -729,9 +836,14 @@
             v-if="currentStep < 4"
             @click="goNextStep"
             :disabled="isNextDisabled"
-            class="px-5 py-2 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4] text-white font-medium shadow-sm disabled:opacity-40 transition-all flex items-center space-x-1"
+            class="px-5 py-2 rounded-xl text-white font-medium shadow-sm disabled:opacity-40 transition-all flex items-center space-x-1"
+            :class="(form.site_type === 'siliconflow' && currentStep === 2)
+              ? 'bg-[#6E29F6] hover:bg-[#5d20d8] active:bg-[#4A148C]'
+              : 'bg-[#0071E3] hover:bg-[#0077ED] active:bg-[#0062C4]'"
           >
-            <span>下一步 ▶</span>
+            <span v-if="isSfImporting">⏳ 正在导入...</span>
+            <span v-else-if="form.site_type === 'siliconflow' && currentStep === 2">🔮 确认导入到数据库</span>
+            <span v-else>下一步 ▶</span>
           </button>
 
           <button
@@ -751,7 +863,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
 import { useDashboardStore } from '../stores/dashboardStore'
 import ModelSearchSelect from './ModelSearchSelect.vue'
@@ -925,12 +1037,21 @@ const filteredMappings = computed(() => {
 
 const isNextDisabled = computed(() => {
   if (currentStep.value === 1) {
+    if (form.site_type === 'siliconflow') {
+      return false // 硅基流动无需手动填写 name / base_url
+    }
     return !form.name.trim() || !form.base_url.trim()
   }
   if (currentStep.value === 2) {
+    if (form.site_type === 'siliconflow') {
+      return isProbing.value || !sfScrapeResult.value
+    }
     return isProbing.value || (!probeResult.is_online && mappingsList.value.length === 0)
   }
   if (currentStep.value === 3) {
+    if (form.site_type === 'siliconflow') {
+      return isSfImporting.value
+    }
     return selectedMappingsCount.value === 0
   }
   return false
@@ -999,10 +1120,25 @@ async function runProbe() {
 
 async function goNextStep() {
   if (currentStep.value === 1) {
-    currentStep.value = 2
-    await runProbe()
+    if (form.site_type === 'siliconflow') {
+      // 硅基流动: 自动填充字段
+      if (!form.name) form.name = '硅基流动 SiliconFlow'
+      if (!form.base_url) form.base_url = 'https://api.siliconflow.cn/v1'
+      form.currency = 'CNY'
+      if (!form.notes) form.notes = '硅基流动推理平台 · 从官网定价页自动爬取'
+      currentStep.value = 2
+      await runSiliconFlowScrape()
+    } else {
+      currentStep.value = 2
+      await runProbe()
+    }
   } else if (currentStep.value === 2) {
-    currentStep.value = 3
+    if (form.site_type === 'siliconflow') {
+      // 跳过 Step 3 普通映射逻辑，直接执行导入
+      await importSiliconFlowData()
+    } else {
+      currentStep.value = 3
+    }
   } else if (currentStep.value === 3) {
     currentStep.value = 4
   }
@@ -1143,4 +1279,71 @@ async function handleOneClickSync() {
     isSyncingModelsDev.value = false
   }
 }
+
+async function handleOneClickSiliconFlow() {
+  // 自动填充硅基流动字段
+  form.site_type = 'siliconflow'
+  form.name = '硅基流动 SiliconFlow'
+  form.base_url = 'https://api.siliconflow.cn/v1'
+  form.currency = 'CNY'
+  form.notes = '硅基流动推理平台 · 从官网定价页自动爬取'
+  form.api_key = ''
+  // 跳转到 Step 2 并自动开始爬取
+  currentStep.value = 2
+  await runSiliconFlowScrape()
+}
+
+// ==================== 硅基流动 SiliconFlow 爬取相关 ====================
+const sfScrapeResult = ref<any>(null)
+const sfScrapeError = ref('')
+const isSfImporting = ref(false)
+
+async function runSiliconFlowScrape() {
+  isProbing.value = true
+  sfScrapeResult.value = null
+  sfScrapeError.value = ''
+  try {
+    const res = await axios.post(`${store.apiUrl}/api/v1/channels/scrape-siliconflow`)
+    sfScrapeResult.value = res.data
+  } catch (e: any) {
+    sfScrapeError.value = e.response?.data?.detail || e.message || '爬取失败，请检查网络连接'
+  } finally {
+    isProbing.value = false
+  }
+}
+
+async function importSiliconFlowData() {
+  if (!sfScrapeResult.value?.models?.length) return
+  isSfImporting.value = true
+  try {
+    const res = await axios.post(`${store.apiUrl}/api/v1/channels/import-siliconflow`, {
+      models: sfScrapeResult.value.models
+    })
+    const result = res.data
+    alert(`✅ 硅基流动数据导入成功！\n\n` +
+      `渠道: ${result.site_name}\n` +
+      `总导入模型: ${result.total_imported} 个\n` +
+      `新建模型: ${result.new_models_created} 个\n` +
+      `更新价格: ${result.prices_updated} 条\n` +
+      `新建价格: ${result.prices_created} 条`
+    )
+    emit('success')
+    emit('close')
+  } catch (e: any) {
+    alert(`导入失败: ${e.response?.data?.detail || e.message}`)
+  } finally {
+    isSfImporting.value = false
+  }
+}
+
+// 监听 site_type 变化，自动填充硅基流动字段
+watch(() => form.site_type, (newVal) => {
+  if (newVal === 'siliconflow') {
+    form.name = '硅基流动 SiliconFlow'
+    form.base_url = 'https://api.siliconflow.cn/v1'
+    form.currency = 'CNY'
+    form.notes = '硅基流动推理平台 · 从官网定价页自动爬取'
+    form.api_key = ''
+  }
+})
 </script>

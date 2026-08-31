@@ -422,3 +422,50 @@ class TokenPriceSummary(BaseModel):
     sparkline: List[float] = []
 
 
+# --- 硅基流动 SiliconFlow 爬取相关 ---
+class SiliconFlowPriceTier(BaseModel):
+    """硅基流动分段定价条目"""
+    tier_label: str = ""           # 价格段标签，如 "输入 [0, 32k)" 或 "输入 [32k, +∞)"
+    input_price_cny: float = 0.0   # 该段输入价格 (¥/1M Tokens)
+    output_price_cny: float = 0.0  # 该段输出价格 (¥/1M Tokens)
+    cache_price_cny: float = 0.0   # 该段缓存价格 (¥/1M Tokens)
+
+class SiliconFlowModelItem(BaseModel):
+    """硅基流动爬取到的单个模型价格信息"""
+    model_id: str                  # 完整模型 ID，如 deepseek-ai/DeepSeek-V4-Flash
+    display_name: str              # 显示名称，如 DeepSeek-V4-Flash
+    provider: str                  # 厂商名称，如 deepseek-ai
+    category: str = "对话"          # 模型类别：对话 / 生图 / 语音 / 视频
+    input_price_cny: float = 0.0   # 输入价格 (¥/1M Tokens)，取第一段
+    output_price_cny: float = 0.0  # 输出价格 (¥/1M Tokens)，取第一段
+    cache_price_cny: float = 0.0   # 缓存价格 (¥/1M Tokens)，取第一段
+    is_free: bool = False          # 是否免费模型
+    has_tiered_pricing: bool = False  # 是否存在分段定价
+    price_tiers: List[SiliconFlowPriceTier] = []  # 分段定价详情
+    price_note: str = ""           # 价格备注 (分段定价描述等)
+
+class SiliconFlowScrapeResponse(BaseModel):
+    """硅基流动爬取结果响应"""
+    status: str = "success"
+    total_models: int = 0
+    category_counts: Dict[str, int] = {}  # 按类别统计：{"对话": 50, "生图": 10, ...}
+    free_models_count: int = 0
+    tiered_models_count: int = 0
+    models: List[SiliconFlowModelItem] = []
+    scrape_duration_ms: float = 0.0
+    error_message: str = ""
+
+class SiliconFlowImportRequest(BaseModel):
+    """硅基流动导入请求"""
+    models: List[SiliconFlowModelItem]
+
+class SiliconFlowImportResponse(BaseModel):
+    """硅基流动导入结果响应"""
+    status: str = "success"
+    site_id: int = 0
+    site_name: str = ""
+    total_imported: int = 0
+    new_models_created: int = 0     # 新建的 ModelMetadata 数量
+    prices_updated: int = 0         # 更新的 SiteModelPricing 数量
+    prices_created: int = 0         # 新建的 SiteModelPricing 数量
+    error_message: str = ""

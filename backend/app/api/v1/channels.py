@@ -14,6 +14,10 @@ from backend.app.schemas.token_schema import (
 from backend.app.services.relay_fetcher import relay_fetcher
 from backend.app.services.model_normalizer import model_normalizer
 from backend.app.services.dashboard_service import dashboard_service
+from backend.app.services.siliconflow_scraper import siliconflow_scraper
+from backend.app.schemas.token_schema import (
+    SiliconFlowScrapeResponse, SiliconFlowImportRequest, SiliconFlowImportResponse
+)
 
 router = APIRouter(prefix="/channels", tags=["Relay Channels & Providers"])
 
@@ -524,4 +528,29 @@ async def ping_and_sync_single_channel(site_id: int):
 async def ping_and_sync_all_channels():
     """一键探测并全量同步所有活跃渠道"""
     return await relay_fetcher.sync_all_sites()
+
+
+@router.post("/scrape-siliconflow", response_model=SiliconFlowScrapeResponse)
+async def scrape_siliconflow_pricing():
+    """爬取硅基流动官网全量模型定价 (仅返回 JSON 预览，不写入数据库)"""
+    result = await siliconflow_scraper.scrape_pricing_robust()
+    if result.status == "error":
+        raise HTTPException(status_code=500, detail=result.error_message)
+    return result
+
+
+@router.post("/import-siliconflow", response_model=SiliconFlowImportResponse)
+async def import_siliconflow_pricing(req: SiliconFlowImportRequest):
+    """将爬取到的硅基流动模型价格数据导入数据库 (增量更新)"""
+    # 获取当前系统汇率
+    await dashboard_service.ensure_settings_loaded()
+    rate = dashboard_service.usd_to_cny_rate or 7.25
+
+    result = await siliconflow_scraper.import_to_database(
+        models=req.models,
+        usd_to_cny_rate=rate
+    )
+    if result.status == "error":
+        raise HTTPException(status_code=500, detail=result.error_message)
+    return result
 
