@@ -161,8 +161,18 @@
                 </div>
               </div>
 
+              <!-- 0 元过滤切换按钮 -->
+              <button
+                @click="excludeZeroPrice = !excludeZeroPrice"
+                class="px-2 py-1 rounded-lg border text-[11px] font-medium transition-all flex items-center space-x-1 cursor-pointer select-none"
+                :class="excludeZeroPrice ? 'bg-[#EBF5FF] border-[#B9E1FF] text-[#0071E3] font-bold shadow-2xs' : 'bg-[#FFFFFF] hover:bg-[#F2F2F7] border-[#E5E5EA] text-[#6E6E73] hover:text-[#1D1D1F]'"
+                title="过滤掉输入和输出单价均为 0 的模型"
+              >
+                <span>{{ excludeZeroPrice ? '🚫 隐藏0元' : '👁️ 显示0元' }}</span>
+              </button>
+
               <!-- 搜索框 -->
-              <div class="w-40 relative">
+              <div class="w-36 relative">
                 <input
                   v-model="searchQuery"
                   type="text"
@@ -319,6 +329,7 @@ const store = useDashboardStore()
 const isCopied = ref(false)
 const isDetailLoading = ref(false)
 const searchQuery = ref('')
+const excludeZeroPrice = ref(false)
 const providerModelsList = ref<any[]>([])
 const viewScope = ref<'filtered' | 'all'>('filtered')
 
@@ -451,13 +462,27 @@ const baseListByScope = computed(() => {
 })
 
 const displayedModels = computed(() => {
-  if (!searchQuery.value.trim()) return baseListByScope.value
-  const q = searchQuery.value.toLowerCase().trim()
-  return baseListByScope.value.filter(
-    (m) =>
-      (m.name && m.name.toLowerCase().includes(q)) ||
-      (m.model_id && m.model_id.toLowerCase().includes(q))
-  )
+  let list = baseListByScope.value
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase().trim()
+    list = list.filter(
+      (m) =>
+        (m.name && m.name.toLowerCase().includes(q)) ||
+        (m.model_id && m.model_id.toLowerCase().includes(q)) ||
+        (m.group_name && m.group_name.toLowerCase().includes(q)) ||
+        (m.site_model_name && m.site_model_name.toLowerCase().includes(q))
+    )
+  }
+  if (excludeZeroPrice.value) {
+    list = list.filter(
+      (m) =>
+        (m.calculated_input_usd && m.calculated_input_usd > 0) ||
+        (m.calculated_output_usd && m.calculated_output_usd > 0) ||
+        (m.calculated_input_cny && m.calculated_input_cny > 0) ||
+        (m.calculated_output_cny && m.calculated_output_cny > 0)
+    )
+  }
+  return list
 })
 
 const copyText = (txt?: string) => {

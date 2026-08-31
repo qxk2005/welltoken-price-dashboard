@@ -733,6 +733,16 @@
               </div>
             </div>
 
+            <!-- 0 元/未标价模型过滤切换按钮 -->
+            <button
+              @click="excludeZeroPrice = !excludeZeroPrice"
+              class="px-2.5 py-1 rounded-xl border text-xs font-medium transition-all flex items-center space-x-1 cursor-pointer select-none flex-shrink-0"
+              :class="excludeZeroPrice ? 'bg-[#EBF5FF] border-[#B9E1FF] text-[#0071E3] font-bold shadow-2xs' : 'bg-[#FFFFFF] hover:bg-[#F2F2F7] border-[#E5E5EA] text-[#6E6E73] hover:text-[#1D1D1F]'"
+              title="过滤掉输入和输出单价均为 0 的模型"
+            >
+              <span>{{ excludeZeroPrice ? '🚫 隐藏 0 元/未标价' : '👁️ 显示 0 元/未标价' }}</span>
+            </button>
+
             <!-- 搜索框 -->
             <div class="w-52 relative">
               <input
@@ -1334,6 +1344,7 @@ const searchKey = ref('')
 const activeCategory = ref('all')
 const selectedProvider = ref<RelaySite | null>(null)
 const providerModelSearchQuery = ref('')
+const excludeZeroPrice = ref(false)
 const providerModelsList = ref<any[]>([])
 const isDetailLoading = ref(false)
 
@@ -1970,6 +1981,17 @@ const filteredProviderModels = computed(() => {
         (m.model_id && m.model_id.toLowerCase().includes(q)) ||
         (m.site_model_name && m.site_model_name.toLowerCase().includes(q)) ||
         (m.group_name && m.group_name.toLowerCase().includes(q))
+    )
+  }
+
+  // 3. 0 元/未标价模型过滤
+  if (excludeZeroPrice.value) {
+    list = list.filter(
+      (m: any) =>
+        (m.calculated_input_usd && m.calculated_input_usd > 0) ||
+        (m.calculated_output_usd && m.calculated_output_usd > 0) ||
+        (m.calculated_input_cny && m.calculated_input_cny > 0) ||
+        (m.calculated_output_cny && m.calculated_output_cny > 0)
     )
   }
 
