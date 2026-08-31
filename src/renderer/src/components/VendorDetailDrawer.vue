@@ -118,16 +118,37 @@
                 </div>
               </div>
 
+              <!-- 0 元过滤切换按钮 -->
+              <button
+                @click="excludeZeroPrice = !excludeZeroPrice"
+                class="px-2 py-1 rounded-lg border text-[11px] font-medium transition-all flex items-center space-x-1 cursor-pointer select-none"
+                :class="excludeZeroPrice ? 'bg-[#EBF5FF] border-[#B9E1FF] text-[#0071E3] font-bold shadow-2xs' : 'bg-[#FFFFFF] hover:bg-[#F2F2F7] border-[#E5E5EA] text-[#6E6E73] hover:text-[#1D1D1F]'"
+                title="过滤掉官方未标价或价格为 0 的模型"
+              >
+                <span>{{ excludeZeroPrice ? '🚫 隐藏0元' : '👁️ 显示0元' }}</span>
+              </button>
+
               <!-- 搜索框 -->
-              <div class="w-48 relative">
+              <div class="w-36 relative">
                 <input
                   v-model="searchQuery"
                   type="text"
-                  placeholder="搜索模型名称/系列..."
+                  placeholder="搜索模型/系列..."
                   class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-lg px-2.5 py-1 text-xs text-[#1D1D1F] placeholder-[#86868B] focus:outline-none transition-all font-sans"
                 />
                 <span v-if="searchQuery" @click="searchQuery = ''" class="absolute right-2 top-1 text-[#86868B] hover:text-[#1D1D1F] cursor-pointer text-xs">✕</span>
               </div>
+
+              <!-- 导出 Excel 按钮 -->
+              <button
+                @click="handleExportVendorModels"
+                :disabled="filteredModels.length === 0"
+                class="px-2 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#0071E3] border border-[#CCE4FB] transition-all text-xs flex items-center space-x-1 cursor-pointer font-medium disabled:opacity-40 flex-shrink-0"
+                title="导出当前抽屉中筛选的模型清单与最低价"
+              >
+                <span>📊</span>
+                <span>导出</span>
+              </button>
             </div>
 
             <!-- 当前筛选上下文指示条 (当处于 filtered 模式时) -->
@@ -253,6 +274,7 @@ import { useDashboardStore } from '../stores/dashboardStore'
 import LabLogo from './LabLogo.vue'
 import SystemIcon from './SystemIcon.vue'
 import type { ModelMetadata } from '../types'
+import { exportVendorModelsToExcel } from '../utils/excelExport'
 
 export interface FilterContext {
   providers?: string[]
@@ -417,9 +439,19 @@ const emit = defineEmits<{
 const store = useDashboardStore()
 const isCopied = ref(false)
 const searchQuery = ref('')
+const excludeZeroPrice = ref(true)
 const currentPage = ref(1)
 const pageSize = ref(30)
 const viewScope = ref<'filtered' | 'all'>('filtered')
+
+const handleExportVendorModels = () => {
+  if (!currentLab.value) return
+  exportVendorModelsToExcel(
+    currentLab.value.displayName || currentLab.value.id,
+    filteredModels.value,
+    store.currency as any
+  )
+}
 
 const assignModelToLab = (m: ModelMetadata): string => {
   const mId = m.model_id.toLowerCase()
@@ -565,14 +597,22 @@ const baseListByScope = computed(() => {
 })
 
 const filteredModels = computed(() => {
-  if (!searchQuery.value.trim()) return baseListByScope.value
-  const q = searchQuery.value.toLowerCase().trim()
-  return baseListByScope.value.filter(
-    (m) =>
-      m.name.toLowerCase().includes(q) ||
-      m.model_id.toLowerCase().includes(q) ||
-      (m.series && m.series.toLowerCase().includes(q))
-  )
+  let list = baseListByScope.value
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.toLowerCase().trim()
+    list = list.filter(
+      (m) =>
+        m.name.toLowerCase().includes(q) ||
+        m.model_id.toLowerCase().includes(q) ||
+        (m.series && m.series.toLowerCase().includes(q))
+    )
+  }
+  if (excludeZeroPrice.value) {
+    list = list.filter(
+      (m) => (m.official_input_price && m.official_input_price > 0) || (m.lowest_price_usd && m.lowest_price_usd > 0)
+    )
+  }
+  return list
 })
 
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredModels.value.length / pageSize.value)))
@@ -582,7 +622,7 @@ const pagedModels = computed(() => {
   return filteredModels.value.slice(start, start + pageSize.value)
 })
 
-watch(searchQuery, () => {
+watch([searchQuery, excludeZeroPrice], () => {
   currentPage.value = 1
 })
 

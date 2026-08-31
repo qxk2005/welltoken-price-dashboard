@@ -162,7 +162,7 @@
               </div>
 
               <!-- 搜索框 -->
-              <div class="w-48 relative">
+              <div class="w-40 relative">
                 <input
                   v-model="searchQuery"
                   type="text"
@@ -171,6 +171,17 @@
                 />
                 <span v-if="searchQuery" @click="searchQuery = ''" class="absolute right-2 top-1 text-[#86868B] hover:text-[#1D1D1F] cursor-pointer text-xs">✕</span>
               </div>
+
+              <!-- 导出 Excel 按钮 -->
+              <button
+                @click="handleExportChannelModels"
+                :disabled="displayedModels.length === 0"
+                class="px-2 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#0071E3] border border-[#CCE4FB] transition-all text-xs flex items-center space-x-1 cursor-pointer font-medium disabled:opacity-40 flex-shrink-0"
+                title="导出当前抽屉中筛选的模型规格与定价"
+              >
+                <span>📊</span>
+                <span>导出</span>
+              </button>
             </div>
 
             <!-- 当前筛选上下文指示条 (当处于 filtered 模式时) -->
@@ -284,6 +295,7 @@ import { useDashboardStore } from '../stores/dashboardStore'
 import ProviderLogo from './ProviderLogo.vue'
 import SystemIcon from './SystemIcon.vue'
 import type { RelaySite } from '../types'
+import { exportChannelModelsToExcel } from '../utils/excelExport'
 
 export interface FilterContext {
   providers?: string[]
@@ -309,6 +321,15 @@ const isDetailLoading = ref(false)
 const searchQuery = ref('')
 const providerModelsList = ref<any[]>([])
 const viewScope = ref<'filtered' | 'all'>('filtered')
+
+const handleExportChannelModels = () => {
+  if (!currentSite.value) return
+  exportChannelModelsToExcel(
+    currentSite.value.name,
+    displayedModels.value,
+    store.currency as any
+  )
+}
 
 const currentSite = computed<RelaySite | null>(() => {
   if (!props.siteName) return null

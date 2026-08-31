@@ -126,15 +126,39 @@
             </div>
           </div>
 
-          <!-- 搜索过滤 -->
-          <div class="w-60 relative">
-            <input
-              v-model="modelSearchQuery"
-              type="text"
-              placeholder="在当前厂商中搜索模型..."
-              class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-lg px-2.5 py-1.5 text-xs text-[#1D1D1F] placeholder-[#86868B] focus:outline-none transition-all font-sans"
-            />
-            <span v-if="modelSearchQuery" @click="modelSearchQuery = ''" class="absolute right-2 top-1.5 text-[#86868B] hover:text-[#1D1D1F] cursor-pointer text-xs">✕</span>
+          <!-- 右侧工具栏：0 元过滤 + 搜索过滤 + 导出 Excel -->
+          <div class="flex items-center space-x-2">
+            <!-- 0 元过滤切换按钮 -->
+            <button
+              @click="excludeZeroPrice = !excludeZeroPrice"
+              class="px-2.5 py-1.5 rounded-xl border text-xs font-medium transition-all flex items-center space-x-1 cursor-pointer select-none"
+              :class="excludeZeroPrice ? 'bg-[#EBF5FF] border-[#B9E1FF] text-[#0071E3] font-bold shadow-2xs' : 'bg-[#FFFFFF] hover:bg-[#F2F2F7] border-[#E5E5EA] text-[#6E6E73] hover:text-[#1D1D1F]'"
+              title="过滤掉官方未标价或价格为 0 的模型"
+            >
+              <span>{{ excludeZeroPrice ? '🚫 隐藏 0 元/未标价' : '👁️ 显示 0 元/未标价' }}</span>
+            </button>
+
+            <!-- 搜索过滤 -->
+            <div class="w-52 relative">
+              <input
+                v-model="modelSearchQuery"
+                type="text"
+                placeholder="搜索模型名称/系列..."
+                class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-2.5 py-1.5 text-xs text-[#1D1D1F] placeholder-[#86868B] focus:outline-none transition-all font-sans"
+              />
+              <span v-if="modelSearchQuery" @click="modelSearchQuery = ''" class="absolute right-2 top-1.5 text-[#86868B] hover:text-[#1D1D1F] cursor-pointer text-xs">✕</span>
+            </div>
+
+            <!-- 导出 Excel 按钮 -->
+            <button
+              @click="handleExportVendorModels"
+              :disabled="!selectedLab || sortedAndFilteredModels.length === 0"
+              class="px-2.5 py-1.5 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#0071E3] border border-[#CCE4FB] transition-all text-xs flex items-center space-x-1 cursor-pointer font-medium disabled:opacity-40 flex-shrink-0"
+              title="导出当前厂商筛选后的全部模型规格与最低价为 Excel"
+            >
+              <span>📊</span>
+              <span>导出 Excel</span>
+            </button>
           </div>
         </div>
 
@@ -389,6 +413,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useDashboardStore } from '../stores/dashboardStore'
 import LabLogo from '../components/LabLogo.vue'
 import SystemIcon from '../components/SystemIcon.vue'
+import { exportVendorModelsToExcel } from '../utils/excelExport'
 import type { ModelMetadata } from '../types'
 
 interface OfficialLabDef {
@@ -418,8 +443,18 @@ const selectedLab = computed<LabItem | null>(() => {
 })
 const labSearchQuery = ref('')
 const modelSearchQuery = ref('')
+const excludeZeroPrice = ref(true)
 const isCopied = ref(false)
 const activeActionDropdownModelId = ref<string | null>(null)
+
+const handleExportVendorModels = () => {
+  if (!selectedLab.value) return
+  exportVendorModelsToExcel(
+    selectedLab.value.displayName || selectedLab.value.id,
+    sortedAndFilteredModels.value,
+    store.currency as any
+  )
+}
 
 // 排序状态
 const sortField = ref<string>('context_window')
@@ -791,6 +826,13 @@ const sortedAndFilteredModels = computed(() => {
     )
   }
 
+  // 0 元/未标价过滤
+  if (excludeZeroPrice.value) {
+    list = list.filter(
+      (m) => (m.official_input_price && m.official_input_price > 0) || (m.lowest_price_usd && m.lowest_price_usd > 0)
+    )
+  }
+
   list.sort((a: any, b: any) => {
     let valA = a[sortField.value]
     let valB = b[sortField.value]
@@ -836,7 +878,7 @@ const visiblePages = computed(() => {
   return pages
 })
 
-watch([modelSearchQuery, selectedLabId], () => {
+watch([modelSearchQuery, selectedLabId, excludeZeroPrice], () => {
   currentPage.value = 1
 })
 

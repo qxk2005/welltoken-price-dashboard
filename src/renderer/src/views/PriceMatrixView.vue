@@ -172,6 +172,16 @@
             全网匹配: <strong class="text-[#0071E3] font-mono font-bold">{{ totalRecords }}</strong> 条报价
           </span>
           <button
+            @click="handleExportPriceMatrix"
+            :disabled="isExporting || totalRecords === 0"
+            class="px-2.5 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#0071E3] border border-[#CCE4FB] transition-all text-xs flex items-center space-x-1 cursor-pointer font-medium disabled:opacity-50"
+            title="导出当前筛选条件下的全量比价数据为 Excel 文件"
+          >
+            <span v-if="isExporting" class="animate-spin">⏳</span>
+            <span v-else>📊</span>
+            <span>{{ isExporting ? '正在导出...' : '导出 Excel' }}</span>
+          </button>
+          <button
             v-if="hasAnyFilter || onlyFavorites"
             @click="resetAllFilters"
             class="px-2.5 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#FFE5E5] text-[#6E6E73] hover:text-[#FF3B30] border border-[#E5E5EA] transition-all text-xs flex items-center space-x-1 cursor-pointer"
@@ -829,10 +839,65 @@ import VendorDetailDrawer from '../components/VendorDetailDrawer.vue'
 import SystemIcon from '../components/SystemIcon.vue'
 import type { ComparisonItem } from '../types'
 import { parseUtcDate, formatRelativeTime } from '../utils/timeUtils'
+import { exportPriceMatrixToExcel } from '../utils/excelExport'
 
 const store = useDashboardStore()
 const showAddModal = ref(false)
 const isSyncingAll = ref(false)
+const isExporting = ref(false)
+
+const handleExportPriceMatrix = async () => {
+  if (totalRecords.value === 0) {
+    alert('当前筛选条件下无数据可导出')
+    return
+  }
+
+  isExporting.value = true
+  try {
+    let exportItems: ComparisonItem[] = []
+
+    // 如果当前内存中的条目已经包含了全部匹配数据，直接使用
+    if (pagedItems.value.length >= totalRecords.value) {
+      exportItems = pagedItems.value
+    } else {
+      // 否则拉取全部匹配数据 (最高 5000 条)
+      let effectiveSites = [...selectedSites.value]
+      if (onlyFavorites.value) {
+        const favNames = store.favoriteSites.map((s) => s.name)
+        if (favNames.length > 0) {
+          effectiveSites = effectiveSites.length > 0 ? effectiveSites.filter((n) => favNames.includes(n)) : favNames
+        } else {
+          effectiveSites = ['__NONE__']
+        }
+      }
+
+      const params: Record<string, any> = {
+        page: 1,
+        page_size: Math.min(totalRecords.value, 5000),
+        sort_by: sortField.value,
+        sort_order: sortOrder.value,
+        exclude_zero: excludeZeroPrice.value
+      }
+      if (selectedProviders.value.length > 0) params.provider = selectedProviders.value
+      if (selectedSeries.value.length > 0) params.series = selectedSeries.value
+      if (selectedModels.value.length > 0) params.model = selectedModels.value
+      if (effectiveSites.length > 0) params.site = effectiveSites
+      if (activeDateStart.value) params.date_start = activeDateStart.value
+      if (activeDateEnd.value) params.date_end = activeDateEnd.value
+
+      const sp = buildSearchParams(params)
+      const res = await axios.get(`${store.apiUrl}/api/v1/comparison/paginated?${sp.toString()}`)
+      exportItems = res.data.items || []
+    }
+
+    exportPriceMatrixToExcel(exportItems, store.currency as any)
+  } catch (e: any) {
+    console.error('Export Excel failed:', e)
+    alert(`导出 Excel 失败: ${e.message || '网络连接超时'}`)
+  } finally {
+    isExporting.value = false
+  }
+}
 
 // 右侧滑出抽屉状态控制 (支持厂商详情与渠道详情独立展开)
 const isChannelDrawerVisible = ref(false)

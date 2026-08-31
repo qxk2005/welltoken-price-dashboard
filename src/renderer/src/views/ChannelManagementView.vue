@@ -734,7 +734,7 @@
             </div>
 
             <!-- 搜索框 -->
-            <div class="w-56 relative">
+            <div class="w-52 relative">
               <input
                 v-model="providerModelSearchQuery"
                 type="text"
@@ -743,6 +743,17 @@
               />
               <span v-if="providerModelSearchQuery" @click="providerModelSearchQuery = ''" class="absolute right-2 top-1 text-[#86868B] hover:text-[#1D1D1F] cursor-pointer text-xs">✕</span>
             </div>
+
+            <!-- 导出 Excel 按钮 -->
+            <button
+              @click="handleExportChannelModels"
+              :disabled="filteredProviderModels.length === 0"
+              class="px-2.5 py-1 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#0071E3] border border-[#CCE4FB] transition-all text-xs flex items-center space-x-1 cursor-pointer font-medium disabled:opacity-40 flex-shrink-0"
+              title="导出当前渠道下筛选的全部可用模型与定价"
+            >
+              <span>📊</span>
+              <span>导出 Excel</span>
+            </button>
           </div>
         </div>
 
@@ -1316,6 +1327,7 @@ import ScoreBreakdownTooltip from '../components/ScoreBreakdownTooltip.vue'
 import SystemIcon from '../components/SystemIcon.vue'
 import type { RelaySite } from '../types'
 import { parseUtcDate, formatRelativeTime } from '../utils/timeUtils'
+import { exportChannelModelsToExcel } from '../utils/excelExport'
 
 const store = useDashboardStore()
 const searchKey = ref('')
@@ -1324,6 +1336,15 @@ const selectedProvider = ref<RelaySite | null>(null)
 const providerModelSearchQuery = ref('')
 const providerModelsList = ref<any[]>([])
 const isDetailLoading = ref(false)
+
+const handleExportChannelModels = () => {
+  if (!selectedProvider.value) return
+  exportChannelModelsToExcel(
+    selectedProvider.value.name,
+    filteredProviderModels.value,
+    store.currency as any
+  )
+}
 
 // 下拉操作菜单激活状态 (互斥打开)
 const activeActionDropdownSiteId = ref<number | null>(null)
