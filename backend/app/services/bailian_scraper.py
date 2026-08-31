@@ -414,7 +414,7 @@ class BailianScraper:
                         models_endpoint="/v1/models",
                         website="https://bailian.console.aliyun.com",
                         doc_url="https://help.aliyun.com/zh/model-studio/model-pricing",
-                        is_official_catalog=True,
+                        is_official_catalog=False,
                         is_active=True,
                         last_status="online",
                         score=95.0,

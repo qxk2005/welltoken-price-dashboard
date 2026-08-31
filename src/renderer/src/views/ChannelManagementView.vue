@@ -1498,10 +1498,10 @@ const handleQuickICloudSync = async () => {
   }
 }
 
-const onWizardSuccess = async (res: any) => {
+const onWizardSuccess = async (res?: any) => {
   await store.fetchRelaySites()
   await store.fetchComparisonMatrix()
-  if (selectedProvider.value && selectedProvider.value.id === res.site_id) {
+  if (res?.site_id && selectedProvider.value && selectedProvider.value.id === res.site_id) {
     const updated = store.relaySites.find((s: any) => s.id === res.site_id)
     if (updated) {
       selectedProvider.value = updated
@@ -1509,7 +1509,9 @@ const onWizardSuccess = async (res: any) => {
     await selectProvider(selectedProvider.value)
   }
   await store.triggerAutoICloudSyncIfEnabled()
-  alert(`🎉 恭喜！中转渠道「${res.site_name}」配置与模型同步成功，已精准收录 ${res.imported_models_count} 款模型！`)
+  if (res?.site_name && res?.imported_models_count !== undefined) {
+    alert(`🎉 恭喜！中转渠道「${res.site_name}」配置与模型同步成功，已精准收录 ${res.imported_models_count} 款模型！`)
+  }
 }
 
 // 真正的官方直连母厂 ID 集合 (大模型原创研发母厂一手 API)
@@ -1548,9 +1550,16 @@ const isOfficialDirect = (site: RelaySite): boolean => {
   return officialLabProviders.has(p) || (p.startsWith('openai') && !p.includes('compatible')) || (p.startsWith('deepseek') && !p.includes('router'))
 }
 
-// 判定是否属于自添加网站 (用户手工添加的自建 NewAPI / OneAPI / Sub2API 站点)
+// 判定是否属于自添加网站 (用户手工添加的自建 NewAPI / OneAPI / Sub2API / 硅基流动 / 阿里百炼 站点)
 const isCustomSite = (site: RelaySite): boolean => {
-  return !site.is_official_catalog || site.site_type === 'newapi' || site.site_type === 'sub2api' || site.site_type === 'custom'
+  return (
+    !site.is_official_catalog ||
+    site.site_type === 'newapi' ||
+    site.site_type === 'sub2api' ||
+    site.site_type === 'custom' ||
+    site.site_type === 'siliconflow' ||
+    site.site_type === 'aliyun_bailian'
+  )
 }
 
 // 判定是否属于中转站渠道 (非官方第一手的 API 网站与云端第三方聚合服务商)

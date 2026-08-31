@@ -1474,7 +1474,13 @@ async function importSiliconFlowData() {
       `更新价格: ${result.prices_updated} 条\n` +
       `新建价格: ${result.prices_created} 条`
     )
-    emit('success')
+    await store.fetchRelaySites()
+    await store.fetchComparisonMatrix()
+    emit('success', {
+      site_id: result.site_id,
+      site_name: result.site_name,
+      imported_models_count: result.total_imported
+    })
     emit('close')
   } catch (e: any) {
     alert(`导入失败: ${e.response?.data?.detail || e.message}`)
@@ -1529,7 +1535,13 @@ async function importBailianData() {
       `更新价格: ${result.prices_updated} 条\n` +
       `新建价格: ${result.prices_created} 条`
     )
-    emit('success')
+    await store.fetchRelaySites()
+    await store.fetchComparisonMatrix()
+    emit('success', {
+      site_id: result.site_id,
+      site_name: result.site_name,
+      imported_models_count: result.total_imported
+    })
     emit('close')
   } catch (e: any) {
     alert(`导入失败: ${e.response?.data?.detail || e.message}`)
