@@ -338,7 +338,8 @@ const handleExportChannelModels = () => {
   exportChannelModelsToExcel(
     currentSite.value.name,
     displayedModels.value,
-    store.currency as any
+    store.currency as any,
+    store.usdToCnyRate || 7.25
   )
 }
 

@@ -890,7 +890,7 @@ const handleExportPriceMatrix = async () => {
       exportItems = res.data.items || []
     }
 
-    exportPriceMatrixToExcel(exportItems, store.currency as any)
+    exportPriceMatrixToExcel(exportItems, store.currency as any, store.usdToCnyRate || 7.25)
   } catch (e: any) {
     console.error('Export Excel failed:', e)
     alert(`导出 Excel 失败: ${e.message || '网络连接超时'}`)

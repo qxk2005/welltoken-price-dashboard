@@ -1353,7 +1353,8 @@ const handleExportChannelModels = () => {
   exportChannelModelsToExcel(
     selectedProvider.value.name,
     filteredProviderModels.value,
-    store.currency as any
+    store.currency as any,
+    store.usdToCnyRate || 7.25
   )
 }
 

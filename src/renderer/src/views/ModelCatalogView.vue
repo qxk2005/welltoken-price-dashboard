@@ -452,7 +452,8 @@ const handleExportVendorModels = () => {
   exportVendorModelsToExcel(
     selectedLab.value.displayName || selectedLab.value.id,
     sortedAndFilteredModels.value,
-    store.currency as any
+    store.currency as any,
+    store.usdToCnyRate || 7.25
   )
 }
 

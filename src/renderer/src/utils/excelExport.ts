@@ -52,11 +52,12 @@ function downloadWorkbook(workbook: XLSX.WorkBook, filename: string) {
 }
 
 /**
- * 1. 导出全网比价列表数据为 Excel
+ * 1. 导出全网比价列表数据为 Excel（仅包含用户当前选中的单一币种）
  */
 export function exportPriceMatrixToExcel(
   items: ComparisonItem[],
-  currency: 'USD' | 'CNY' = 'CNY'
+  currency: 'USD' | 'CNY' = 'CNY',
+  exchangeRate = 7.25
 ) {
   if (!items || items.length === 0) {
     alert('当前筛选条件下无数据可导出')
@@ -64,23 +65,22 @@ export function exportPriceMatrixToExcel(
   }
 
   const currSymbol = currency === 'USD' ? '$' : '¥'
+  const isUsd = currency === 'USD'
+  const rate = exchangeRate > 0 ? exchangeRate : 7.25
+
   const headers = [
-    '模型厂商 (Provider)',
-    '模型系列 (Series)',
+    '模型厂商',
+    '模型系列',
     '模型标准标识 (Model ID)',
-    '渠道规格/分段区间 (Tier / Alias)',
-    '渠道名称 (Channel)',
-    '渠道类型 (Site Type)',
-    '结算分组 (Group)',
-    `当前输入单价 (${currSymbol}/1M)`,
-    `当前输出单价 (${currSymbol}/1M)`,
-    `当前缓存单价 (${currSymbol}/1M)`,
-    '输入单价 (USD/1M)',
-    '输出单价 (USD/1M)',
-    '输入单价 (CNY/1M)',
-    '输出单价 (CNY/1M)',
+    '渠道规格/分段区间',
+    '渠道名称',
+    '渠道类型',
+    '结算分组',
+    `输入单价 (${currSymbol}/1M)`,
+    `输出单价 (${currSymbol}/1M)`,
+    `缓存单价 (${currSymbol}/1M)`,
     '相对官方基准折扣',
-    '模型倍率 (Ratio)',
+    '模型倍率',
     '实测 TPS (Tokens/s)',
     '渠道可用状态',
     '实时延迟 (ms)',
@@ -90,10 +90,15 @@ export function exportPriceMatrixToExcel(
   const rows: any[][] = [headers]
 
   for (const item of items) {
-    const isUsd = currency === 'USD'
-    const curIn = isUsd ? item.calculated_input_usd : item.calculated_input_cny
-    const curOut = isUsd ? item.calculated_output_usd : item.calculated_output_cny
-    const curCache = isUsd ? item.calculated_cache_usd : (item.calculated_cache_usd * 7.25)
+    const inVal = isUsd
+      ? item.calculated_input_usd
+      : (item.calculated_input_cny !== undefined && item.calculated_input_cny > 0 ? item.calculated_input_cny : item.calculated_input_usd * rate)
+    const outVal = isUsd
+      ? item.calculated_output_usd
+      : (item.calculated_output_cny !== undefined && item.calculated_output_cny > 0 ? item.calculated_output_cny : item.calculated_output_usd * rate)
+    const cacheVal = isUsd
+      ? item.calculated_cache_usd
+      : (item.calculated_cache_usd * rate)
 
     const discountText = item.discount_percent
       ? `${item.discount_percent > 0 ? '+' : ''}${item.discount_percent}%`
@@ -107,13 +112,9 @@ export function exportPriceMatrixToExcel(
       item.site_name || '',
       item.site_type || 'relay',
       item.group_name || 'default',
-      curIn !== undefined ? Number(curIn.toFixed(4)) : '-',
-      curOut !== undefined ? Number(curOut.toFixed(4)) : '-',
-      curCache !== undefined ? Number(curCache.toFixed(4)) : '-',
-      item.calculated_input_usd !== undefined ? Number(item.calculated_input_usd.toFixed(4)) : '-',
-      item.calculated_output_usd !== undefined ? Number(item.calculated_output_usd.toFixed(4)) : '-',
-      item.calculated_input_cny !== undefined ? Number(item.calculated_input_cny.toFixed(4)) : '-',
-      item.calculated_output_cny !== undefined ? Number(item.calculated_output_cny.toFixed(4)) : '-',
+      inVal !== undefined ? Number(inVal.toFixed(4)) : 0,
+      outVal !== undefined ? Number(outVal.toFixed(4)) : 0,
+      cacheVal !== undefined ? Number(cacheVal.toFixed(4)) : 0,
       discountText,
       item.model_ratio ? `${item.model_ratio}x` : '1.0x',
       item.last_tested_tps || '-',
@@ -129,17 +130,18 @@ export function exportPriceMatrixToExcel(
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, worksheet, '全网比价清单')
 
-  const filename = `WellToken-全网比价-${getTimestampString()}.xlsx`
+  const filename = `WellToken-全网比价-${currency}-${getTimestampString()}.xlsx`
   downloadWorkbook(workbook, filename)
 }
 
 /**
- * 2. 导出供应商详情中的可用模型列表为 Excel
+ * 2. 导出供应商详情中的可用模型列表为 Excel（严格响应当前全局选中的单一币种）
  */
 export function exportChannelModelsToExcel(
   channelName: string,
   models: any[],
-  currency: 'USD' | 'CNY' = 'CNY'
+  currency: 'USD' | 'CNY' = 'CNY',
+  exchangeRate = 7.25
 ) {
   if (!models || models.length === 0) {
     alert('当前渠道下无模型数据可导出')
@@ -147,6 +149,9 @@ export function exportChannelModelsToExcel(
   }
 
   const currSymbol = currency === 'USD' ? '$' : '¥'
+  const isUsd = currency === 'USD'
+  const rate = exchangeRate > 0 ? exchangeRate : 7.25
+
   const headers = [
     '渠道/供应商',
     '模型显示名称',
@@ -157,8 +162,6 @@ export function exportChannelModelsToExcel(
     '最大输出 (Max Output)',
     `输入单价 (${currSymbol}/1M)`,
     `输出单价 (${currSymbol}/1M)`,
-    '折算输入单价 (USD)',
-    '折算输出单价 (USD)',
     '深度推理',
     '实测 TPS'
   ]
@@ -166,9 +169,12 @@ export function exportChannelModelsToExcel(
   const rows: any[][] = [headers]
 
   for (const m of models) {
-    const isUsd = currency === 'USD'
-    const curIn = isUsd ? (m.calculated_input_usd || 0) : (m.calculated_input_cny || 0)
-    const curOut = isUsd ? (m.calculated_output_usd || 0) : (m.calculated_output_cny || 0)
+    const inVal = isUsd
+      ? (m.calculated_input_usd || 0)
+      : (m.calculated_input_cny !== undefined && m.calculated_input_cny > 0 ? m.calculated_input_cny : (m.calculated_input_usd || 0) * rate)
+    const outVal = isUsd
+      ? (m.calculated_output_usd || 0)
+      : (m.calculated_output_cny !== undefined && m.calculated_output_cny > 0 ? m.calculated_output_cny : (m.calculated_output_usd || 0) * rate)
 
     rows.push([
       channelName,
@@ -178,10 +184,8 @@ export function exportChannelModelsToExcel(
       m.group_name || 'default',
       m.context_window ? Number(m.context_window) : '-',
       m.max_output ? Number(m.max_output) : 8192,
-      curIn !== undefined ? Number(curIn.toFixed(4)) : '-',
-      curOut !== undefined ? Number(curOut.toFixed(4)) : '-',
-      m.calculated_input_usd !== undefined ? Number(m.calculated_input_usd.toFixed(4)) : '-',
-      m.calculated_output_usd !== undefined ? Number(m.calculated_output_usd.toFixed(4)) : '-',
+      Number(inVal.toFixed(4)),
+      Number(outVal.toFixed(4)),
       m.is_reasoning || (m.model_id && /r1|o1|o3|reason|deepseek-r/i.test(m.model_id)) ? '支持' : '否',
       m.last_tested_tps || 55
     ])
@@ -194,17 +198,18 @@ export function exportChannelModelsToExcel(
   XLSX.utils.book_append_sheet(workbook, worksheet, '渠道可用模型与定价')
 
   const safeName = channelName.replace(/[\\/:*?"<>|]/g, '_')
-  const filename = `WellToken-渠道-${safeName}-${getTimestampString()}.xlsx`
+  const filename = `WellToken-渠道-${safeName}-${currency}-${getTimestampString()}.xlsx`
   downloadWorkbook(workbook, filename)
 }
 
 /**
- * 3. 导出模型厂商详情中的模型列表为 Excel
+ * 3. 导出模型厂商详情中的模型列表为 Excel（严格响应当前全局选中的单一币种）
  */
 export function exportVendorModelsToExcel(
   vendorName: string,
   models: ModelMetadata[] | any[],
-  currency: 'USD' | 'CNY' = 'CNY'
+  currency: 'USD' | 'CNY' = 'CNY',
+  exchangeRate = 7.25
 ) {
   if (!models || models.length === 0) {
     alert('当前厂商下无模型数据可导出')
@@ -212,28 +217,36 @@ export function exportVendorModelsToExcel(
   }
 
   const currSymbol = currency === 'USD' ? '$' : '¥'
+  const isUsd = currency === 'USD'
+  const rate = exchangeRate > 0 ? exchangeRate : 7.25
+
   const headers = [
-    '厂商名称 (Vendor)',
-    '模型名称 (Model Name)',
+    '厂商名称',
+    '模型名称',
     '模型标准标识 (Model ID)',
-    '所属系列 (Series)',
+    '所属系列',
     '上下文窗口 (Context)',
     '最大输出 (Max Output)',
-    '官方输入价格 ($/1M)',
-    '官方输出价格 ($/1M)',
+    `官方输入单价 (${currSymbol}/1M)`,
+    `官方输出单价 (${currSymbol}/1M)`,
     `全网最低价 (${currSymbol}/1M)`,
-    '接入渠道数 (Channels)',
-    '多模态支持 (Modality)',
-    '深度推理 (Reasoning)',
-    '工具调用 (Tool Call)',
-    '结构化输出 (Structured)'
+    '接入渠道数',
+    '多模态支持',
+    '深度推理',
+    '工具调用',
+    '结构化输出'
   ]
 
   const rows: any[][] = [headers]
 
   for (const m of models) {
-    const isUsd = currency === 'USD'
-    const lowest = isUsd ? (m.lowest_price_usd || 0) : ((m.lowest_price_usd || 0) * 7.25)
+    const rawOffIn = m.official_input_price || 0
+    const rawOffOut = m.official_output_price || 0
+    const rawLowest = m.lowest_price_usd || 0
+
+    const offIn = isUsd ? rawOffIn : rawOffIn * rate
+    const offOut = isUsd ? rawOffOut : rawOffOut * rate
+    const lowest = isUsd ? rawLowest : rawLowest * rate
 
     rows.push([
       vendorName.toUpperCase(),
@@ -242,9 +255,9 @@ export function exportVendorModelsToExcel(
       m.series || '通用系列',
       m.context_window ? Number(m.context_window) : '-',
       m.max_output ? Number(m.max_output) : 8192,
-      m.official_input_price !== undefined ? Number(m.official_input_price.toFixed(4)) : '-',
-      m.official_output_price !== undefined ? Number(m.official_output_price.toFixed(4)) : '-',
-      lowest > 0 ? Number(lowest.toFixed(4)) : '未标价/0',
+      rawOffIn > 0 ? Number(offIn.toFixed(4)) : '未标价/0',
+      rawOffOut > 0 ? Number(offOut.toFixed(4)) : '未标价/0',
+      rawLowest > 0 ? Number(lowest.toFixed(4)) : '未标价/0',
       m.active_relay_count || m.providersCount || 0,
       m.modalities && m.modalities.length > 0 ? m.modalities.join('/') : 'text->text',
       m.supports_reasoning || /r1|o1|o3|reason/i.test(m.model_id) ? '支持' : '否',
@@ -257,9 +270,9 @@ export function exportVendorModelsToExcel(
   worksheet['!cols'] = autoFitColumnWidths(rows)
 
   const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, worksheet, `${vendorName}模型规格清单`)
+  XLSX.utils.book_append_sheet(workbook, worksheet, `${vendorName}模型清单`)
 
   const safeName = vendorName.replace(/[\\/:*?"<>|]/g, '_')
-  const filename = `WellToken-模型厂商-${safeName}-${getTimestampString()}.xlsx`
+  const filename = `WellToken-模型厂商-${safeName}-${currency}-${getTimestampString()}.xlsx`
   downloadWorkbook(workbook, filename)
 }
