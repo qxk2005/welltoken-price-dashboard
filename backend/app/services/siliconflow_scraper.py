@@ -586,7 +586,8 @@ class SiliconFlowScraperService:
     async def import_to_database(
         self,
         models: List[SiliconFlowModelItem],
-        usd_to_cny_rate: float = 7.25
+        usd_to_cny_rate: float = 7.25,
+        site_id: Optional[int] = None
     ) -> SiliconFlowImportResponse:
         """
         将爬取到的硅基流动模型价格数据写入数据库。
@@ -601,9 +602,16 @@ class SiliconFlowScraperService:
         try:
             async with AsyncSessionLocal() as session:
                 # 1. 获取或创建硅基流动 RelaySite
-                stmt = select(RelaySite).where(RelaySite.name == SILICONFLOW_SITE_NAME)
-                res = await session.execute(stmt)
-                site = res.scalar_one_or_none()
+                site = None
+                if site_id:
+                    site = await session.get(RelaySite, site_id)
+
+                if not site:
+                    stmt = select(RelaySite).where(
+                        (RelaySite.site_type == "siliconflow") | (RelaySite.name == SILICONFLOW_SITE_NAME)
+                    )
+                    res = await session.execute(stmt)
+                    site = res.scalars().first()
 
                 if not site:
                     site = RelaySite(

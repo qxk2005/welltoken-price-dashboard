@@ -548,7 +548,8 @@ async def import_siliconflow_pricing(req: SiliconFlowImportRequest):
 
     result = await siliconflow_scraper.import_to_database(
         models=req.models,
-        usd_to_cny_rate=rate
+        usd_to_cny_rate=rate,
+        site_id=req.site_id
     )
     if result.status == "error":
         raise HTTPException(status_code=500, detail=result.error_message)

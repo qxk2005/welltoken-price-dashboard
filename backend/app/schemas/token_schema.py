@@ -458,6 +458,7 @@ class SiliconFlowScrapeResponse(BaseModel):
 class SiliconFlowImportRequest(BaseModel):
     """硅基流动导入请求"""
     models: List[SiliconFlowModelItem]
+    site_id: Optional[int] = None
 
 class SiliconFlowImportResponse(BaseModel):
     """硅基流动导入结果响应"""

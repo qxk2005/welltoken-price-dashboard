@@ -188,6 +188,36 @@ class RelayFetcherService:
             if site.api_key:
                 headers["Authorization"] = f"Bearer {site.api_key}"
 
+            # 硅基流动专属自动爬取同步
+            if site.site_type == "siliconflow":
+                try:
+                    from backend.app.services.siliconflow_scraper import siliconflow_scraper
+                    from backend.app.services.dashboard_service import dashboard_service
+                    await dashboard_service.ensure_settings_loaded()
+                    rate = dashboard_service.usd_to_cny_rate or 7.25
+
+                    scrape_res = await siliconflow_scraper.scrape_pricing_robust()
+                    if scrape_res.status == "success" and scrape_res.models:
+                        import_res = await siliconflow_scraper.import_to_database(
+                            models=scrape_res.models,
+                            usd_to_cny_rate=rate,
+                            site_id=site.id
+                        )
+                        site.last_latency_ms = round(scrape_res.scrape_duration_ms, 1)
+                        site.last_status = "online"
+                        site.last_sync_time = datetime.utcnow()
+                        await session.commit()
+                        return {
+                            "status": "online",
+                            "site_name": site.name,
+                            "latency_ms": site.last_latency_ms,
+                            "discovered_count": len(scrape_res.models),
+                            "matched_count": import_res.total_imported,
+                            "message": f"成功同步硅基流动 {import_res.total_imported} 款模型官网定价"
+                        }
+                except Exception as e:
+                    print(f"[RelayFetcher] SiliconFlow scraper sync error: {e}")
+
             # 1. 真实请求探测 models 端点
             target_models_url = f"{site.base_url.rstrip('/')}{site.models_endpoint}"
             try:
