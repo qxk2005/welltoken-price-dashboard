@@ -45,6 +45,28 @@ function autoFitColumnWidths(data: any[][], minWidth = 10, maxWidth = 45): XLSX.
 }
 
 /**
+ * 统一价格格式化计算函数：与界面 store.formatCurrency 保持 100% 精度与舍入对齐
+ * 消除浮点数乘除汇率产生的如 23.9997 / 12.0002 / 7.9997 等微差
+ */
+export function formatExportPrice(
+  usdPrice: number | null | undefined,
+  currency: 'USD' | 'CNY' = 'CNY',
+  exchangeRate = 7.25
+): number {
+  if (usdPrice === null || usdPrice === undefined || isNaN(usdPrice) || usdPrice === 0) {
+    return 0
+  }
+  const rate = exchangeRate > 0 ? exchangeRate : 7.25
+  const val = currency === 'USD' ? usdPrice : usdPrice * rate
+
+  if (val < 0.001) {
+    return Number(val.toFixed(4))
+  }
+  // 保持与前端 store.formatCurrency 统一的 3 位小数四舍五入
+  return Number(val.toFixed(3))
+}
+
+/**
  * 通用下载 Workbook 为 .xlsx 文件
  */
 function downloadWorkbook(workbook: XLSX.WorkBook, filename: string) {
@@ -65,7 +87,6 @@ export function exportPriceMatrixToExcel(
   }
 
   const currSymbol = currency === 'USD' ? '$' : '¥'
-  const isUsd = currency === 'USD'
   const rate = exchangeRate > 0 ? exchangeRate : 7.25
 
   const headers = [
@@ -90,15 +111,9 @@ export function exportPriceMatrixToExcel(
   const rows: any[][] = [headers]
 
   for (const item of items) {
-    const inVal = isUsd
-      ? item.calculated_input_usd
-      : (item.calculated_input_cny !== undefined && item.calculated_input_cny > 0 ? item.calculated_input_cny : item.calculated_input_usd * rate)
-    const outVal = isUsd
-      ? item.calculated_output_usd
-      : (item.calculated_output_cny !== undefined && item.calculated_output_cny > 0 ? item.calculated_output_cny : item.calculated_output_usd * rate)
-    const cacheVal = isUsd
-      ? item.calculated_cache_usd
-      : (item.calculated_cache_usd * rate)
+    const inVal = formatExportPrice(item.calculated_input_usd, currency, rate)
+    const outVal = formatExportPrice(item.calculated_output_usd, currency, rate)
+    const cacheVal = formatExportPrice(item.calculated_cache_usd, currency, rate)
 
     const discountText = item.discount_percent
       ? `${item.discount_percent > 0 ? '+' : ''}${item.discount_percent}%`
@@ -112,9 +127,9 @@ export function exportPriceMatrixToExcel(
       item.site_name || '',
       item.site_type || 'relay',
       item.group_name || 'default',
-      inVal !== undefined ? Number(inVal.toFixed(4)) : 0,
-      outVal !== undefined ? Number(outVal.toFixed(4)) : 0,
-      cacheVal !== undefined ? Number(cacheVal.toFixed(4)) : 0,
+      inVal,
+      outVal,
+      cacheVal,
       discountText,
       item.model_ratio ? `${item.model_ratio}x` : '1.0x',
       item.last_tested_tps || '-',
@@ -149,7 +164,6 @@ export function exportChannelModelsToExcel(
   }
 
   const currSymbol = currency === 'USD' ? '$' : '¥'
-  const isUsd = currency === 'USD'
   const rate = exchangeRate > 0 ? exchangeRate : 7.25
 
   const headers = [
@@ -169,12 +183,8 @@ export function exportChannelModelsToExcel(
   const rows: any[][] = [headers]
 
   for (const m of models) {
-    const inVal = isUsd
-      ? (m.calculated_input_usd || 0)
-      : (m.calculated_input_cny !== undefined && m.calculated_input_cny > 0 ? m.calculated_input_cny : (m.calculated_input_usd || 0) * rate)
-    const outVal = isUsd
-      ? (m.calculated_output_usd || 0)
-      : (m.calculated_output_cny !== undefined && m.calculated_output_cny > 0 ? m.calculated_output_cny : (m.calculated_output_usd || 0) * rate)
+    const inVal = formatExportPrice(m.calculated_input_usd, currency, rate)
+    const outVal = formatExportPrice(m.calculated_output_usd, currency, rate)
 
     rows.push([
       channelName,
@@ -184,8 +194,8 @@ export function exportChannelModelsToExcel(
       m.group_name || 'default',
       m.context_window ? Number(m.context_window) : '-',
       m.max_output ? Number(m.max_output) : 8192,
-      Number(inVal.toFixed(4)),
-      Number(outVal.toFixed(4)),
+      inVal,
+      outVal,
       m.is_reasoning || (m.model_id && /r1|o1|o3|reason|deepseek-r/i.test(m.model_id)) ? '支持' : '否',
       m.last_tested_tps || 55
     ])
@@ -217,7 +227,6 @@ export function exportVendorModelsToExcel(
   }
 
   const currSymbol = currency === 'USD' ? '$' : '¥'
-  const isUsd = currency === 'USD'
   const rate = exchangeRate > 0 ? exchangeRate : 7.25
 
   const headers = [
@@ -240,13 +249,13 @@ export function exportVendorModelsToExcel(
   const rows: any[][] = [headers]
 
   for (const m of models) {
-    const rawOffIn = m.official_input_price || 0
-    const rawOffOut = m.official_output_price || 0
-    const rawLowest = m.lowest_price_usd || 0
+    const rawOffIn = m.official_input_price
+    const rawOffOut = m.official_output_price
+    const rawLowest = m.lowest_price_usd
 
-    const offIn = isUsd ? rawOffIn : rawOffIn * rate
-    const offOut = isUsd ? rawOffOut : rawOffOut * rate
-    const lowest = isUsd ? rawLowest : rawLowest * rate
+    const offIn = formatExportPrice(rawOffIn, currency, rate)
+    const offOut = formatExportPrice(rawOffOut, currency, rate)
+    const lowest = formatExportPrice(rawLowest, currency, rate)
 
     rows.push([
       vendorName.toUpperCase(),
@@ -255,9 +264,9 @@ export function exportVendorModelsToExcel(
       m.series || '通用系列',
       m.context_window ? Number(m.context_window) : '-',
       m.max_output ? Number(m.max_output) : 8192,
-      rawOffIn > 0 ? Number(offIn.toFixed(4)) : '未标价/0',
-      rawOffOut > 0 ? Number(offOut.toFixed(4)) : '未标价/0',
-      rawLowest > 0 ? Number(lowest.toFixed(4)) : '未标价/0',
+      rawOffIn && rawOffIn > 0 ? offIn : '未标价/0',
+      rawOffOut && rawOffOut > 0 ? offOut : '未标价/0',
+      rawLowest && rawLowest > 0 ? lowest : '未标价/0',
       m.active_relay_count || m.providersCount || 0,
       m.modalities && m.modalities.length > 0 ? m.modalities.join('/') : 'text->text',
       m.supports_reasoning || /r1|o1|o3|reason/i.test(m.model_id) ? '支持' : '否',

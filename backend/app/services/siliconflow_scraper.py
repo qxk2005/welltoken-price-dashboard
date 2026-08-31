@@ -666,9 +666,9 @@ class SiliconFlowScraperService:
 
                         # 为每个区间段创建独立行
                         for tier in item.price_tiers:
-                            tier_input_usd = round(tier.input_price_cny / usd_to_cny_rate, 4) if usd_to_cny_rate > 0 else 0
-                            tier_output_usd = round(tier.output_price_cny / usd_to_cny_rate, 4) if usd_to_cny_rate > 0 else 0
-                            tier_cache_usd = round((tier.cache_price_cny or 0) / usd_to_cny_rate, 4) if usd_to_cny_rate > 0 else 0
+                            tier_input_usd = round(tier.input_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0
+                            tier_output_usd = round(tier.output_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0
+                            tier_cache_usd = round((tier.cache_price_cny or 0) / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0
 
                             tier_discount = 0.0
                             if model_meta.official_input_price > 0 and tier_input_usd > 0:
@@ -694,9 +694,9 @@ class SiliconFlowScraperService:
                             prices_created += 1
                     else:
                         # 非分段定价：正常单行入库
-                        input_usd = round(item.input_price_cny / usd_to_cny_rate, 4) if usd_to_cny_rate > 0 else 0
-                        output_usd = round(item.output_price_cny / usd_to_cny_rate, 4) if usd_to_cny_rate > 0 else 0
-                        cache_usd = round(item.cache_price_cny / usd_to_cny_rate, 4) if usd_to_cny_rate > 0 else 0
+                        input_usd = round(item.input_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0
+                        output_usd = round(item.output_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0
+                        cache_usd = round(item.cache_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0
 
                         p_stmt = select(SiteModelPricing).where(
                             SiteModelPricing.site_id == site.id,
