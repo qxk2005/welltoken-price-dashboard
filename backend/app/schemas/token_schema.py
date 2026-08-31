@@ -471,3 +471,54 @@ class SiliconFlowImportResponse(BaseModel):
     prices_updated: int = 0         # 更新的 SiteModelPricing 数量
     prices_created: int = 0         # 新建的 SiteModelPricing 数量
     error_message: str = ""
+
+
+# --- 阿里百炼 Aliyun Model Studio 爬取相关 ---
+class BailianPriceTier(BaseModel):
+    """阿里百炼分段定价条目"""
+    tier_label: str = ""           # 价格段标签，如 "0<Token≤32K" 或 "32K<Token≤128K"
+    input_price_cny: float = 0.0   # 该段输入价格 (¥/1M Tokens)
+    output_price_cny: float = 0.0  # 该段输出价格 (¥/1M Tokens)
+    cache_price_cny: float = 0.0   # 该段缓存价格 (¥/1M Tokens)
+
+class BailianModelItem(BaseModel):
+    """阿里百炼爬取到的单个模型价格信息"""
+    model_id: str                  # 模型标准 ID，如 qwen3.8-max
+    display_name: str              # 显示名称，如 Qwen3.8-Max
+    provider: str = "alibaba"      # 厂商归属，如 alibaba / deepseek / zhipuai 等
+    category: str = "千问系列"      # 模型类别：千问系列 / 第三方开源模型 / 多模态 / 语音 / 视频等
+    input_price_cny: float = 0.0   # 输入价格 (¥/1M Tokens)
+    output_price_cny: float = 0.0  # 输出价格 (¥/1M Tokens)
+    cache_price_cny: float = 0.0   # 缓存价格 (¥/1M Tokens)
+    is_free: bool = False          # 是否免费模型
+    has_tiered_pricing: bool = False  # 是否存在阶梯分段定价
+    price_tiers: List[BailianPriceTier] = []  # 分段定价明细
+    price_note: str = ""           # 价格备注 (限时折扣、原价说明等)
+
+class BailianScrapeResponse(BaseModel):
+    """阿里百炼爬取结果响应"""
+    status: str = "success"
+    total_models: int = 0
+    category_counts: Dict[str, int] = {}
+    free_models_count: int = 0
+    tiered_models_count: int = 0
+    models: List[BailianModelItem] = []
+    scrape_duration_ms: float = 0.0
+    error_message: str = ""
+
+class BailianImportRequest(BaseModel):
+    """阿里百炼导入请求"""
+    models: List[BailianModelItem]
+    site_id: Optional[int] = None
+
+class BailianImportResponse(BaseModel):
+    """阿里百炼导入结果响应"""
+    status: str = "success"
+    site_id: int = 0
+    site_name: str = ""
+    total_imported: int = 0
+    new_models_created: int = 0
+    prices_updated: int = 0
+    prices_created: int = 0
+    error_message: str = ""
+

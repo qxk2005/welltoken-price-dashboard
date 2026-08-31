@@ -15,8 +15,10 @@ from backend.app.services.relay_fetcher import relay_fetcher
 from backend.app.services.model_normalizer import model_normalizer
 from backend.app.services.dashboard_service import dashboard_service
 from backend.app.services.siliconflow_scraper import siliconflow_scraper
+from backend.app.services.bailian_scraper import bailian_scraper
 from backend.app.schemas.token_schema import (
-    SiliconFlowScrapeResponse, SiliconFlowImportRequest, SiliconFlowImportResponse
+    SiliconFlowScrapeResponse, SiliconFlowImportRequest, SiliconFlowImportResponse,
+    BailianScrapeResponse, BailianImportRequest, BailianImportResponse
 )
 
 router = APIRouter(prefix="/channels", tags=["Relay Channels & Providers"])
@@ -547,6 +549,31 @@ async def import_siliconflow_pricing(req: SiliconFlowImportRequest):
     rate = dashboard_service.usd_to_cny_rate or 7.25
 
     result = await siliconflow_scraper.import_to_database(
+        models=req.models,
+        usd_to_cny_rate=rate,
+        site_id=req.site_id
+    )
+    if result.status == "error":
+        raise HTTPException(status_code=500, detail=result.error_message)
+    return result
+
+
+@router.post("/scrape-bailian", response_model=BailianScrapeResponse)
+async def scrape_bailian_pricing():
+    """爬取阿里百炼官方定价 (仅返回 JSON 预览，不写入数据库)"""
+    result = await bailian_scraper.scrape_pricing_page()
+    if result.status == "error":
+        raise HTTPException(status_code=500, detail=result.error_message)
+    return result
+
+
+@router.post("/import-bailian", response_model=BailianImportResponse)
+async def import_bailian_pricing(req: BailianImportRequest):
+    """将爬取到的阿里百炼模型价格数据导入数据库 (增量更新)"""
+    await dashboard_service.ensure_settings_loaded()
+    rate = dashboard_service.usd_to_cny_rate or 7.25
+
+    result = await bailian_scraper.save_to_database(
         models=req.models,
         usd_to_cny_rate=rate,
         site_id=req.site_id

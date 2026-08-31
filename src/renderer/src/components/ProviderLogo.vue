@@ -40,12 +40,17 @@
       <path d="M12 2l2.4 7.4h7.6l-6.2 4.5 2.4 7.4-6.2-4.5-6.2 4.5 2.4-7.4-6.2-4.5h7.6z"/>
     </svg>
 
-    <!-- 9. SiliconFlow (硅基流动) / Bailing / 其他推理平台 -->
-    <svg v-else-if="normalizedId === 'siliconflow' || normalizedId === 'bailing'" viewBox="0 0 24 24" class="w-full h-full text-[#0071E3] fill-current">
+    <!-- 9. SiliconFlow (硅基流动) -->
+    <svg v-else-if="normalizedId === 'siliconflow'" viewBox="0 0 24 24" class="w-full h-full text-[#6E29F6] fill-current">
       <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
     </svg>
 
-    <!-- 10. 默认/通用 供应商 Logo 几何方块 -->
+    <!-- 10. 阿里百炼 / 阿里云 (Aliyun Model Studio) -->
+    <svg v-else-if="normalizedId === 'aliyun_bailian' || normalizedId === 'bailian' || normalizedId === 'alibaba' || normalizedId === 'aliyun'" viewBox="0 0 24 24" class="w-full h-full text-[#FF6A00] fill-current">
+      <path d="M12 2L2 8.5v7L12 22l10-6.5v-7L12 2zm0 3.3L18.7 10 12 14.7 5.3 10 12 5.3zM4 14.5v-3.2l7 4.9v3.4l-7-5.1zm16 0l-7 5.1v-3.4l7-4.9v3.2z"/>
+    </svg>
+
+    <!-- 11. 默认/通用 供应商 Logo 几何方块 -->
     <div v-else class="w-full h-full rounded-lg bg-[#F2F2F7] border border-[#E5E5EA] flex items-center justify-center text-xs font-bold font-mono text-[#0071E3]">
       {{ normalizedId.slice(0, 2).toUpperCase() }}
     </div>
