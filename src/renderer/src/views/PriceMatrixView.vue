@@ -814,6 +814,7 @@ import ChannelDetailDrawer from '../components/ChannelDetailDrawer.vue'
 import VendorDetailDrawer from '../components/VendorDetailDrawer.vue'
 import SystemIcon from '../components/SystemIcon.vue'
 import type { ComparisonItem } from '../types'
+import { parseUtcDate, formatRelativeTime } from '../utils/timeUtils'
 
 const store = useDashboardStore()
 const showAddModal = ref(false)
@@ -1497,8 +1498,8 @@ const formatSourceTime = (row: ComparisonItem): string => {
     if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
       return raw
     }
-    const d = new Date(raw)
-    if (!isNaN(d.getTime())) {
+    const d = parseUtcDate(raw)
+    if (d) {
       const m = String(d.getMonth() + 1).padStart(2, '0')
       const day = String(d.getDate()).padStart(2, '0')
       const h = String(d.getHours()).padStart(2, '0')
@@ -1510,25 +1511,7 @@ const formatSourceTime = (row: ComparisonItem): string => {
   }
 
   // 相对时间模式: 如 4个月前, 10分钟前, 刚刚
-  const d = new Date(raw)
-  if (!isNaN(d.getTime())) {
-    const now = new Date()
-    const diffSec = Math.floor((now.getTime() - d.getTime()) / 1000)
-    if (diffSec < 0) return raw
-    const diffMin = Math.floor(diffSec / 60)
-    const diffHour = Math.floor(diffMin / 60)
-    const diffDay = Math.floor(diffHour / 24)
-    const diffMonth = Math.floor(diffDay / 30)
-    const diffYear = Math.floor(diffDay / 365)
-
-    if (diffMin < 1) return '刚刚'
-    if (diffMin < 60) return `${diffMin}分钟前`
-    if (diffHour < 24) return `${diffHour}小时前`
-    if (diffDay < 30) return `${diffDay}天前`
-    if (diffMonth < 12) return `${diffMonth}个月前`
-    return `${diffYear}年前`
-  }
-  return raw
+  return formatRelativeTime(raw)
 }
 
 const getSourceTimeTooltip = (row: ComparisonItem): string => {

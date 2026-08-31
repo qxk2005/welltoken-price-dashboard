@@ -590,6 +590,7 @@ import axios from 'axios'
 import { useDashboardStore } from '../stores/dashboardStore'
 import SystemIcon from '../components/SystemIcon.vue'
 import type { ICloudSyncConfig } from '../types'
+import { parseUtcDate } from '../utils/timeUtils'
 
 const store = useDashboardStore()
 const customRate = ref(7.25)
@@ -708,7 +709,8 @@ const handleImportLocalFile = async (e: Event) => {
 
 const formatFullTime = (timeStr?: string | null) => {
   if (!timeStr) return '刚刚 (实时同步)'
-  const d = new Date(timeStr)
+  const d = parseUtcDate(timeStr)
+  if (!d) return timeStr
   return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`
 }
 

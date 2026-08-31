@@ -1315,6 +1315,7 @@ import AddChannelWizardModal from '../components/AddChannelWizardModal.vue'
 import ScoreBreakdownTooltip from '../components/ScoreBreakdownTooltip.vue'
 import SystemIcon from '../components/SystemIcon.vue'
 import type { RelaySite } from '../types'
+import { parseUtcDate, formatRelativeTime } from '../utils/timeUtils'
 
 const store = useDashboardStore()
 const searchKey = ref('')
@@ -2087,39 +2088,15 @@ const getChannelUpdateTimeRaw = (site: RelaySite | null): string => {
 const getChannelRelativeUpdateTime = (site: RelaySite | null): string => {
   const raw = getChannelUpdateTimeRaw(site)
   if (!raw) return '刚刚'
-
-  try {
-    const targetDate = new Date(raw.replace(' ', 'T'))
-    if (isNaN(targetDate.getTime())) return '刚刚'
-
-    const now = new Date()
-    const diffMs = now.getTime() - targetDate.getTime()
-    if (diffMs < 0) return '刚刚'
-
-    const diffSeconds = Math.floor(diffMs / 1000)
-    const diffMinutes = Math.floor(diffSeconds / 60)
-    const diffHours = Math.floor(diffMinutes / 60)
-    const diffDays = Math.floor(diffHours / 24)
-    const diffMonths = Math.floor(diffDays / 30)
-    const diffYears = Math.floor(diffDays / 365)
-
-    if (diffSeconds < 60) return '刚刚'
-    if (diffMinutes < 60) return `${diffMinutes}分钟前`
-    if (diffHours < 24) return `${diffHours}小时前`
-    if (diffDays < 30) return `${diffDays}天前`
-    if (diffMonths < 12) return `${diffMonths}个月前`
-    return `${diffYears}年前`
-  } catch (e) {
-    return '刚刚'
-  }
+  return formatRelativeTime(raw)
 }
 
 const getChannelShortUpdateTime = (site: RelaySite | null): string => {
   const raw = getChannelUpdateTimeRaw(site)
   if (!raw) return ''
   try {
-    const d = new Date(raw.replace(' ', 'T'))
-    if (isNaN(d.getTime())) return raw.slice(0, 10)
+    const d = parseUtcDate(raw)
+    if (!d) return raw.slice(0, 10)
     const m = String(d.getMonth() + 1).padStart(2, '0')
     const day = String(d.getDate()).padStart(2, '0')
     const h = String(d.getHours()).padStart(2, '0')
