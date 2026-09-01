@@ -591,19 +591,9 @@
 
       <!-- 3. 该供应商所能提供的完整模型与价格数据表格 (支持 3 种视图模式切换) -->
       <div class="flex-1 flex flex-col bg-[#FFFFFF] rounded-2xl border border-[#E5E5EA] p-3 shadow-[0_1px_3px_rgba(0,0,0,0.02)] overflow-hidden min-h-0">
-        <!-- 头部导航栏：标题 + 匹配数 + 三段式视图选择器 + 价格分组胶囊 + 搜索框 -->
+        <!-- 头部导航栏：三段式视图选择器 + 模型数胶囊 + 价格分组胶囊 + 0元过滤 + 搜索框 + 自定义列 + 导出 -->
         <div class="flex items-center justify-between pb-2.5 border-b border-[#E5E5EA]">
-          <div class="flex items-center space-x-2.5 flex-wrap gap-y-1">
-            <span class="text-xs font-bold text-[#1D1D1F]">
-              📋 旗下可用模型规格与定价清单 (共 {{ providerModelsList.length }} 款)
-            </span>
-            <span
-              v-if="filteredProviderModels.length !== providerModelsList.length"
-              class="text-[11px] font-normal text-[#6E6E73] bg-[#F2F2F7] px-2 py-0.5 rounded-full border border-[#E5E5EA]"
-            >
-              已匹配 <strong class="text-[#0071E3] font-mono">{{ filteredProviderModels.length }}</strong> 款
-            </span>
-
+          <div class="flex items-center space-x-2 flex-wrap gap-y-1">
             <!-- 视图模式分段选择器 (Segmented Control) -->
             <div class="inline-flex p-0.5 rounded-xl bg-[#E5E5EA]/70 border border-[#D1D1D6]/60 text-xs select-none">
               <button
@@ -628,6 +618,19 @@
                 <span>🤖 按模型对比</span>
               </button>
             </div>
+
+            <!-- 模型总数与匹配数紧凑胶囊 -->
+            <span
+              class="text-[11px] font-mono text-[#6E6E73] bg-[#F2F2F7] px-2 py-0.5 rounded-full border border-[#E5E5EA] select-none"
+              :title="`共收录 ${providerModelsList.length} 款可用模型，当前筛选匹配 ${filteredProviderModels.length} 款`"
+            >
+              <template v-if="filteredProviderModels.length !== providerModelsList.length">
+                匹配 <strong class="text-[#0071E3] font-bold">{{ filteredProviderModels.length }}</strong> / {{ providerModelsList.length }} 款
+              </template>
+              <template v-else>
+                共 <strong class="text-[#1D1D1F] font-bold">{{ providerModelsList.length }}</strong> 款模型
+              </template>
+            </span>
           </div>
 
           <!-- 右侧组合工具条：分组下拉胶囊 + 搜索框 -->
