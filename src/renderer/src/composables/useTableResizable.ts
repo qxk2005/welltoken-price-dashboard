@@ -70,6 +70,7 @@ export function useTableResizable(options: UseTableResizableOptions) {
 
     isResizing.value = true
     resizingColumn.value = key
+    let hasDragged = false
 
     const startX = event.clientX
     const startWidth = columnWidths.value[key] || defaultWidths[key] || 100
@@ -77,10 +78,19 @@ export function useTableResizable(options: UseTableResizableOptions) {
     const onMouseMove = (e: MouseEvent) => {
       if (!isResizing.value) return
       const deltaX = e.clientX - startX
+      if (Math.abs(deltaX) > 2) {
+        hasDragged = true
+      }
       let newWidth = Math.round(startWidth + deltaX)
       if (newWidth < minWidth) newWidth = minWidth
       if (newWidth > maxWidth) newWidth = maxWidth
       columnWidths.value[key] = newWidth
+    }
+
+    const preventClick = (e: MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      e.stopImmediatePropagation()
     }
 
     const onMouseUp = () => {
@@ -93,6 +103,14 @@ export function useTableResizable(options: UseTableResizableOptions) {
       window.removeEventListener('mouseup', onMouseUp)
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
+
+      if (hasDragged) {
+        // 捕获阶段拦截接下来的 click 事件，彻底防止触发 th 上的排序点击
+        window.addEventListener('click', preventClick, { capture: true, once: true })
+        setTimeout(() => {
+          window.removeEventListener('click', preventClick, { capture: true })
+        }, 200)
+      }
     }
 
     document.body.style.cursor = 'col-resize'

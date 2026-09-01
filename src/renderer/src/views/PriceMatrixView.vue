@@ -420,6 +420,16 @@
         </div>
 
         <table class="w-full text-left text-xs border-collapse min-w-full table-fixed">
+          <!-- 标准列宽定义 (严格对齐并在 table-fixed 下杜绝错位) -->
+          <colgroup>
+            <col :style="{ width: getMatrixColWidth('model_id') }" />
+            <col
+              v-for="col in visibleMatrixColumns"
+              :key="`col-${col.key}`"
+              :style="{ width: getMatrixColWidth(col.key) }"
+            />
+          </colgroup>
+
           <!-- 表头 (支持点击多列排序与鼠标拖拽调整列宽) -->
           <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans select-none whitespace-nowrap">
             <tr>

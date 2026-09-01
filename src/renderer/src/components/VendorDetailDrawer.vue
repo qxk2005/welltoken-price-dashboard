@@ -178,6 +178,17 @@
             <!-- 数据表格 -->
             <div class="flex-1 overflow-x-auto overflow-y-auto pr-1 mt-1">
               <table class="w-full text-left text-xs border-collapse min-w-full table-fixed">
+                <!-- 标准列宽定义 (严格对齐并在 table-fixed 下杜绝错位) -->
+                <colgroup>
+                  <col :style="{ width: getVendorDrawerColWidth('model_name') }" />
+                  <col
+                    v-for="col in visibleVendorColumns"
+                    :key="`col-vd-${col.key}`"
+                    :style="{ width: getVendorDrawerColWidth(col.key) }"
+                  />
+                  <col :style="{ width: getVendorDrawerColWidth('actions') }" />
+                </colgroup>
+
                 <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans select-none whitespace-nowrap">
                   <tr>
                     <th

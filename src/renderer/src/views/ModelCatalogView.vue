@@ -198,6 +198,17 @@
         <!-- 数据表格滚动容器 -->
         <div class="flex-1 overflow-x-auto overflow-y-auto pr-1">
           <table class="w-full text-left text-xs border-collapse min-w-full table-fixed">
+            <!-- 标准列宽定义 (严格对齐并在 table-fixed 下杜绝错位) -->
+            <colgroup>
+              <col :style="{ width: getCatalogColWidth('name') }" />
+              <col
+                v-for="col in visibleCatalogColumns"
+                :key="`col-cat-${col.key}`"
+                :style="{ width: getCatalogColWidth(col.key) }"
+              />
+              <col :style="{ width: getCatalogColWidth('actions') }" />
+            </colgroup>
+
             <!-- 表头 (支持点击排序与拖拽调整列宽) -->
             <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans select-none whitespace-nowrap">
               <tr>
