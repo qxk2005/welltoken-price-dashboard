@@ -419,51 +419,169 @@
           </div>
         </div>
 
-        <table class="w-full text-left text-xs border-collapse min-w-full">
-          <!-- 表头 (支持点击多列排序) -->
+        <table class="w-full text-left text-xs border-collapse min-w-full table-fixed">
+          <!-- 表头 (支持点击多列排序与鼠标拖拽调整列宽) -->
           <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans select-none whitespace-nowrap">
             <tr>
               <!-- 固定首列：模型标准标识 -->
-              <th @click="toggleSort('model_id')" class="py-3 px-2 cursor-pointer hover:text-[#1D1D1F] transition-colors">
-                模型标准标识 <span class="text-[10px] font-mono" :class="sortField === 'model_id' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('model_id') }}</span>
+              <th
+                @click="toggleSort('model_id')"
+                class="py-3 px-2 cursor-pointer hover:text-[#1D1D1F] transition-colors relative group/th"
+                :style="{ width: getMatrixColWidth('model_id'), minWidth: getMatrixColWidth('model_id') }"
+              >
+                <div class="truncate pr-2">
+                  模型标准标识 <span class="text-[10px] font-mono" :class="sortField === 'model_id' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('model_id') }}</span>
+                </div>
+                <!-- 拖拽列宽手柄 -->
+                <div
+                  class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                  @mousedown.stop="startMatrixResize('model_id', $event)"
+                  @dblclick.stop="resetMatrixColWidth('model_id')"
+                  title="按住拖拽调整列宽，双击恢复默认"
+                ></div>
               </th>
 
               <!-- 动态配置列表头 -->
               <template v-for="col in visibleMatrixColumns" :key="col.key">
-                <th v-if="col.key === 'series'" @click="toggleSort('series')" class="py-3 px-2 cursor-pointer hover:text-[#1D1D1F] transition-colors w-32">
-                  模型系列 / 厂商 <span class="text-[10px] font-mono" :class="sortField === 'series' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('series') }}</span>
+                <th
+                  v-if="col.key === 'series'"
+                  @click="toggleSort('series')"
+                  class="py-3 px-2 cursor-pointer hover:text-[#1D1D1F] transition-colors relative group/th"
+                  :style="{ width: getMatrixColWidth('series'), minWidth: getMatrixColWidth('series') }"
+                >
+                  <div class="truncate pr-2">
+                    模型系列 / 厂商 <span class="text-[10px] font-mono" :class="sortField === 'series' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('series') }}</span>
+                  </div>
+                  <div
+                    class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                    @mousedown.stop="startMatrixResize('series', $event)"
+                    @dblclick.stop="resetMatrixColWidth('series')"
+                    title="按住拖拽调整列宽，双击恢复默认"
+                  ></div>
                 </th>
 
-                <th v-else-if="col.key === 'site_name'" @click="toggleSort('site_name')" class="py-3 px-2 cursor-pointer hover:text-[#1D1D1F] transition-colors w-36">
-                  渠道 / 供应商 <span class="text-[10px] font-mono" :class="sortField === 'site_name' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('site_name') }}</span>
+                <th
+                  v-else-if="col.key === 'site_name'"
+                  @click="toggleSort('site_name')"
+                  class="py-3 px-2 cursor-pointer hover:text-[#1D1D1F] transition-colors relative group/th"
+                  :style="{ width: getMatrixColWidth('site_name'), minWidth: getMatrixColWidth('site_name') }"
+                >
+                  <div class="truncate pr-2">
+                    渠道 / 供应商 <span class="text-[10px] font-mono" :class="sortField === 'site_name' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('site_name') }}</span>
+                  </div>
+                  <div
+                    class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                    @mousedown.stop="startMatrixResize('site_name', $event)"
+                    @dblclick.stop="resetMatrixColWidth('site_name')"
+                    title="按住拖拽调整列宽，双击恢复默认"
+                  ></div>
                 </th>
 
-                <th v-else-if="col.key === 'site_type'" class="py-3 px-1.5 text-center w-16">
-                  类型
+                <th
+                  v-else-if="col.key === 'site_type'"
+                  class="py-3 px-1.5 text-center relative group/th"
+                  :style="{ width: getMatrixColWidth('site_type'), minWidth: getMatrixColWidth('site_type') }"
+                >
+                  <div class="truncate pr-1">类型</div>
+                  <div
+                    class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                    @mousedown.stop="startMatrixResize('site_type', $event)"
+                    @dblclick.stop="resetMatrixColWidth('site_type')"
+                    title="按住拖拽调整列宽，双击恢复默认"
+                  ></div>
                 </th>
 
-                <th v-else-if="col.key === 'input_price'" @click="toggleSort('calculated_input_usd')" class="py-3 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
-                  输入单价 <span class="text-[10px] font-mono" :class="sortField === 'calculated_input_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('calculated_input_usd') }}</span>
+                <th
+                  v-else-if="col.key === 'input_price'"
+                  @click="toggleSort('calculated_input_usd')"
+                  class="py-3 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors relative group/th"
+                  :style="{ width: getMatrixColWidth('input_price'), minWidth: getMatrixColWidth('input_price') }"
+                >
+                  <div class="truncate pr-2">
+                    输入单价 <span class="text-[10px] font-mono" :class="sortField === 'calculated_input_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('calculated_input_usd') }}</span>
+                  </div>
+                  <div
+                    class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                    @mousedown.stop="startMatrixResize('input_price', $event)"
+                    @dblclick.stop="resetMatrixColWidth('input_price')"
+                    title="按住拖拽调整列宽，双击恢复默认"
+                  ></div>
                 </th>
 
-                <th v-else-if="col.key === 'output_price'" @click="toggleSort('calculated_output_usd')" class="py-3 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
-                  输出单价 <span class="text-[10px] font-mono" :class="sortField === 'calculated_output_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('calculated_output_usd') }}</span>
+                <th
+                  v-else-if="col.key === 'output_price'"
+                  @click="toggleSort('calculated_output_usd')"
+                  class="py-3 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors relative group/th"
+                  :style="{ width: getMatrixColWidth('output_price'), minWidth: getMatrixColWidth('output_price') }"
+                >
+                  <div class="truncate pr-2">
+                    输出单价 <span class="text-[10px] font-mono" :class="sortField === 'calculated_output_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('calculated_output_usd') }}</span>
+                  </div>
+                  <div
+                    class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                    @mousedown.stop="startMatrixResize('output_price', $event)"
+                    @dblclick.stop="resetMatrixColWidth('output_price')"
+                    title="按住拖拽调整列宽，双击恢复默认"
+                  ></div>
                 </th>
 
-                <th v-else-if="col.key === 'cache_price'" @click="toggleSort('calculated_cache_usd')" class="py-3 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
-                  命中缓存 <span class="text-[10px] font-mono" :class="sortField === 'calculated_cache_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('calculated_cache_usd') }}</span>
+                <th
+                  v-else-if="col.key === 'cache_price'"
+                  @click="toggleSort('calculated_cache_usd')"
+                  class="py-3 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors relative group/th"
+                  :style="{ width: getMatrixColWidth('cache_price'), minWidth: getMatrixColWidth('cache_price') }"
+                >
+                  <div class="truncate pr-2">
+                    命中缓存 <span class="text-[10px] font-mono" :class="sortField === 'calculated_cache_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('calculated_cache_usd') }}</span>
+                  </div>
+                  <div
+                    class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                    @mousedown.stop="startMatrixResize('cache_price', $event)"
+                    @dblclick.stop="resetMatrixColWidth('cache_price')"
+                    title="按住拖拽调整列宽，双击恢复默认"
+                  ></div>
                 </th>
 
-                <th v-else-if="col.key === 'model_ratio'" @click="toggleSort('model_ratio')" class="py-3 px-1.5 text-center cursor-pointer hover:text-[#1D1D1F] transition-colors w-14">
-                  倍率 <span class="text-[10px] font-mono" :class="sortField === 'model_ratio' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('model_ratio') }}</span>
+                <th
+                  v-else-if="col.key === 'model_ratio'"
+                  @click="toggleSort('model_ratio')"
+                  class="py-3 px-1.5 text-center cursor-pointer hover:text-[#1D1D1F] transition-colors relative group/th"
+                  :style="{ width: getMatrixColWidth('model_ratio'), minWidth: getMatrixColWidth('model_ratio') }"
+                >
+                  <div class="truncate pr-1">
+                    倍率 <span class="text-[10px] font-mono" :class="sortField === 'model_ratio' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('model_ratio') }}</span>
+                  </div>
+                  <div
+                    class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                    @mousedown.stop="startMatrixResize('model_ratio', $event)"
+                    @dblclick.stop="resetMatrixColWidth('model_ratio')"
+                    title="按住拖拽调整列宽，双击恢复默认"
+                  ></div>
                 </th>
 
-                <th v-else-if="col.key === 'tps'" @click="toggleSort('last_tested_tps')" class="py-3 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-20">
-                  实测 TPS <span class="text-[10px] font-mono" :class="sortField === 'last_tested_tps' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('last_tested_tps') }}</span>
+                <th
+                  v-else-if="col.key === 'tps'"
+                  @click="toggleSort('last_tested_tps')"
+                  class="py-3 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors relative group/th"
+                  :style="{ width: getMatrixColWidth('tps'), minWidth: getMatrixColWidth('tps') }"
+                >
+                  <div class="truncate pr-2">
+                    实测 TPS <span class="text-[10px] font-mono" :class="sortField === 'last_tested_tps' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('last_tested_tps') }}</span>
+                  </div>
+                  <div
+                    class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                    @mousedown.stop="startMatrixResize('tps', $event)"
+                    @dblclick.stop="resetMatrixColWidth('tps')"
+                    title="按住拖拽调整列宽，双击恢复默认"
+                  ></div>
                 </th>
 
-                <th v-else-if="col.key === 'updated_at'" class="py-3 px-2 text-right w-36 select-none">
-                  <div class="flex items-center justify-end space-x-1">
+                <th
+                  v-else-if="col.key === 'updated_at'"
+                  class="py-3 px-2 text-right select-none relative group/th"
+                  :style="{ width: getMatrixColWidth('updated_at'), minWidth: getMatrixColWidth('updated_at') }"
+                >
+                  <div class="flex items-center justify-end space-x-1 pr-2 truncate">
                     <span
                       @click="toggleTimeDisplayMode"
                       class="cursor-pointer hover:text-[#0071E3] transition-colors inline-flex items-center space-x-1"
@@ -482,6 +600,12 @@
                       </span>
                     </button>
                   </div>
+                  <div
+                    class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                    @mousedown.stop="startMatrixResize('updated_at', $event)"
+                    @dblclick.stop="resetMatrixColWidth('updated_at')"
+                    title="按住拖拽调整列宽，双击恢复默认"
+                  ></div>
                 </th>
               </template>
             </tr>
@@ -505,7 +629,7 @@
               ]"
             >
               <!-- 1. 模型标准标识 与 梯度/分段定价标签 (双行紧凑布局) -->
-              <td class="py-2 px-2">
+              <td class="py-2 px-2" :style="{ width: getMatrixColWidth('model_id'), minWidth: getMatrixColWidth('model_id') }">
                 <div class="flex flex-col space-y-0.5 truncate">
                   <div class="font-bold text-[#0071E3] font-mono truncate text-xs" :title="row.model_id">
                     {{ row.model_id }}
@@ -530,7 +654,7 @@
               <!-- 动态配置列单元格 -->
               <template v-for="col in visibleMatrixColumns" :key="col.key">
                 <!-- 模型系列与厂商 (双行紧凑布局) -->
-                <td v-if="col.key === 'series'" class="py-2 px-2">
+                <td v-if="col.key === 'series'" class="py-2 px-2" :style="{ width: getMatrixColWidth('series'), minWidth: getMatrixColWidth('series') }">
                   <div class="flex flex-col space-y-0.5 truncate">
                     <div class="flex items-center space-x-1">
                       <button
@@ -549,7 +673,7 @@
                 </td>
 
                 <!-- 渠道站点与收藏星标 (双行紧凑布局) -->
-                <td v-else-if="col.key === 'site_name'" class="py-2 px-2">
+                <td v-else-if="col.key === 'site_name'" class="py-2 px-2" :style="{ width: getMatrixColWidth('site_name'), minWidth: getMatrixColWidth('site_name') }">
                   <div class="flex flex-col space-y-0.5 truncate">
                     <div class="flex items-center space-x-1.5 truncate">
                       <button
@@ -596,7 +720,7 @@
                 </td>
 
                 <!-- 类型徽标 -->
-                <td v-else-if="col.key === 'site_type'" class="py-2 px-1.5 text-center">
+                <td v-else-if="col.key === 'site_type'" class="py-2 px-1.5 text-center" :style="{ width: getMatrixColWidth('site_type'), minWidth: getMatrixColWidth('site_type') }">
                   <span
                     class="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold uppercase"
                     :class="getTypeBadgeClass(row.site_type)"
@@ -606,17 +730,17 @@
                 </td>
 
                 <!-- 输入价格 -->
-                <td v-else-if="col.key === 'input_price'" class="py-2 px-2 text-right font-mono font-bold text-[#34C759] text-xs">
+                <td v-else-if="col.key === 'input_price'" class="py-2 px-2 text-right font-mono font-bold text-[#34C759] text-xs" :style="{ width: getMatrixColWidth('input_price'), minWidth: getMatrixColWidth('input_price') }">
                   {{ formatPrice(row.calculated_input_usd, row.calculated_input_cny) }}
                 </td>
 
                 <!-- 输出价格 -->
-                <td v-else-if="col.key === 'output_price'" class="py-2 px-2 text-right font-mono text-[#1D1D1F] text-xs">
+                <td v-else-if="col.key === 'output_price'" class="py-2 px-2 text-right font-mono text-[#1D1D1F] text-xs" :style="{ width: getMatrixColWidth('output_price'), minWidth: getMatrixColWidth('output_price') }">
                   {{ formatPrice(row.calculated_output_usd, row.calculated_output_cny) }}
                 </td>
 
                 <!-- 命中缓存单价 -->
-                <td v-else-if="col.key === 'cache_price'" class="py-2 px-2 text-right font-mono font-semibold text-xs">
+                <td v-else-if="col.key === 'cache_price'" class="py-2 px-2 text-right font-mono font-semibold text-xs" :style="{ width: getMatrixColWidth('cache_price'), minWidth: getMatrixColWidth('cache_price') }">
                   <span v-if="(row.calculated_cache_usd && row.calculated_cache_usd > 0) || (row.calculated_cache_cny && row.calculated_cache_cny > 0)" class="text-[#8E24AA]">
                     {{ formatPrice(row.calculated_cache_usd, row.calculated_cache_cny || (row.calculated_cache_usd * (store.usdToCnyRate || 7.25))) }}
                   </span>
@@ -624,17 +748,17 @@
                 </td>
 
                 <!-- 倍率 -->
-                <td v-else-if="col.key === 'model_ratio'" class="py-2 px-1.5 text-center font-mono text-[#6E6E73] font-semibold text-xs">
+                <td v-else-if="col.key === 'model_ratio'" class="py-2 px-1.5 text-center font-mono text-[#6E6E73] font-semibold text-xs" :style="{ width: getMatrixColWidth('model_ratio'), minWidth: getMatrixColWidth('model_ratio') }">
                   {{ row.model_ratio }}x
                 </td>
 
                 <!-- 实测 TPS -->
-                <td v-else-if="col.key === 'tps'" class="py-2 px-2 text-right font-mono text-[#0071E3] font-bold text-xs">
+                <td v-else-if="col.key === 'tps'" class="py-2 px-2 text-right font-mono text-[#0071E3] font-bold text-xs" :style="{ width: getMatrixColWidth('tps'), minWidth: getMatrixColWidth('tps') }">
                   {{ row.last_tested_tps }} <span class="text-[9px] text-[#86868B] font-normal">tps</span>
                 </td>
 
                 <!-- 数据更新时间 (区分 models.dev 原生时间与手工渠道同步时间) -->
-                <td v-else-if="col.key === 'updated_at'" class="py-2 px-2 text-right whitespace-nowrap">
+                <td v-else-if="col.key === 'updated_at'" class="py-2 px-2 text-right whitespace-nowrap" :style="{ width: getMatrixColWidth('updated_at'), minWidth: getMatrixColWidth('updated_at') }">
                   <div class="flex items-center justify-end space-x-1.5" :title="getSourceTimeTooltip(row)">
                     <span
                       class="w-4 h-4 rounded inline-flex items-center justify-center font-mono font-bold text-[10px] flex-shrink-0"
@@ -881,6 +1005,7 @@
       fixed-start-label="模型标准标识"
       @close="showColumnConfigModal = false"
       @update:columns="onUpdateMatrixColumns"
+      @reset-widths="resetMatrixWidths"
     />
   </div>
 </template>
@@ -895,6 +1020,7 @@ import AddChannelWizardModal from '../components/AddChannelWizardModal.vue'
 import ChannelDetailDrawer from '../components/ChannelDetailDrawer.vue'
 import VendorDetailDrawer from '../components/VendorDetailDrawer.vue'
 import TableColumnConfigModal, { type TableColumnDef } from '../components/TableColumnConfigModal.vue'
+import { useTableResizable } from '../composables/useTableResizable'
 import SystemIcon from '../components/SystemIcon.vue'
 import type { ComparisonItem } from '../types'
 import { parseUtcDate, formatRelativeTime } from '../utils/timeUtils'
@@ -904,6 +1030,32 @@ const store = useDashboardStore()
 const showAddModal = ref(false)
 const isSyncingAll = ref(false)
 const isExporting = ref(false)
+
+// 列宽调整 (可拖拽 resize 与持久化)
+const DEFAULT_MATRIX_COL_WIDTHS = {
+  model_id: 260,
+  series: 130,
+  site_name: 180,
+  site_type: 75,
+  input_price: 100,
+  output_price: 100,
+  cache_price: 105,
+  model_ratio: 65,
+  tps: 85,
+  updated_at: 135
+}
+
+const {
+  getWidth: getMatrixColWidth,
+  startResize: startMatrixResize,
+  resetWidths: resetMatrixWidths,
+  resetColumnWidth: resetMatrixColWidth
+} = useTableResizable({
+  storageKey: 'welltoken_col_widths_price_matrix',
+  defaultWidths: DEFAULT_MATRIX_COL_WIDTHS,
+  minWidth: 55,
+  maxWidth: 700
+})
 
 // 自定义列配置
 const showColumnConfigModal = ref(false)

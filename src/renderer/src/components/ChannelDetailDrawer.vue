@@ -225,20 +225,90 @@
                 <span>正在加载该渠道最新模型清单与定价...</span>
               </div>
 
-              <table v-else class="w-full text-left text-xs border-collapse min-w-[560px]">
-                <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans">
+              <table v-else class="w-full text-left text-xs border-collapse min-w-full table-fixed">
+                <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans select-none whitespace-nowrap">
                   <tr>
-                    <th class="py-2 px-2.5">模型名称 / 标准标识</th>
+                    <th
+                      class="py-2 px-2.5 relative group/th"
+                      :style="{ width: getDrawerColWidth('model_name'), minWidth: getDrawerColWidth('model_name') }"
+                    >
+                      <div class="truncate pr-2">模型名称 / 标准标识</div>
+                      <div
+                        class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                        @mousedown.stop="startDrawerResize('model_name', $event)"
+                        @dblclick.stop="resetDrawerColWidth('model_name')"
+                        title="按住拖拽调整列宽，双击恢复默认"
+                      ></div>
+                    </th>
 
                     <!-- 动态表头 -->
                     <template v-for="col in visibleDrawerColumns" :key="col.key">
-                      <th v-if="col.key === 'input_price'" class="py-2 px-2 text-right w-16">输入 ({{ store.currency }})</th>
-                      <th v-else-if="col.key === 'output_price'" class="py-2 px-2 text-right w-16">输出 ({{ store.currency }})</th>
-                      <th v-else-if="col.key === 'cache_price'" class="py-2 px-2 text-right w-16 text-[#8E24AA] font-semibold">命中缓存</th>
-                      <th v-else-if="col.key === 'tps'" class="py-2 px-2 text-center w-14">实测TPS</th>
+                      <th
+                        v-if="col.key === 'input_price'"
+                        class="py-2 px-2 text-right relative group/th"
+                        :style="{ width: getDrawerColWidth('input_price'), minWidth: getDrawerColWidth('input_price') }"
+                      >
+                        <div class="truncate pr-1">输入 ({{ store.currency }})</div>
+                        <div
+                          class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                          @mousedown.stop="startDrawerResize('input_price', $event)"
+                          @dblclick.stop="resetDrawerColWidth('input_price')"
+                          title="按住拖拽调整列宽，双击恢复默认"
+                        ></div>
+                      </th>
+                      <th
+                        v-else-if="col.key === 'output_price'"
+                        class="py-2 px-2 text-right relative group/th"
+                        :style="{ width: getDrawerColWidth('output_price'), minWidth: getDrawerColWidth('output_price') }"
+                      >
+                        <div class="truncate pr-1">输出 ({{ store.currency }})</div>
+                        <div
+                          class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                          @mousedown.stop="startDrawerResize('output_price', $event)"
+                          @dblclick.stop="resetDrawerColWidth('output_price')"
+                          title="按住拖拽调整列宽，双击恢复默认"
+                        ></div>
+                      </th>
+                      <th
+                        v-else-if="col.key === 'cache_price'"
+                        class="py-2 px-2 text-right text-[#8E24AA] font-semibold relative group/th"
+                        :style="{ width: getDrawerColWidth('cache_price'), minWidth: getDrawerColWidth('cache_price') }"
+                      >
+                        <div class="truncate pr-1">命中缓存</div>
+                        <div
+                          class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                          @mousedown.stop="startDrawerResize('cache_price', $event)"
+                          @dblclick.stop="resetDrawerColWidth('cache_price')"
+                          title="按住拖拽调整列宽，双击恢复默认"
+                        ></div>
+                      </th>
+                      <th
+                        v-else-if="col.key === 'tps'"
+                        class="py-2 px-2 text-center relative group/th"
+                        :style="{ width: getDrawerColWidth('tps'), minWidth: getDrawerColWidth('tps') }"
+                      >
+                        <div class="truncate pr-1">实测TPS</div>
+                        <div
+                          class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                          @mousedown.stop="startDrawerResize('tps', $event)"
+                          @dblclick.stop="resetDrawerColWidth('tps')"
+                          title="按住拖拽调整列宽，双击恢复默认"
+                        ></div>
+                      </th>
                     </template>
 
-                    <th class="py-2 px-2 text-center w-20">操作</th>
+                    <th
+                      class="py-2 px-2 text-center relative group/th"
+                      :style="{ width: getDrawerColWidth('actions'), minWidth: getDrawerColWidth('actions') }"
+                    >
+                      <div class="truncate pr-1">操作</div>
+                      <div
+                        class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                        @mousedown.stop="startDrawerResize('actions', $event)"
+                        @dblclick.stop="resetDrawerColWidth('actions')"
+                        title="按住拖拽调整列宽，双击恢复默认"
+                      ></div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-[#E5E5EA]/60 font-sans">
@@ -248,12 +318,12 @@
                     class="hover:bg-[#F5F5F7] transition-colors group"
                   >
                     <!-- 模型名称 + 标准 ID -->
-                    <td class="py-2 px-2.5">
-                      <div class="font-bold text-[#1D1D1F] group-hover:text-[#0071E3] text-xs">
+                    <td class="py-2 px-2.5" :style="{ width: getDrawerColWidth('model_name'), minWidth: getDrawerColWidth('model_name') }">
+                      <div class="font-bold text-[#1D1D1F] group-hover:text-[#0071E3] text-xs truncate">
                         {{ item.name }}
                       </div>
-                      <div class="text-[10px] text-[#0071E3] font-mono flex items-center space-x-1">
-                        <span>{{ item.model_id }}</span>
+                      <div class="text-[10px] text-[#0071E3] font-mono flex items-center space-x-1 truncate">
+                        <span class="truncate">{{ item.model_id }}</span>
                         <span v-if="item.site_model_name && item.site_model_name !== item.model_id" class="text-[#86868B] truncate max-w-[200px]" :title="item.site_model_name">({{ item.site_model_name }})</span>
                       </div>
                     </td>
@@ -261,17 +331,17 @@
                     <!-- 动态单元格 -->
                     <template v-for="col in visibleDrawerColumns" :key="col.key">
                       <!-- 输入价格 -->
-                      <td v-if="col.key === 'input_price'" class="py-2 px-2 text-right font-mono font-medium text-[#34C759]">
+                      <td v-if="col.key === 'input_price'" class="py-2 px-2 text-right font-mono font-medium text-[#34C759]" :style="{ width: getDrawerColWidth('input_price'), minWidth: getDrawerColWidth('input_price') }">
                         {{ formatItemPrice(item.calculated_input_usd, item.calculated_input_cny) }}
                       </td>
 
                       <!-- 输出价格 -->
-                      <td v-else-if="col.key === 'output_price'" class="py-2 px-2 text-right font-mono font-medium text-[#1D1D1F]">
+                      <td v-else-if="col.key === 'output_price'" class="py-2 px-2 text-right font-mono font-medium text-[#1D1D1F]" :style="{ width: getDrawerColWidth('output_price'), minWidth: getDrawerColWidth('output_price') }">
                         {{ formatItemPrice(item.calculated_output_usd, item.calculated_output_cny) }}
                       </td>
 
                       <!-- 命中缓存价格 -->
-                      <td v-else-if="col.key === 'cache_price'" class="py-2 px-2 text-right font-mono font-medium">
+                      <td v-else-if="col.key === 'cache_price'" class="py-2 px-2 text-right font-mono font-medium" :style="{ width: getDrawerColWidth('cache_price'), minWidth: getDrawerColWidth('cache_price') }">
                         <span v-if="item.calculated_cache_usd && item.calculated_cache_usd > 0" class="text-[#8E24AA] font-bold">
                           {{ formatItemPrice(item.calculated_cache_usd, item.calculated_cache_cny) }}
                         </span>
@@ -279,13 +349,13 @@
                       </td>
 
                       <!-- TPS -->
-                      <td v-else-if="col.key === 'tps'" class="py-2 px-2 text-center font-mono text-[#0071E3] font-bold text-[11px]">
+                      <td v-else-if="col.key === 'tps'" class="py-2 px-2 text-center font-mono text-[#0071E3] font-bold text-[11px]" :style="{ width: getDrawerColWidth('tps'), minWidth: getDrawerColWidth('tps') }">
                         {{ item.last_tested_tps || 55 }}
                       </td>
                     </template>
 
                     <!-- 快捷比价/测速/快照 -->
-                    <td class="py-2 px-2 text-center whitespace-nowrap">
+                    <td class="py-2 px-2 text-center whitespace-nowrap" :style="{ width: getDrawerColWidth('actions'), minWidth: getDrawerColWidth('actions') }">
                       <button
                         @click="openSnapshotModal(item)"
                         class="px-1.5 py-0.5 rounded bg-[#F3E8FD] hover:bg-[#EBD6FA] text-[#8E24AA] border border-[#E1BEE7] text-[10px] font-medium transition-all cursor-pointer mr-1 inline-flex items-center space-x-0.5"
@@ -348,6 +418,7 @@
       fixed-end-label="操作"
       @close="showColumnConfigModal = false"
       @update:columns="onUpdateDrawerColumns"
+      @reset-widths="resetDrawerWidths"
     />
   </Teleport>
 </template>
@@ -360,6 +431,7 @@ import ProviderLogo from './ProviderLogo.vue'
 import SystemIcon from './SystemIcon.vue'
 import SnapshotViewerModal from './SnapshotViewerModal.vue'
 import TableColumnConfigModal, { type TableColumnDef } from './TableColumnConfigModal.vue'
+import { useTableResizable } from '../composables/useTableResizable'
 import type { RelaySite } from '../types'
 import { exportChannelModelsToExcel } from '../utils/excelExport'
 
@@ -388,6 +460,28 @@ const searchQuery = ref('')
 const excludeZeroPrice = ref(true)
 const providerModelsList = ref<any[]>([])
 const viewScope = ref<'filtered' | 'all'>('filtered')
+
+// 列宽调整 (可拖拽 resize 与持久化)
+const DEFAULT_CHANNEL_DRAWER_COL_WIDTHS = {
+  model_name: 200,
+  input_price: 80,
+  output_price: 80,
+  cache_price: 85,
+  tps: 65,
+  actions: 90
+}
+
+const {
+  getWidth: getDrawerColWidth,
+  startResize: startDrawerResize,
+  resetWidths: resetDrawerWidths,
+  resetColumnWidth: resetDrawerColWidth
+} = useTableResizable({
+  storageKey: 'welltoken_col_widths_channel_drawer',
+  defaultWidths: DEFAULT_CHANNEL_DRAWER_COL_WIDTHS,
+  minWidth: 50,
+  maxWidth: 400
+})
 
 // 自定义列配置
 const showColumnConfigModal = ref(false)

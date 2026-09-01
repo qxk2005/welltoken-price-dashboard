@@ -177,22 +177,116 @@
 
             <!-- 数据表格 -->
             <div class="flex-1 overflow-x-auto overflow-y-auto pr-1 mt-1">
-              <table class="w-full text-left text-xs border-collapse min-w-[580px]">
-                <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans">
+              <table class="w-full text-left text-xs border-collapse min-w-full table-fixed">
+                <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans select-none whitespace-nowrap">
                   <tr>
-                    <th class="py-2 px-2.5">模型名称 / 标准标识</th>
+                    <th
+                      class="py-2 px-2.5 relative group/th"
+                      :style="{ width: getVendorDrawerColWidth('model_name'), minWidth: getVendorDrawerColWidth('model_name') }"
+                    >
+                      <div class="truncate pr-2">模型名称 / 标准标识</div>
+                      <div
+                        class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                        @mousedown.stop="startVendorDrawerResize('model_name', $event)"
+                        @dblclick.stop="resetVendorDrawerColWidth('model_name')"
+                        title="按住拖拽调整列宽，双击恢复默认"
+                      ></div>
+                    </th>
 
                     <!-- 动态配置表头 -->
                     <template v-for="col in visibleVendorColumns" :key="col.key">
-                      <th v-if="col.key === 'context'" class="py-2 px-2 text-right w-16">上下文</th>
-                      <th v-else-if="col.key === 'max_output'" class="py-2 px-2 text-right w-16">最大输出</th>
-                      <th v-else-if="col.key === 'official_input'" class="py-2 px-2 text-right w-18">官方输入</th>
-                      <th v-else-if="col.key === 'official_output'" class="py-2 px-2 text-right w-18">官方输出</th>
-                      <th v-else-if="col.key === 'official_cache'" class="py-2 px-2 text-right w-18 text-[#8E24AA] font-semibold">官方缓存</th>
-                      <th v-else-if="col.key === 'lowest_price'" class="py-2 px-2 text-right w-18">全网最低</th>
+                      <th
+                        v-if="col.key === 'context'"
+                        class="py-2 px-2 text-right relative group/th"
+                        :style="{ width: getVendorDrawerColWidth('context'), minWidth: getVendorDrawerColWidth('context') }"
+                      >
+                        <div class="truncate pr-1">上下文</div>
+                        <div
+                          class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                          @mousedown.stop="startVendorDrawerResize('context', $event)"
+                          @dblclick.stop="resetVendorDrawerColWidth('context')"
+                          title="按住拖拽调整列宽，双击恢复默认"
+                        ></div>
+                      </th>
+                      <th
+                        v-else-if="col.key === 'max_output'"
+                        class="py-2 px-2 text-right relative group/th"
+                        :style="{ width: getVendorDrawerColWidth('max_output'), minWidth: getVendorDrawerColWidth('max_output') }"
+                      >
+                        <div class="truncate pr-1">最大输出</div>
+                        <div
+                          class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                          @mousedown.stop="startVendorDrawerResize('max_output', $event)"
+                          @dblclick.stop="resetVendorDrawerColWidth('max_output')"
+                          title="按住拖拽调整列宽，双击恢复默认"
+                        ></div>
+                      </th>
+                      <th
+                        v-else-if="col.key === 'official_input'"
+                        class="py-2 px-2 text-right relative group/th"
+                        :style="{ width: getVendorDrawerColWidth('official_input'), minWidth: getVendorDrawerColWidth('official_input') }"
+                      >
+                        <div class="truncate pr-1">官方输入</div>
+                        <div
+                          class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                          @mousedown.stop="startVendorDrawerResize('official_input', $event)"
+                          @dblclick.stop="resetVendorDrawerColWidth('official_input')"
+                          title="按住拖拽调整列宽，双击恢复默认"
+                        ></div>
+                      </th>
+                      <th
+                        v-else-if="col.key === 'official_output'"
+                        class="py-2 px-2 text-right relative group/th"
+                        :style="{ width: getVendorDrawerColWidth('official_output'), minWidth: getVendorDrawerColWidth('official_output') }"
+                      >
+                        <div class="truncate pr-1">官方输出</div>
+                        <div
+                          class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                          @mousedown.stop="startVendorDrawerResize('official_output', $event)"
+                          @dblclick.stop="resetVendorDrawerColWidth('official_output')"
+                          title="按住拖拽调整列宽，双击恢复默认"
+                        ></div>
+                      </th>
+                      <th
+                        v-else-if="col.key === 'official_cache'"
+                        class="py-2 px-2 text-right text-[#8E24AA] font-semibold relative group/th"
+                        :style="{ width: getVendorDrawerColWidth('official_cache'), minWidth: getVendorDrawerColWidth('official_cache') }"
+                      >
+                        <div class="truncate pr-1">官方缓存</div>
+                        <div
+                          class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                          @mousedown.stop="startVendorDrawerResize('official_cache', $event)"
+                          @dblclick.stop="resetVendorDrawerColWidth('official_cache')"
+                          title="按住拖拽调整列宽，双击恢复默认"
+                        ></div>
+                      </th>
+                      <th
+                        v-else-if="col.key === 'lowest_price'"
+                        class="py-2 px-2 text-right relative group/th"
+                        :style="{ width: getVendorDrawerColWidth('lowest_price'), minWidth: getVendorDrawerColWidth('lowest_price') }"
+                      >
+                        <div class="truncate pr-1">全网最低</div>
+                        <div
+                          class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                          @mousedown.stop="startVendorDrawerResize('lowest_price', $event)"
+                          @dblclick.stop="resetVendorDrawerColWidth('lowest_price')"
+                          title="按住拖拽调整列宽，双击恢复默认"
+                        ></div>
+                      </th>
                     </template>
 
-                    <th class="py-2 px-2 text-center w-20">操作</th>
+                    <th
+                      class="py-2 px-2 text-center relative group/th"
+                      :style="{ width: getVendorDrawerColWidth('actions'), minWidth: getVendorDrawerColWidth('actions') }"
+                    >
+                      <div class="truncate pr-1">操作</div>
+                      <div
+                        class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                        @mousedown.stop="startVendorDrawerResize('actions', $event)"
+                        @dblclick.stop="resetVendorDrawerColWidth('actions')"
+                        title="按住拖拽调整列宽，双击恢复默认"
+                      ></div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-[#E5E5EA]/60 font-sans">
@@ -202,11 +296,11 @@
                     class="hover:bg-[#F5F5F7] transition-colors group"
                   >
                     <!-- 模型名称 + 标准 ID -->
-                    <td class="py-2 px-2.5">
-                      <div class="font-bold text-[#1D1D1F] group-hover:text-[#0071E3] text-xs">
+                    <td class="py-2 px-2.5" :style="{ width: getVendorDrawerColWidth('model_name'), minWidth: getVendorDrawerColWidth('model_name') }">
+                      <div class="font-bold text-[#1D1D1F] group-hover:text-[#0071E3] text-xs truncate">
                         {{ model.name }}
                       </div>
-                      <div class="text-[10px] text-[#0071E3] font-mono">
+                      <div class="text-[10px] text-[#0071E3] font-mono truncate">
                         {{ model.model_id }}
                       </div>
                     </td>
@@ -214,31 +308,31 @@
                     <!-- 动态单元格 -->
                     <template v-for="col in visibleVendorColumns" :key="col.key">
                       <!-- 上下文窗口 -->
-                      <td v-if="col.key === 'context'" class="py-2 px-2 text-right font-mono text-[#1D1D1F] text-[11px]">
+                      <td v-if="col.key === 'context'" class="py-2 px-2 text-right font-mono text-[#1D1D1F] text-[11px]" :style="{ width: getVendorDrawerColWidth('context'), minWidth: getVendorDrawerColWidth('context') }">
                         {{ formatCompactTokens(model.context_window) }}
                       </td>
 
                       <!-- 最大输出 -->
-                      <td v-else-if="col.key === 'max_output'" class="py-2 px-2 text-right font-mono text-[#6E6E73] text-[11px]">
+                      <td v-else-if="col.key === 'max_output'" class="py-2 px-2 text-right font-mono text-[#6E6E73] text-[11px]" :style="{ width: getVendorDrawerColWidth('max_output'), minWidth: getVendorDrawerColWidth('max_output') }">
                         {{ model.max_output ? Number(model.max_output).toLocaleString() : '8K' }}
                       </td>
 
                       <!-- 官方输入单价 -->
-                      <td v-else-if="col.key === 'official_input'" class="py-2 px-2 text-right font-mono text-[#1D1D1F] text-[11px]">
+                      <td v-else-if="col.key === 'official_input'" class="py-2 px-2 text-right font-mono text-[#1D1D1F] text-[11px]" :style="{ width: getVendorDrawerColWidth('official_input'), minWidth: getVendorDrawerColWidth('official_input') }">
                         {{ formatOfficialPrice(model.official_input_price) }}
                       </td>
 
                       <!-- 官方输出单价 -->
-                      <td v-else-if="col.key === 'official_output'" class="py-2 px-2 text-right font-mono text-[#1D1D1F] text-[11px]">
+                      <td v-else-if="col.key === 'official_output'" class="py-2 px-2 text-right font-mono text-[#1D1D1F] text-[11px]" :style="{ width: getVendorDrawerColWidth('official_output'), minWidth: getVendorDrawerColWidth('official_output') }">
                         {{ formatOfficialPrice(model.official_output_price) }}
                       </td>
 
                       <!-- 官方缓存单价 -->
-                      <td v-else-if="col.key === 'official_cache'" class="py-2 px-2 text-right font-mono text-[11px]">
+                      <td v-else-if="col.key === 'official_cache'" class="py-2 px-2 text-right font-mono text-[11px]" :style="{ width: getVendorDrawerColWidth('official_cache'), minWidth: getVendorDrawerColWidth('official_cache') }">
                         <span v-if="model.official_cache_price && model.official_cache_price > 0" class="text-[#8E24AA] font-semibold">
                           {{ formatOfficialPrice(model.official_cache_price) }}
                         </span>
-                        <span v-else class="text-[#AEAEB2]">-</span>
+                        <span v-else class="text-[#AEAEB2] font-normal">-</span>
                       </td>
 
                       <!-- 全网最低 -->
@@ -314,6 +408,7 @@
       fixed-end-label="操作"
       @close="showColumnConfigModal = false"
       @update:columns="onUpdateVendorColumns"
+      @reset-widths="resetVendorDrawerWidths"
     />
   </Teleport>
 </template>
@@ -324,6 +419,7 @@ import { useDashboardStore } from '../stores/dashboardStore'
 import LabLogo from './LabLogo.vue'
 import SystemIcon from './SystemIcon.vue'
 import TableColumnConfigModal, { type TableColumnDef } from './TableColumnConfigModal.vue'
+import { useTableResizable } from '../composables/useTableResizable'
 import type { ModelMetadata } from '../types'
 import { exportVendorModelsToExcel } from '../utils/excelExport'
 
@@ -333,6 +429,30 @@ export interface FilterContext {
   models?: string[]
   availableModelIds?: string[]
 }
+
+// 列宽调整 (可拖拽 resize 与持久化)
+const DEFAULT_VENDOR_DRAWER_COL_WIDTHS = {
+  model_name: 200,
+  context: 80,
+  max_output: 80,
+  official_input: 85,
+  official_output: 85,
+  official_cache: 85,
+  lowest_price: 85,
+  actions: 80
+}
+
+const {
+  getWidth: getVendorDrawerColWidth,
+  startResize: startVendorDrawerResize,
+  resetWidths: resetVendorDrawerWidths,
+  resetColumnWidth: resetVendorDrawerColWidth
+} = useTableResizable({
+  storageKey: 'welltoken_col_widths_vendor_drawer',
+  defaultWidths: DEFAULT_VENDOR_DRAWER_COL_WIDTHS,
+  minWidth: 50,
+  maxWidth: 400
+})
 
 // 自定义列配置
 const showColumnConfigModal = ref(false)

@@ -145,30 +145,23 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'update:columns', columns: TableColumnDef[]): void
+  (e: 'reset-widths'): void
 }>()
 
 const localColumns = ref<TableColumnDef[]>([])
 
-// 从 localStorage 加载或初始化
-const initColumns = () => {
+const loadFromStorage = () => {
   try {
     const saved = localStorage.getItem(props.storageKey)
     if (saved) {
       const parsed: TableColumnDef[] = JSON.parse(saved)
-      // 保持 defaultColumns 中新增的字段并同步已有设置
       const merged: TableColumnDef[] = []
-      // 先加入已有且在 default 中的
       for (const p of parsed) {
         const d = props.defaultColumns.find(col => col.key === p.key)
         if (d) {
-          merged.push({
-            key: p.key,
-            label: d.label, // 保持最新 label
-            visible: p.visible !== false
-          })
+          merged.push({ key: p.key, label: d.label, visible: p.visible !== false })
         }
       }
-      // 加入新增的
       for (const d of props.defaultColumns) {
         if (!merged.some(m => m.key === d.key)) {
           merged.push({ ...d })
@@ -178,30 +171,27 @@ const initColumns = () => {
       return
     }
   } catch (e) {
-    console.warn('[TableColumnConfigModal] 读取列配置失败:', e)
+    console.warn('加载列配置失败:', e)
   }
   localColumns.value = props.defaultColumns.map(c => ({ ...c }))
 }
 
-watch(
-  () => props.show,
-  (val) => {
-    if (val) {
-      initColumns()
-    }
-  },
-  { immediate: true }
-)
+watch(() => props.show, (newVal) => {
+  if (newVal) {
+    loadFromStorage()
+  }
+}, { immediate: true })
 
 const moveColumn = (index: number, direction: number) => {
-  const newIndex = index + direction
-  if (newIndex < 0 || newIndex >= localColumns.value.length) return
+  const targetIndex = index + direction
+  if (targetIndex < 0 || targetIndex >= localColumns.value.length) return
   const item = localColumns.value.splice(index, 1)[0]
-  localColumns.value.splice(newIndex, 0, item)
+  localColumns.value.splice(targetIndex, 0, item)
 }
 
 const resetToDefault = () => {
   localColumns.value = props.defaultColumns.map(c => ({ ...c }))
+  emit('reset-widths')
 }
 
 const handleClose = () => {

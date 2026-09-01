@@ -197,44 +197,203 @@
       <div class="flex-1 flex flex-col bg-[#FFFFFF] rounded-2xl border border-[#E5E5EA] p-3 shadow-[0_1px_3px_rgba(0,0,0,0.02)] overflow-hidden min-h-0">
         <!-- 数据表格滚动容器 -->
         <div class="flex-1 overflow-x-auto overflow-y-auto pr-1">
-          <table class="w-full text-left text-xs border-collapse min-w-[980px]">
-            <!-- 表头 (支持点击排序) -->
-            <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans select-none">
+          <table class="w-full text-left text-xs border-collapse min-w-full table-fixed">
+            <!-- 表头 (支持点击排序与拖拽调整列宽) -->
+            <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans select-none whitespace-nowrap">
               <tr>
-                <th @click="toggleSort('name')" class="py-2.5 px-3 cursor-pointer hover:text-[#1D1D1F] transition-colors">
-                  模型名称 / 标准标识 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('name') }}</span>
+                <th
+                  @click="toggleSort('name')"
+                  class="py-2.5 px-3 cursor-pointer hover:text-[#1D1D1F] transition-colors relative group/th"
+                  :style="{ width: getCatalogColWidth('name'), minWidth: getCatalogColWidth('name') }"
+                >
+                  <div class="truncate pr-2">
+                    模型名称 / 标准标识 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('name') }}</span>
+                  </div>
+                  <div
+                    class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                    @mousedown.stop="startCatalogResize('name', $event)"
+                    @dblclick.stop="resetCatalogColWidth('name')"
+                    title="按住拖拽调整列宽，双击恢复默认"
+                  ></div>
                 </th>
 
                 <!-- 动态配置列表头 -->
                 <template v-for="col in visibleCatalogColumns" :key="col.key">
-                  <th v-if="col.key === 'channels'" @click="toggleSort('active_relay_count')" class="py-2.5 px-2 text-center cursor-pointer hover:text-[#1D1D1F] transition-colors w-20">
-                    接入渠道 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('active_relay_count') }}</span>
+                  <th
+                    v-if="col.key === 'channels'"
+                    @click="toggleSort('active_relay_count')"
+                    class="py-2.5 px-2 text-center cursor-pointer hover:text-[#1D1D1F] transition-colors relative group/th"
+                    :style="{ width: getCatalogColWidth('channels'), minWidth: getCatalogColWidth('channels') }"
+                  >
+                    <div class="truncate pr-1">
+                      接入渠道 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('active_relay_count') }}</span>
+                    </div>
+                    <div
+                      class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                      @mousedown.stop="startCatalogResize('channels', $event)"
+                      @dblclick.stop="resetCatalogColWidth('channels')"
+                      title="按住拖拽调整列宽，双击恢复默认"
+                    ></div>
                   </th>
-                  <th v-else-if="col.key === 'context'" @click="toggleSort('context_window')" class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-20">
-                    上下文 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('context_window') }}</span>
+                  <th
+                    v-else-if="col.key === 'context'"
+                    @click="toggleSort('context_window')"
+                    class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors relative group/th"
+                    :style="{ width: getCatalogColWidth('context'), minWidth: getCatalogColWidth('context') }"
+                  >
+                    <div class="truncate pr-1">
+                      上下文 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('context_window') }}</span>
+                    </div>
+                    <div
+                      class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                      @mousedown.stop="startCatalogResize('context', $event)"
+                      @dblclick.stop="resetCatalogColWidth('context')"
+                      title="按住拖拽调整列宽，双击恢复默认"
+                    ></div>
                   </th>
-                  <th v-else-if="col.key === 'max_output'" @click="toggleSort('max_output')" class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-20">
-                    最大输出 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('max_output') }}</span>
+                  <th
+                    v-else-if="col.key === 'max_output'"
+                    @click="toggleSort('max_output')"
+                    class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors relative group/th"
+                    :style="{ width: getCatalogColWidth('max_output'), minWidth: getCatalogColWidth('max_output') }"
+                  >
+                    <div class="truncate pr-1">
+                      最大输出 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('max_output') }}</span>
+                    </div>
+                    <div
+                      class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                      @mousedown.stop="startCatalogResize('max_output', $event)"
+                      @dblclick.stop="resetCatalogColWidth('max_output')"
+                      title="按住拖拽调整列宽，双击恢复默认"
+                    ></div>
                   </th>
-                  <th v-else-if="col.key === 'modality'" class="py-2.5 px-2 text-center w-18">模态</th>
-                  <th v-else-if="col.key === 'reasoning'" class="py-2.5 px-2 text-center w-16">推理</th>
-                  <th v-else-if="col.key === 'tools'" class="py-2.5 px-2 text-center w-16">工具</th>
-                  <th v-else-if="col.key === 'structured'" class="py-2.5 px-2 text-center w-16">结构化</th>
-                  <th v-else-if="col.key === 'official_input'" @click="toggleSort('official_input_price')" class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
-                    官方输入 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('official_input_price') }}</span>
+                  <th
+                    v-else-if="col.key === 'modality'"
+                    class="py-2.5 px-2 text-center relative group/th"
+                    :style="{ width: getCatalogColWidth('modality'), minWidth: getCatalogColWidth('modality') }"
+                  >
+                    <div class="truncate pr-1">模态</div>
+                    <div
+                      class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                      @mousedown.stop="startCatalogResize('modality', $event)"
+                      @dblclick.stop="resetCatalogColWidth('modality')"
+                      title="按住拖拽调整列宽，双击恢复默认"
+                    ></div>
                   </th>
-                  <th v-else-if="col.key === 'official_output'" @click="toggleSort('official_output_price')" class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
-                    官方输出 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('official_output_price') }}</span>
+                  <th
+                    v-else-if="col.key === 'reasoning'"
+                    class="py-2.5 px-2 text-center relative group/th"
+                    :style="{ width: getCatalogColWidth('reasoning'), minWidth: getCatalogColWidth('reasoning') }"
+                  >
+                    <div class="truncate pr-1">推理</div>
+                    <div
+                      class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                      @mousedown.stop="startCatalogResize('reasoning', $event)"
+                      @dblclick.stop="resetCatalogColWidth('reasoning')"
+                      title="按住拖拽调整列宽，双击恢复默认"
+                    ></div>
                   </th>
-                  <th v-else-if="col.key === 'official_cache'" class="py-2.5 px-2 text-right text-[#8E24AA] font-semibold w-24">
-                    官方缓存
+                  <th
+                    v-else-if="col.key === 'tools'"
+                    class="py-2.5 px-2 text-center relative group/th"
+                    :style="{ width: getCatalogColWidth('tools'), minWidth: getCatalogColWidth('tools') }"
+                  >
+                    <div class="truncate pr-1">工具</div>
+                    <div
+                      class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                      @mousedown.stop="startCatalogResize('tools', $event)"
+                      @dblclick.stop="resetCatalogColWidth('tools')"
+                      title="按住拖拽调整列宽，双击恢复默认"
+                    ></div>
                   </th>
-                  <th v-else-if="col.key === 'lowest_price'" @click="toggleSort('lowest_price_usd')" class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
-                    全网最低 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('lowest_price_usd') }}</span>
+                  <th
+                    v-else-if="col.key === 'structured'"
+                    class="py-2.5 px-2 text-center relative group/th"
+                    :style="{ width: getCatalogColWidth('structured'), minWidth: getCatalogColWidth('structured') }"
+                  >
+                    <div class="truncate pr-1">结构化</div>
+                    <div
+                      class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                      @mousedown.stop="startCatalogResize('structured', $event)"
+                      @dblclick.stop="resetCatalogColWidth('structured')"
+                      title="按住拖拽调整列宽，双击恢复默认"
+                    ></div>
+                  </th>
+                  <th
+                    v-else-if="col.key === 'official_input'"
+                    @click="toggleSort('official_input_price')"
+                    class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors relative group/th"
+                    :style="{ width: getCatalogColWidth('official_input'), minWidth: getCatalogColWidth('official_input') }"
+                  >
+                    <div class="truncate pr-1">
+                      官方输入 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('official_input_price') }}</span>
+                    </div>
+                    <div
+                      class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                      @mousedown.stop="startCatalogResize('official_input', $event)"
+                      @dblclick.stop="resetCatalogColWidth('official_input')"
+                      title="按住拖拽调整列宽，双击恢复默认"
+                    ></div>
+                  </th>
+                  <th
+                    v-else-if="col.key === 'official_output'"
+                    @click="toggleSort('official_output_price')"
+                    class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors relative group/th"
+                    :style="{ width: getCatalogColWidth('official_output'), minWidth: getCatalogColWidth('official_output') }"
+                  >
+                    <div class="truncate pr-1">
+                      官方输出 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('official_output_price') }}</span>
+                    </div>
+                    <div
+                      class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                      @mousedown.stop="startCatalogResize('official_output', $event)"
+                      @dblclick.stop="resetCatalogColWidth('official_output')"
+                      title="按住拖拽调整列宽，双击恢复默认"
+                    ></div>
+                  </th>
+                  <th
+                    v-else-if="col.key === 'official_cache'"
+                    class="py-2.5 px-2 text-right text-[#8E24AA] font-semibold relative group/th"
+                    :style="{ width: getCatalogColWidth('official_cache'), minWidth: getCatalogColWidth('official_cache') }"
+                  >
+                    <div class="truncate pr-1">官方缓存</div>
+                    <div
+                      class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                      @mousedown.stop="startCatalogResize('official_cache', $event)"
+                      @dblclick.stop="resetCatalogColWidth('official_cache')"
+                      title="按住拖拽调整列宽，双击恢复默认"
+                    ></div>
+                  </th>
+                  <th
+                    v-else-if="col.key === 'lowest_price'"
+                    @click="toggleSort('lowest_price_usd')"
+                    class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors relative group/th"
+                    :style="{ width: getCatalogColWidth('lowest_price'), minWidth: getCatalogColWidth('lowest_price') }"
+                  >
+                    <div class="truncate pr-1">
+                      全网最低 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('lowest_price_usd') }}</span>
+                    </div>
+                    <div
+                      class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                      @mousedown.stop="startCatalogResize('lowest_price', $event)"
+                      @dblclick.stop="resetCatalogColWidth('lowest_price')"
+                      title="按住拖拽调整列宽，双击恢复默认"
+                    ></div>
                   </th>
                 </template>
 
-                <th class="py-2.5 px-2 text-center w-20">操作</th>
+                <th
+                  class="py-2.5 px-2 text-center relative group/th"
+                  :style="{ width: getCatalogColWidth('actions'), minWidth: getCatalogColWidth('actions') }"
+                >
+                  <div class="truncate pr-1">操作</div>
+                  <div
+                    class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                    @mousedown.stop="startCatalogResize('actions', $event)"
+                    @dblclick.stop="resetCatalogColWidth('actions')"
+                    title="按住拖拽调整列宽，双击恢复默认"
+                  ></div>
+                </th>
               </tr>
             </thead>
 
@@ -246,11 +405,11 @@
                 class="hover:bg-[#F5F5F7] transition-colors group"
               >
                 <!-- 1. 模型大名称 + 标准 ID -->
-                <td class="py-2.5 px-3">
-                  <div class="font-bold text-[#1D1D1F] group-hover:text-[#0071E3] transition-colors text-xs">
+                <td class="py-2.5 px-3" :style="{ width: getCatalogColWidth('name'), minWidth: getCatalogColWidth('name') }">
+                  <div class="font-bold text-[#1D1D1F] group-hover:text-[#0071E3] transition-colors text-xs truncate">
                     {{ model.name }}
                   </div>
-                  <div class="text-[11px] text-[#0071E3] font-mono mt-0.5">
+                  <div class="text-[11px] text-[#0071E3] font-mono mt-0.5 truncate">
                     {{ model.model_id }}
                   </div>
                 </td>
@@ -258,7 +417,7 @@
                 <!-- 动态配置列单元格 -->
                 <template v-for="col in visibleCatalogColumns" :key="col.key">
                   <!-- 接入渠道数 -->
-                  <td v-if="col.key === 'channels'" class="py-2.5 px-2 text-center">
+                  <td v-if="col.key === 'channels'" class="py-2.5 px-2 text-center" :style="{ width: getCatalogColWidth('channels'), minWidth: getCatalogColWidth('channels') }">
                     <span
                       @click="goToMatrix(model.model_id)"
                       class="font-mono font-bold text-xs text-[#0071E3] hover:underline cursor-pointer"
@@ -269,17 +428,17 @@
                   </td>
 
                   <!-- 上下文窗口 -->
-                  <td v-else-if="col.key === 'context'" class="py-2.5 px-2 text-right font-mono text-[#1D1D1F]" :title="`${Number(model.context_window || 128000).toLocaleString()} tokens`">
+                  <td v-else-if="col.key === 'context'" class="py-2.5 px-2 text-right font-mono text-[#1D1D1F]" :title="`${Number(model.context_window || 128000).toLocaleString()} tokens`" :style="{ width: getCatalogColWidth('context'), minWidth: getCatalogColWidth('context') }">
                     {{ formatCompactTokens(model.context_window) }}
                   </td>
 
                   <!-- 最大输出 -->
-                  <td v-else-if="col.key === 'max_output'" class="py-2.5 px-2 text-right font-mono text-[#6E6E73]" :title="`${Number(model.max_output || 8192).toLocaleString()} tokens`">
+                  <td v-else-if="col.key === 'max_output'" class="py-2.5 px-2 text-right font-mono text-[#6E6E73]" :title="`${Number(model.max_output || 8192).toLocaleString()} tokens`" :style="{ width: getCatalogColWidth('max_output'), minWidth: getCatalogColWidth('max_output') }">
                     {{ formatCompactTokens(model.max_output) }}
                   </td>
 
                   <!-- 模态 -->
-                  <td v-else-if="col.key === 'modality'" class="py-2.5 px-2 text-center whitespace-nowrap">
+                  <td v-else-if="col.key === 'modality'" class="py-2.5 px-2 text-center whitespace-nowrap" :style="{ width: getCatalogColWidth('modality'), minWidth: getCatalogColWidth('modality') }">
                     <div class="inline-flex items-center space-x-1 text-xs">
                       <span title="支持文本输入 (Text)">📄</span>
                       <span v-if="isVisionModel(model.model_id, model.name)" title="支持视觉图像识别 (Vision)">🖼️</span>
@@ -288,28 +447,28 @@
                   </td>
 
                   <!-- 推理 -->
-                  <td v-else-if="col.key === 'reasoning'" class="py-2.5 px-2 text-center">
+                  <td v-else-if="col.key === 'reasoning'" class="py-2.5 px-2 text-center" :style="{ width: getCatalogColWidth('reasoning'), minWidth: getCatalogColWidth('reasoning') }">
                     <span v-if="isReasoningModel(model.model_id, model.name)" class="text-[#34C759] font-bold">是</span>
                     <span v-else class="text-[#86868B]">-</span>
                   </td>
 
                   <!-- 工具 -->
-                  <td v-else-if="col.key === 'tools'" class="py-2.5 px-2 text-center font-mono">
+                  <td v-else-if="col.key === 'tools'" class="py-2.5 px-2 text-center font-mono" :style="{ width: getCatalogColWidth('tools'), minWidth: getCatalogColWidth('tools') }">
                     <span class="text-[#34C759] font-bold">是</span>
                   </td>
 
                   <!-- 结构化 -->
-                  <td v-else-if="col.key === 'structured'" class="py-2.5 px-2 text-center font-mono">
+                  <td v-else-if="col.key === 'structured'" class="py-2.5 px-2 text-center font-mono" :style="{ width: getCatalogColWidth('structured'), minWidth: getCatalogColWidth('structured') }">
                     <span class="text-[#34C759] font-bold">是</span>
                   </td>
 
                   <!-- 官方输入 -->
-                  <td v-else-if="col.key === 'official_input'" class="py-2.5 px-2 text-right font-mono text-[#1D1D1F]">
+                  <td v-else-if="col.key === 'official_input'" class="py-2.5 px-2 text-right font-mono text-[#1D1D1F]" :style="{ width: getCatalogColWidth('official_input'), minWidth: getCatalogColWidth('official_input') }">
                     {{ formatOfficialPrice(model.official_input_price) }}
                   </td>
 
                   <!-- 官方输出 -->
-                  <td v-else-if="col.key === 'official_output'" class="py-2.5 px-2 text-right font-mono text-[#1D1D1F]">
+                  <td v-else-if="col.key === 'official_output'" class="py-2.5 px-2 text-right font-mono text-[#1D1D1F]" :style="{ width: getCatalogColWidth('official_output'), minWidth: getCatalogColWidth('official_output') }">
                     {{ formatOfficialPrice(model.official_output_price) }}
                   </td>
 
@@ -444,6 +603,7 @@
       fixed-end-label="操作"
       @close="showColumnConfigModal = false"
       @update:columns="onUpdateCatalogColumns"
+      @reset-widths="resetCatalogWidths"
     />
   </div>
 </template>
@@ -454,8 +614,38 @@ import { useDashboardStore } from '../stores/dashboardStore'
 import LabLogo from '../components/LabLogo.vue'
 import SystemIcon from '../components/SystemIcon.vue'
 import TableColumnConfigModal, { type TableColumnDef } from '../components/TableColumnConfigModal.vue'
+import { useTableResizable } from '../composables/useTableResizable'
 import { exportVendorModelsToExcel } from '../utils/excelExport'
 import type { ModelMetadata } from '../types'
+
+// 列宽调整 (可拖拽 resize 与持久化)
+const DEFAULT_MODEL_CATALOG_COL_WIDTHS = {
+  name: 240,
+  channels: 80,
+  context: 90,
+  max_output: 90,
+  modality: 75,
+  reasoning: 65,
+  tools: 65,
+  structured: 65,
+  official_input: 100,
+  official_output: 100,
+  official_cache: 100,
+  lowest_price: 105,
+  actions: 80
+}
+
+const {
+  getWidth: getCatalogColWidth,
+  startResize: startCatalogResize,
+  resetWidths: resetCatalogWidths,
+  resetColumnWidth: resetCatalogColWidth
+} = useTableResizable({
+  storageKey: 'welltoken_col_widths_model_catalog',
+  defaultWidths: DEFAULT_MODEL_CATALOG_COL_WIDTHS,
+  minWidth: 50,
+  maxWidth: 600
+})
 
 // 自定义列配置
 const showColumnConfigModal = ref(false)

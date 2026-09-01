@@ -824,46 +824,168 @@
           </div>
 
           <!-- 模式 1：标准平铺清单表格 (detailViewMode === 'flat') -->
-          <table v-if="detailViewMode === 'flat'" class="w-full text-left text-xs border-collapse min-w-[980px]">
-            <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans select-none">
+          <table v-if="detailViewMode === 'flat'" class="w-full text-left text-xs border-collapse min-w-full table-fixed">
+            <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans select-none whitespace-nowrap">
               <tr>
-                <th @click="toggleDetailSort('model_name')" class="py-2.5 px-3 cursor-pointer hover:text-[#0071E3] transition-colors">
-                  模型名称 / 标准标识 / 所属分组 <span class="text-[10px] font-mono" :class="detailSortField === 'model_name' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('model_name') }}</span>
+                <th
+                  @click="toggleDetailSort('model_name')"
+                  class="py-2.5 px-3 cursor-pointer hover:text-[#0071E3] transition-colors relative group/th"
+                  :style="{ width: getChannelColWidth('model_name'), minWidth: getChannelColWidth('model_name') }"
+                >
+                  <div class="truncate pr-2">
+                    模型名称 / 标准标识 / 所属分组 <span class="text-[10px] font-mono" :class="detailSortField === 'model_name' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('model_name') }}</span>
+                  </div>
+                  <div
+                    class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                    @mousedown.stop="startChannelResize('model_name', $event)"
+                    @dblclick.stop="resetChannelColWidth('model_name')"
+                    title="按住拖拽调整列宽，双击恢复默认"
+                  ></div>
                 </th>
 
                 <!-- 动态配置列表头 -->
                 <template v-for="col in visibleChannelColumns" :key="col.key">
                   <!-- 上下文 -->
-                  <th v-if="col.key === 'context'" @click="toggleDetailSort('context_window')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#0071E3] transition-colors">
-                    上下文 (Context) <span class="text-[10px] font-mono" :class="detailSortField === 'context_window' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('context_window') }}</span>
+                  <th
+                    v-if="col.key === 'context'"
+                    @click="toggleDetailSort('context_window')"
+                    class="py-2.5 px-3 text-right cursor-pointer hover:text-[#0071E3] transition-colors relative group/th"
+                    :style="{ width: getChannelColWidth('context'), minWidth: getChannelColWidth('context') }"
+                  >
+                    <div class="truncate pr-2">
+                      上下文 <span class="text-[10px] font-mono" :class="detailSortField === 'context_window' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('context_window') }}</span>
+                    </div>
+                    <div
+                      class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                      @mousedown.stop="startChannelResize('context', $event)"
+                      @dblclick.stop="resetChannelColWidth('context')"
+                      title="按住拖拽调整列宽，双击恢复默认"
+                    ></div>
                   </th>
                   <!-- 最大输出 -->
-                  <th v-else-if="col.key === 'max_output'" @click="toggleDetailSort('max_output')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#0071E3] transition-colors">
-                    最大输出 (Output) <span class="text-[10px] font-mono" :class="detailSortField === 'max_output' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('max_output') }}</span>
+                  <th
+                    v-else-if="col.key === 'max_output'"
+                    @click="toggleDetailSort('max_output')"
+                    class="py-2.5 px-3 text-right cursor-pointer hover:text-[#0071E3] transition-colors relative group/th"
+                    :style="{ width: getChannelColWidth('max_output'), minWidth: getChannelColWidth('max_output') }"
+                  >
+                    <div class="truncate pr-2">
+                      最大输出 <span class="text-[10px] font-mono" :class="detailSortField === 'max_output' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('max_output') }}</span>
+                    </div>
+                    <div
+                      class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                      @mousedown.stop="startChannelResize('max_output', $event)"
+                      @dblclick.stop="resetChannelColWidth('max_output')"
+                      title="按住拖拽调整列宽，双击恢复默认"
+                    ></div>
                   </th>
                   <!-- 输入单价 -->
-                  <th v-else-if="col.key === 'input_price'" @click="toggleDetailSort('calculated_input_usd')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#0071E3] transition-colors">
-                    输入单价 ({{ store.currency }}) <span class="text-[10px] font-mono" :class="detailSortField === 'calculated_input_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('calculated_input_usd') }}</span>
+                  <th
+                    v-else-if="col.key === 'input_price'"
+                    @click="toggleDetailSort('calculated_input_usd')"
+                    class="py-2.5 px-3 text-right cursor-pointer hover:text-[#0071E3] transition-colors relative group/th"
+                    :style="{ width: getChannelColWidth('input_price'), minWidth: getChannelColWidth('input_price') }"
+                  >
+                    <div class="truncate pr-2">
+                      输入单价 <span class="text-[10px] font-mono" :class="detailSortField === 'calculated_input_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('calculated_input_usd') }}</span>
+                    </div>
+                    <div
+                      class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                      @mousedown.stop="startChannelResize('input_price', $event)"
+                      @dblclick.stop="resetChannelColWidth('input_price')"
+                      title="按住拖拽调整列宽，双击恢复默认"
+                    ></div>
                   </th>
                   <!-- 输出单价 -->
-                  <th v-else-if="col.key === 'output_price'" @click="toggleDetailSort('calculated_output_usd')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#0071E3] transition-colors">
-                    输出单价 ({{ store.currency }}) <span class="text-[10px] font-mono" :class="detailSortField === 'calculated_output_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('calculated_output_usd') }}</span>
+                  <th
+                    v-else-if="col.key === 'output_price'"
+                    @click="toggleDetailSort('calculated_output_usd')"
+                    class="py-2.5 px-3 text-right cursor-pointer hover:text-[#0071E3] transition-colors relative group/th"
+                    :style="{ width: getChannelColWidth('output_price'), minWidth: getChannelColWidth('output_price') }"
+                  >
+                    <div class="truncate pr-2">
+                      输出单价 <span class="text-[10px] font-mono" :class="detailSortField === 'calculated_output_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('calculated_output_usd') }}</span>
+                    </div>
+                    <div
+                      class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                      @mousedown.stop="startChannelResize('output_price', $event)"
+                      @dblclick.stop="resetChannelColWidth('output_price')"
+                      title="按住拖拽调整列宽，双击恢复默认"
+                    ></div>
                   </th>
                   <!-- 命中缓存单价 -->
-                  <th v-else-if="col.key === 'cache_price'" class="py-2.5 px-3 text-right text-[#8E24AA] font-semibold">
-                    命中缓存 ({{ store.currency }})
+                  <th
+                    v-else-if="col.key === 'cache_price'"
+                    class="py-2.5 px-3 text-right text-[#8E24AA] font-semibold relative group/th"
+                    :style="{ width: getChannelColWidth('cache_price'), minWidth: getChannelColWidth('cache_price') }"
+                  >
+                    <div class="truncate pr-2">命中缓存</div>
+                    <div
+                      class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                      @mousedown.stop="startChannelResize('cache_price', $event)"
+                      @dblclick.stop="resetChannelColWidth('cache_price')"
+                      title="按住拖拽调整列宽，双击恢复默认"
+                    ></div>
                   </th>
                   <!-- 深度推理 -->
-                  <th v-else-if="col.key === 'reasoning'" class="py-2.5 px-3 text-center">深度推理</th>
+                  <th
+                    v-else-if="col.key === 'reasoning'"
+                    class="py-2.5 px-3 text-center relative group/th"
+                    :style="{ width: getChannelColWidth('reasoning'), minWidth: getChannelColWidth('reasoning') }"
+                  >
+                    <div class="truncate pr-1">深度推理</div>
+                    <div
+                      class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                      @mousedown.stop="startChannelResize('reasoning', $event)"
+                      @dblclick.stop="resetChannelColWidth('reasoning')"
+                      title="按住拖拽调整列宽，双击恢复默认"
+                    ></div>
+                  </th>
                   <!-- 工具调用 -->
-                  <th v-else-if="col.key === 'tools'" class="py-2.5 px-3 text-center">工具调用</th>
+                  <th
+                    v-else-if="col.key === 'tools'"
+                    class="py-2.5 px-3 text-center relative group/th"
+                    :style="{ width: getChannelColWidth('tools'), minWidth: getChannelColWidth('tools') }"
+                  >
+                    <div class="truncate pr-1">工具调用</div>
+                    <div
+                      class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                      @mousedown.stop="startChannelResize('tools', $event)"
+                      @dblclick.stop="resetChannelColWidth('tools')"
+                      title="按住拖拽调整列宽，双击恢复默认"
+                    ></div>
+                  </th>
                   <!-- 实测 TPS -->
-                  <th v-else-if="col.key === 'tps'" @click="toggleDetailSort('last_tested_tps')" class="py-2.5 px-3 text-center cursor-pointer hover:text-[#0071E3] transition-colors">
-                    实测 TPS <span class="text-[10px] font-mono" :class="detailSortField === 'last_tested_tps' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('last_tested_tps') }}</span>
+                  <th
+                    v-else-if="col.key === 'tps'"
+                    @click="toggleDetailSort('last_tested_tps')"
+                    class="py-2.5 px-3 text-center cursor-pointer hover:text-[#0071E3] transition-colors relative group/th"
+                    :style="{ width: getChannelColWidth('tps'), minWidth: getChannelColWidth('tps') }"
+                  >
+                    <div class="truncate pr-2">
+                      实测 TPS <span class="text-[10px] font-mono" :class="detailSortField === 'last_tested_tps' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('last_tested_tps') }}</span>
+                    </div>
+                    <div
+                      class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                      @mousedown.stop="startChannelResize('tps', $event)"
+                      @dblclick.stop="resetChannelColWidth('tps')"
+                      title="按住拖拽调整列宽，双击恢复默认"
+                    ></div>
                   </th>
                 </template>
 
-                <th class="py-2.5 px-3 text-center">快捷操作</th>
+                <th
+                  class="py-2.5 px-3 text-center relative group/th"
+                  :style="{ width: getChannelColWidth('actions'), minWidth: getChannelColWidth('actions') }"
+                >
+                  <div class="truncate pr-1">快捷操作</div>
+                  <div
+                    class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                    @mousedown.stop="startChannelResize('actions', $event)"
+                    @dblclick.stop="resetChannelColWidth('actions')"
+                    title="按住拖拽调整列宽，双击恢复默认"
+                  ></div>
+                </th>
               </tr>
             </thead>
             <tbody class="divide-y divide-[#E5E5EA]/60 font-sans">
@@ -873,16 +995,16 @@
                 class="hover:bg-[#F5F5F7] transition-colors"
               >
                 <!-- 模型名称、标准 ID 与所属分组徽章 -->
-                <td class="py-2.5 px-3">
+                <td class="py-2.5 px-3" :style="{ width: getChannelColWidth('model_name'), minWidth: getChannelColWidth('model_name') }">
                   <div class="flex items-center space-x-2">
-                    <span class="font-bold text-[#1D1D1F] text-xs">{{ item.model_name }}</span>
-                    <span v-if="item.group_name" class="px-1.5 py-0.2 rounded bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[9px] font-mono font-bold shadow-2xs">
+                    <span class="font-bold text-[#1D1D1F] text-xs truncate">{{ item.model_name }}</span>
+                    <span v-if="item.group_name" class="px-1.5 py-0.2 rounded bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[9px] font-mono font-bold shadow-2xs flex-shrink-0">
                       🎯 {{ item.group_name }}
                     </span>
                   </div>
-                  <div class="flex items-center space-x-1.5 text-[11px] font-mono mt-0.5">
-                    <span class="text-[#0071E3]">{{ item.model_id }}</span>
-                    <span v-if="item.site_model_name && item.site_model_name !== item.model_id" class="text-[#86868B]">({{ item.site_model_name }})</span>
+                  <div class="flex items-center space-x-1.5 text-[11px] font-mono mt-0.5 truncate">
+                    <span class="text-[#0071E3] truncate">{{ item.model_id }}</span>
+                    <span v-if="item.site_model_name && item.site_model_name !== item.model_id" class="text-[#86868B] truncate">({{ item.site_model_name }})</span>
                   </div>
                 </td>
 
@@ -1231,6 +1353,7 @@
       fixed-end-label="快捷操作"
       @close="showColumnConfigModal = false"
       @update:columns="onUpdateChannelColumns"
+      @reset-widths="resetChannelWidths"
     />
 
     <!-- 弹窗：编辑渠道基础配置 Modal (Apple 极简浅色高级风格) -->
@@ -1403,6 +1526,7 @@ import AddChannelWizardModal from '../components/AddChannelWizardModal.vue'
 import SnapshotViewerModal from '../components/SnapshotViewerModal.vue'
 import ScoreBreakdownTooltip from '../components/ScoreBreakdownTooltip.vue'
 import TableColumnConfigModal, { type TableColumnDef } from '../components/TableColumnConfigModal.vue'
+import { useTableResizable } from '../composables/useTableResizable'
 import SystemIcon from '../components/SystemIcon.vue'
 import type { RelaySite } from '../types'
 import { parseUtcDate, formatRelativeTime } from '../utils/timeUtils'
@@ -1416,6 +1540,32 @@ const providerModelSearchQuery = ref('')
 const excludeZeroPrice = ref(true)
 const providerModelsList = ref<any[]>([])
 const isDetailLoading = ref(false)
+
+// 列宽调整 (可拖拽 resize 与持久化)
+const DEFAULT_CHANNEL_DETAIL_COL_WIDTHS = {
+  model_name: 300,
+  context: 120,
+  max_output: 120,
+  input_price: 110,
+  output_price: 110,
+  cache_price: 110,
+  reasoning: 80,
+  tools: 80,
+  tps: 90,
+  actions: 130
+}
+
+const {
+  getWidth: getChannelColWidth,
+  startResize: startChannelResize,
+  resetWidths: resetChannelWidths,
+  resetColumnWidth: resetChannelColWidth
+} = useTableResizable({
+  storageKey: 'welltoken_col_widths_channel_detail',
+  defaultWidths: DEFAULT_CHANNEL_DETAIL_COL_WIDTHS,
+  minWidth: 60,
+  maxWidth: 700
+})
 
 // 自定义列配置
 const showColumnConfigModal = ref(false)
