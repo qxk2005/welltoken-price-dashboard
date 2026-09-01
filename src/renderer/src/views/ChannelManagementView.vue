@@ -617,6 +617,13 @@
               >
                 <span>🤖 按模型对比</span>
               </button>
+              <button
+                @click="detailViewMode = 'by-vendor-series'"
+                class="px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center space-x-1"
+                :class="detailViewMode === 'by-vendor-series' ? 'bg-[#FFFFFF] text-[#34C759] font-bold shadow-xs' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+              >
+                <span>🏛️ 按厂商/系列</span>
+              </button>
             </div>
 
             <!-- 模型总数与匹配数紧凑胶囊 -->
@@ -796,6 +803,9 @@
             </span>
             <span v-else-if="detailViewMode === 'by-model'">
               🤖 共聚合 <strong class="text-[#FF9500] font-mono font-bold">{{ groupedByModel.length }}</strong> 款标准模型（跨组比价）
+            </span>
+            <span v-else-if="detailViewMode === 'by-vendor-series'">
+              🏛️ 共聚合 <strong class="text-[#34C759] font-mono font-bold">{{ groupedByVendorSeries.length }}</strong> 个大模型研发厂商，包含 <strong class="text-[#0071E3] font-mono font-bold">{{ groupedByVendorSeries.reduce((acc, v) => acc + v.seriesList.length, 0) }}</strong> 个核心系列
             </span>
           </div>
           <div class="flex items-center space-x-2 text-[11px]">
@@ -1336,6 +1346,225 @@
               暂无匹配的模型数据
             </div>
           </div>
+
+          <!-- 模式 4：按「模型系列 / 厂商」树形层级聚合展示折叠卡片 (detailViewMode === 'by-vendor-series') -->
+          <div v-else-if="detailViewMode === 'by-vendor-series'" class="space-y-3.5 pb-3">
+            <div
+              v-for="vendor in groupedByVendorSeries"
+              :key="`vendor-${vendor.providerId}`"
+              class="bg-[#FFFFFF] border border-[#E5E5EA] rounded-2xl shadow-xs overflow-hidden transition-all"
+            >
+              <!-- 一级节点：厂商头部卡片 (默认展开) -->
+              <div
+                @click="toggleVendorCollapse(vendor.providerId)"
+                class="flex items-center justify-between p-3 bg-[#F9F9FB] hover:bg-[#F2F2F7] cursor-pointer transition-colors border-b border-[#E5E5EA] select-none"
+              >
+                <div class="flex items-center space-x-3">
+                  <!-- 厂商 Logo 与名称 -->
+                  <div class="flex items-center space-x-2">
+                    <LabLogo :lab-id="vendor.providerId" custom-class="w-6 h-6" class="flex-shrink-0" />
+                    <span class="font-bold text-[#1D1D1F] text-xs sm:text-sm">
+                      {{ vendor.providerName }}
+                    </span>
+                  </div>
+
+                  <!-- 系列与模型数胶囊 -->
+                  <div class="flex items-center space-x-1.5">
+                    <span class="px-2 py-0.5 rounded-full bg-[#EAF8EE] text-[#28A745] border border-[#C3E6CB] text-[10px] font-mono font-bold shadow-2xs">
+                      {{ vendor.seriesList.length }} 个系列
+                    </span>
+                    <span class="px-2 py-0.5 rounded-full bg-[#F2F2F7] text-[#0071E3] border border-[#E5E5EA] text-[10px] font-mono font-bold">
+                      共 {{ vendor.totalModels }} 款模型
+                    </span>
+                  </div>
+                </div>
+
+                <div class="flex items-center space-x-3 text-xs">
+                  <div class="flex items-center space-x-2 text-[11px] text-[#6E6E73] font-mono">
+                    <span>价格区间: <strong class="text-[#34C759] font-bold">{{ store.formatCurrency(vendor.minInputPrice) }} ~ {{ store.formatCurrency(vendor.maxInputPrice) }}</strong></span>
+                    <span>•</span>
+                    <span>平均: <strong class="text-[#0071E3]">{{ vendor.avgTps }} TPS</strong></span>
+                  </div>
+                  <button class="text-[#86868B] text-xs font-bold transition-transform duration-150" :class="{'rotate-180': !collapsedVendorKeys.has(vendor.providerId)}">
+                    ▾
+                  </button>
+                </div>
+              </div>
+
+              <!-- 一级展开内容：该厂商旗下的模型系列二级卡片列表 -->
+              <div v-if="!collapsedVendorKeys.has(vendor.providerId)" class="p-3 bg-[#FAFAFC] space-y-2.5">
+                <div
+                  v-for="series in vendor.seriesList"
+                  :key="series.seriesKey"
+                  class="bg-[#FFFFFF] border border-[#E5E5EA] rounded-xl shadow-2xs overflow-hidden transition-all"
+                >
+                  <!-- 二级节点：模型系列卡片头部 (默认折叠，点击展开) -->
+                  <div
+                    @click="toggleSeriesExpand(series.seriesKey)"
+                    class="flex items-center justify-between px-3 py-2.5 bg-[#FFFFFF] hover:bg-[#F2F2F7] cursor-pointer transition-colors border-b border-[#E5E5EA] select-none"
+                  >
+                    <div class="flex items-center space-x-2.5">
+                      <span class="text-xs font-bold text-[#1D1D1F] flex items-center space-x-1.5 font-mono">
+                        <span class="text-[#0071E3]">📦</span>
+                        <span>{{ series.seriesName }} 系列</span>
+                      </span>
+                      <span class="px-1.5 py-0.2 rounded bg-[#F2F2F7] text-[#6E6E73] border border-[#E5E5EA] text-[10px] font-mono font-medium">
+                        {{ series.models.length }} 款模型
+                      </span>
+                    </div>
+
+                    <div class="flex items-center space-x-3 text-xs">
+                      <div class="flex items-center space-x-2 text-[11px] font-mono text-[#6E6E73]">
+                        <span>起步单价: <strong class="text-[#34C759] font-bold">{{ store.formatCurrency(series.minInputPrice) }}</strong></span>
+                        <span v-if="series.maxInputPrice > series.minInputPrice" class="text-[#86868B]">
+                          (最高 {{ store.formatCurrency(series.maxInputPrice) }})
+                        </span>
+                      </div>
+                      <button
+                        class="px-2 py-0.5 rounded-lg text-[11px] font-medium transition-all flex items-center space-x-1 border"
+                        :class="expandedSeriesKeys.has(series.seriesKey) ? 'bg-[#0071E3] text-white border-[#0071E3]' : 'bg-[#F2F2F7] text-[#6E6E73] border-[#E5E5EA] hover:text-[#1D1D1F]'"
+                      >
+                        <span>{{ expandedSeriesKeys.has(series.seriesKey) ? '收起规格' : '展开规格' }}</span>
+                        <span class="transition-transform duration-150" :class="{'rotate-180': expandedSeriesKeys.has(series.seriesKey)}">▾</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- 三级节点：展开系列后的完整模型规格与定价表格 -->
+                  <div v-if="expandedSeriesKeys.has(series.seriesKey)" class="p-2 overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse min-w-full table-fixed">
+                      <colgroup>
+                        <col :style="{ width: getChannelColWidth('model_name') }" />
+                        <col
+                          v-for="col in visibleChannelColumns"
+                          :key="`col-tree-${col.key}`"
+                          :style="{ width: getChannelColWidth(col.key) }"
+                        />
+                        <col :style="{ width: getChannelColWidth('actions') }" />
+                      </colgroup>
+
+                      <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] font-sans select-none whitespace-nowrap">
+                        <tr>
+                          <th class="py-2 px-2.5">模型名称 / 标准标识</th>
+                          <template v-for="col in visibleChannelColumns" :key="col.key">
+                            <th v-if="col.key === 'context'" class="py-2 px-2.5 text-right">上下文 (Context)</th>
+                            <th v-else-if="col.key === 'max_output'" class="py-2 px-2.5 text-right">最大输出 (Output)</th>
+                            <th v-else-if="col.key === 'input_price'" class="py-2 px-2.5 text-right">输入单价 ({{ store.currency }})</th>
+                            <th v-else-if="col.key === 'output_price'" class="py-2 px-2.5 text-right">输出单价 ({{ store.currency }})</th>
+                            <th v-else-if="col.key === 'cache_price'" class="py-2 px-2.5 text-right text-[#8E24AA]">命中缓存</th>
+                            <th v-else-if="col.key === 'reasoning'" class="py-2 px-2.5 text-center">深度推理</th>
+                            <th v-else-if="col.key === 'tools'" class="py-2 px-2.5 text-center">工具调用</th>
+                            <th v-else-if="col.key === 'tps'" class="py-2 px-2.5 text-center">实测 TPS</th>
+                          </template>
+                          <th class="py-2 px-2.5 text-center w-28">快捷操作</th>
+                        </tr>
+                      </thead>
+
+                      <tbody class="divide-y divide-[#E5E5EA]/60 font-sans">
+                        <tr
+                          v-for="item in series.models"
+                          :key="item.id || item.model_id"
+                          class="hover:bg-[#F5F5F7] transition-colors"
+                        >
+                          <!-- 模型名称、标准 ID 与所属分组徽章 -->
+                          <td class="py-2 px-2.5" :style="{ width: getChannelColWidth('model_name') }">
+                            <div class="flex items-center space-x-2">
+                              <span class="font-bold text-[#1D1D1F] text-xs truncate">{{ item.model_name }}</span>
+                              <span v-if="item.group_name" class="px-1.5 py-0.2 rounded bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[9px] font-mono font-bold shadow-2xs flex-shrink-0">
+                                🎯 {{ item.group_name }}
+                              </span>
+                            </div>
+                            <div class="flex items-center space-x-1.5 text-[11px] font-mono mt-0.5 truncate">
+                              <span class="text-[#0071E3] truncate">{{ item.model_id }}</span>
+                              <span v-if="item.site_model_name && item.site_model_name !== item.model_id" class="text-[#86868B] truncate">({{ item.site_model_name }})</span>
+                            </div>
+                          </td>
+
+                          <!-- 动态列数据 -->
+                          <template v-for="col in visibleChannelColumns" :key="col.key">
+                            <td v-if="col.key === 'context'" class="py-2 px-2.5 text-right font-mono text-[#1D1D1F]">
+                              {{ formatContextWindow(item.context_window) }}
+                            </td>
+                            <td v-else-if="col.key === 'max_output'" class="py-2 px-2.5 text-right font-mono text-[#6E6E73]">
+                              {{ item.max_output ? Number(item.max_output).toLocaleString() : '8,192' }}
+                            </td>
+                            <td v-else-if="col.key === 'input_price'" class="py-2 px-2.5 text-right font-mono font-bold text-[#34C759]">
+                              {{ store.formatCurrency(item.calculated_input_usd) }}
+                            </td>
+                            <td v-else-if="col.key === 'output_price'" class="py-2 px-2.5 text-right font-mono text-[#1D1D1F]">
+                              {{ store.formatCurrency(item.calculated_output_usd) }}
+                            </td>
+                            <td v-else-if="col.key === 'cache_price'" class="py-2 px-2.5 text-right font-mono font-semibold">
+                              <span v-if="item.calculated_cache_usd && item.calculated_cache_usd > 0" class="text-[#8E24AA]">
+                                {{ store.formatCurrency(item.calculated_cache_usd) }}
+                              </span>
+                              <span v-else class="text-[#AEAEB2] font-normal">-</span>
+                            </td>
+                            <td v-else-if="col.key === 'reasoning'" class="py-2 px-2.5 text-center font-mono">
+                              <span v-if="isReasoningModel(item.model_id)" class="text-[#34C759] font-bold">是</span>
+                              <span v-else class="text-[#86868B]">-</span>
+                            </td>
+                            <td v-else-if="col.key === 'tools'" class="py-2 px-2.5 text-center font-mono">
+                              <span class="text-[#34C759] font-bold">是</span>
+                            </td>
+                            <td v-else-if="col.key === 'tps'" class="py-2 px-2.5 text-center font-mono text-[#0071E3] font-bold">
+                              {{ item.last_tested_tps }} tps
+                            </td>
+                          </template>
+
+                          <!-- 快捷操作 (下拉操作气泡菜单) -->
+                          <td class="py-2 px-2.5 text-center w-28 whitespace-nowrap relative">
+                            <button
+                              @click.stop="toggleModelActionDropdown(item.id || item.model_id)"
+                              class="px-2.5 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] active:bg-[#D1D1D6] text-[#1D1D1F] border border-[#E5E5EA] text-[11px] font-medium transition-all inline-flex items-center space-x-1"
+                              :class="{'bg-[#E8F2FD] border-[#CCE4FB] text-[#0071E3] font-bold': activeActionDropdownModelId === (item.id || item.model_id)}"
+                            >
+                              <span>操作</span>
+                              <span class="text-[9px] text-[#86868B] transition-transform duration-150" :class="{'rotate-180': activeActionDropdownModelId === (item.id || item.model_id)}">▾</span>
+                            </button>
+
+                            <!-- 浮层下拉气泡菜单 -->
+                            <div
+                              v-if="activeActionDropdownModelId === (item.id || item.model_id)"
+                              class="absolute right-3 top-9 w-32 bg-[#FFFFFF] border border-[#E5E5EA] rounded-xl shadow-[0_12px_30px_rgba(0,0,0,0.12)] z-30 py-1 text-left animate-fade-in text-xs"
+                              @click.stop
+                            >
+                              <button
+                                @click="goToMatrixWithModel(item.model_id); closeAllDropdowns()"
+                                class="w-full px-3 py-1.5 hover:bg-[#F2F2F7] flex items-center space-x-2 text-[#0071E3] transition-colors"
+                              >
+                                <span>⚖️</span>
+                                <span>全网比价</span>
+                              </button>
+                              <button
+                                @click="goToSpeedTestWithModel(item.model_id); closeAllDropdowns()"
+                                class="w-full px-3 py-1.5 hover:bg-[#F2F2F7] flex items-center space-x-2 text-[#34C759] font-medium transition-colors"
+                              >
+                                <span>⚡</span>
+                                <span>一键测速</span>
+                              </button>
+                              <button
+                                @click="openSnapshotModal(item); closeAllDropdowns()"
+                                class="w-full px-3 py-1.5 hover:bg-[#F3E8FD] flex items-center space-x-2 text-[#8E24AA] font-medium transition-colors"
+                                title="打开官方定价网页快照，高亮核验该模型价格与区间"
+                              >
+                                <span>📸</span>
+                                <span>快照核对</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="!isDetailLoading && groupedByVendorSeries.length === 0" class="py-12 text-center text-xs text-[#86868B]">
+              暂无匹配的厂商与模型系列
+            </div>
+          </div>
         </div>
       </div>
     </template>
@@ -1536,6 +1765,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import { useDashboardStore } from '../stores/dashboardStore'
 import ProviderLogo from '../components/ProviderLogo.vue'
+import LabLogo from '../components/LabLogo.vue'
 import AddChannelWizardModal from '../components/AddChannelWizardModal.vue'
 import SnapshotViewerModal from '../components/SnapshotViewerModal.vue'
 import ScoreBreakdownTooltip from '../components/ScoreBreakdownTooltip.vue'
@@ -2027,11 +2257,15 @@ const selectProvider = async (site: RelaySite) => {
 }
 
 // 视图模式切换与聚合折叠状态
-type DetailViewMode = 'flat' | 'by-group' | 'by-model'
+type DetailViewMode = 'flat' | 'by-group' | 'by-model' | 'by-vendor-series'
 const detailViewMode = ref<DetailViewMode>('flat')
 
 // 折叠状态集合 (存储已折叠的 groupName 或 modelKey)
 const collapsedGroupKeys = ref<Set<string>>(new Set())
+// 厂商折叠状态（默认空，即一级厂商全展开）
+const collapsedVendorKeys = ref<Set<string>>(new Set())
+// 系列展开状态（默认空，即二级系列默认折叠，点击展开）
+const expandedSeriesKeys = ref<Set<string>>(new Set())
 
 const toggleCollapse = (key: string) => {
   if (collapsedGroupKeys.value.has(key)) {
@@ -2041,8 +2275,34 @@ const toggleCollapse = (key: string) => {
   }
 }
 
+const toggleVendorCollapse = (providerId: string) => {
+  if (collapsedVendorKeys.value.has(providerId)) {
+    collapsedVendorKeys.value.delete(providerId)
+  } else {
+    collapsedVendorKeys.value.add(providerId)
+  }
+}
+
+const toggleSeriesExpand = (seriesKey: string) => {
+  if (expandedSeriesKeys.value.has(seriesKey)) {
+    expandedSeriesKeys.value.delete(seriesKey)
+  } else {
+    expandedSeriesKeys.value.add(seriesKey)
+  }
+}
+
 const expandAllGroups = () => {
   collapsedGroupKeys.value.clear()
+  if (detailViewMode.value === 'by-vendor-series') {
+    collapsedVendorKeys.value.clear()
+    const allKeys: string[] = []
+    for (const v of groupedByVendorSeries.value) {
+      for (const s of v.seriesList) {
+        allKeys.push(s.seriesKey)
+      }
+    }
+    expandedSeriesKeys.value = new Set(allKeys)
+  }
 }
 
 const collapseAllGroups = () => {
@@ -2050,8 +2310,124 @@ const collapseAllGroups = () => {
     collapsedGroupKeys.value = new Set(groupedByPricingGroup.value.map((s) => s.groupName))
   } else if (detailViewMode.value === 'by-model') {
     collapsedGroupKeys.value = new Set(groupedByModel.value.map((s) => s.modelKey))
+  } else if (detailViewMode.value === 'by-vendor-series') {
+    expandedSeriesKeys.value.clear()
   }
 }
+
+// 厂商中文映射
+const getVendorDisplayName = (providerId: string): string => {
+  const map: Record<string, string> = {
+    alibaba: 'Alibaba (阿里巴巴通义千问 Qwen)',
+    openai: 'OpenAI (GPT / o1 / o3)',
+    anthropic: 'Anthropic (Claude 系列)',
+    deepseek: 'DeepSeek (深度求索)',
+    google: 'Google DeepMind (Gemini / Gemma)',
+    meta: 'Meta (Llama 系列)',
+    moonshotai: 'Moonshot AI (月之暗面 Kimi)',
+    zhipu: 'Zhipu AI (智谱 GLM)',
+    baichuan: 'Baichuan (百川智能)',
+    minimax: 'MiniMax (海螺 AI)',
+    mistral: 'Mistral AI (欧洲顶尖开源)',
+    tencent: 'Tencent (腾讯混元 Hunyuan)',
+    bytedance: 'ByteDance (火山引擎 / 豆包 Doubao)',
+    baidu: 'Baidu (百度文心一言 ERNIE)',
+    xai: 'xAI (Grok)',
+    cohere: 'Cohere (Command 系列)',
+    stepfun: 'StepFun (阶跃星辰)',
+    sensetime: 'SenseTime (商汤日日新)',
+    lingyi: '01.AI (零一万物 Yi)',
+    stability: 'Stability AI (Stable Diffusion)',
+    midjourney: 'Midjourney',
+    kling: 'Kling AI (快手可灵)',
+    runway: 'Runway (Gen 视频)',
+    suno: 'Suno (AI 音乐创作)'
+  }
+  const low = (providerId || '').toLowerCase().trim()
+  return map[low] || (providerId ? providerId.toUpperCase() : '通用厂商 / 其他开源')
+}
+
+// 视图 4：按模型系列/厂商树形聚合数据结构
+interface VendorSeriesNode {
+  seriesName: string
+  seriesKey: string
+  models: any[]
+  minInputPrice: number
+  maxInputPrice: number
+  avgTps: number
+}
+
+interface VendorNode {
+  providerId: string
+  providerName: string
+  seriesList: VendorSeriesNode[]
+  totalModels: number
+  minInputPrice: number
+  maxInputPrice: number
+  avgTps: number
+}
+
+const groupedByVendorSeries = computed<VendorNode[]>(() => {
+  const vendorMap = new Map<string, any[]>()
+  for (const item of filteredProviderModels.value) {
+    const pId = (item.provider || 'other').toLowerCase().trim()
+    if (!vendorMap.has(pId)) {
+      vendorMap.set(pId, [])
+    }
+    vendorMap.get(pId)!.push(item)
+  }
+
+  const vendors: VendorNode[] = []
+
+  for (const [providerId, pModels] of vendorMap.entries()) {
+    const seriesMap = new Map<string, any[]>()
+    for (const m of pModels) {
+      const sName = m.series || '通用系列'
+      if (!seriesMap.has(sName)) {
+        seriesMap.set(sName, [])
+      }
+      seriesMap.get(sName)!.push(m)
+    }
+
+    const seriesList: VendorSeriesNode[] = []
+    for (const [seriesName, sModels] of seriesMap.entries()) {
+      const inputPrices = sModels.map((m) => m.calculated_input_usd).filter((p) => typeof p === 'number')
+      const minInput = inputPrices.length > 0 ? Math.min(...inputPrices) : 0
+      const maxInput = inputPrices.length > 0 ? Math.max(...inputPrices) : 0
+      const tpsList = sModels.map((m) => m.last_tested_tps || 50)
+      const avgTps = tpsList.length > 0 ? Math.round(tpsList.reduce((a, b) => a + b, 0) / tpsList.length) : 50
+
+      seriesList.push({
+        seriesName,
+        seriesKey: `${providerId}__${seriesName}`,
+        models: sModels,
+        minInputPrice: minInput,
+        maxInputPrice: maxInput,
+        avgTps
+      })
+    }
+
+    seriesList.sort((a, b) => b.models.length - a.models.length || a.seriesName.localeCompare(b.seriesName))
+
+    const pInputPrices = pModels.map((m) => m.calculated_input_usd).filter((p) => typeof p === 'number')
+    const pMinInput = pInputPrices.length > 0 ? Math.min(...pInputPrices) : 0
+    const pMaxInput = pInputPrices.length > 0 ? Math.max(...pInputPrices) : 0
+    const pTpsList = pModels.map((m) => m.last_tested_tps || 50)
+    const pAvgTps = pTpsList.length > 0 ? Math.round(pTpsList.reduce((a, b) => a + b, 0) / pTpsList.length) : 50
+
+    vendors.push({
+      providerId,
+      providerName: getVendorDisplayName(providerId),
+      seriesList,
+      totalModels: pModels.length,
+      minInputPrice: pMinInput,
+      maxInputPrice: pMaxInput,
+      avgTps: pAvgTps
+    })
+  }
+
+  return vendors.sort((a, b) => b.totalModels - a.totalModels || a.providerName.localeCompare(b.providerName))
+})
 
 // 视图 2：按价格分组聚合数据结构
 interface PricingGroupSection {
