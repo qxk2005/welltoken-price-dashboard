@@ -171,6 +171,17 @@
           <span class="text-[#6E6E73]">
             全网匹配: <strong class="text-[#0071E3] font-mono font-bold">{{ totalRecords }}</strong> 条报价
           </span>
+
+          <!-- 自定义列设置按钮 -->
+          <button
+            @click="showColumnConfigModal = true"
+            class="px-2.5 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] border border-[#E5E5EA] transition-all text-xs flex items-center space-x-1 cursor-pointer font-medium"
+            title="自定义表格显示列与显示顺序"
+          >
+            <span>🎛️</span>
+            <span>自定义列</span>
+          </button>
+
           <button
             @click="handleExportPriceMatrix"
             :disabled="isExporting || totalRecords === 0"
@@ -277,23 +288,23 @@
             </div>
           </div>
 
-          <!-- 4. 模型名称 Dimension Pill & Popover (支持多达 80+ 款模型聚合与弹窗搜索管理) -->
+          <!-- 4. 模型名称 Dimension Pill & Popover -->
           <div v-if="selectedModels.length > 0" class="relative inline-block" @click.stop>
             <span
               @click="selectedModels.length > 1 ? toggleDimensionPopover('model') : null"
-              class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-[#E6F4EA] border border-[#CEEAD6] text-[#137333] text-[11px] font-medium transition-all"
-              :class="selectedModels.length > 1 ? 'cursor-pointer hover:bg-[#D5EFE0] hover:border-[#B5E4C6] shadow-2xs' : ''"
+              class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-[#E8F8EE] border border-[#B7EB8F] text-[#389E0D] text-[11px] font-medium transition-all"
+              :class="selectedModels.length > 1 ? 'cursor-pointer hover:bg-[#D9F7BE] hover:border-[#95DE64]' : ''"
             >
-              <SystemIcon name="cpu" custom-class="w-3 h-3 text-[#137333]" />
-              <span>{{ selectedModels.length === 1 ? selectedModels[0] : `模型名称: ${selectedModels.length} 款` }}</span>
-              <span v-if="selectedModels.length > 1" class="text-[9px] text-[#137333]">▾</span>
-              <button @click.stop="handleModelChange([])" class="hover:text-[#0D5324] ml-0.5 cursor-pointer font-bold" title="清除所有选中的模型">✕</button>
+              <SystemIcon name="model" custom-class="w-3 h-3 text-[#389E0D]" />
+              <span>{{ selectedModels.length === 1 ? selectedModels[0] : `模型: ${selectedModels.length} 个` }}</span>
+              <span v-if="selectedModels.length > 1" class="text-[9px] text-[#389E0D]">▾</span>
+              <button @click.stop="handleModelChange([])" class="hover:text-[#135200] ml-0.5 cursor-pointer font-bold" title="清除所有选中的模型">✕</button>
             </span>
 
             <!-- Popover Dropdown -->
             <div
               v-if="activePopoverDimension === 'model'"
-              class="absolute left-0 top-7 w-88 bg-[#FFFFFF] border border-[#E5E5EA] rounded-2xl shadow-[0_16px_36px_rgba(0,0,0,0.15)] z-30 p-3 animate-fade-in text-xs space-y-2.5"
+              class="absolute left-0 top-7 w-80 bg-[#FFFFFF] border border-[#E5E5EA] rounded-2xl shadow-[0_16px_36px_rgba(0,0,0,0.15)] z-30 p-3 animate-fade-in text-xs space-y-2.5"
             >
               <div class="flex items-center justify-between pb-1.5 border-b border-[#E5E5EA]">
                 <div class="flex items-center space-x-1">
@@ -314,34 +325,33 @@
                 <span v-if="popoverSearchQuery" @click="popoverSearchQuery = ''" class="absolute right-2 top-1 text-[#86868B] hover:text-[#1D1D1F] cursor-pointer text-xs">✕</span>
               </div>
 
-              <!-- 模型标签流 (内部滚动) -->
-              <div class="max-h-52 overflow-y-auto pr-1 flex flex-wrap gap-1.5">
+              <div class="max-h-48 overflow-y-auto pr-1 flex flex-wrap gap-1">
                 <span
                   v-for="m in filteredPopoverModels"
                   :key="`pop-m-${m}`"
-                  class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-[#E6F4EA] border border-[#CEEAD6] text-[#137333] text-[11px] font-mono group"
+                  class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-[#E8F8EE] border border-[#B7EB8F] text-[#389E0D] text-[11px] font-mono"
                 >
-                  <span class="truncate max-w-[200px]" :title="m">{{ m }}</span>
-                  <button @click="removeModel(m)" class="text-[#86868B] group-hover:text-[#FF3B30] ml-0.5 cursor-pointer font-bold">✕</button>
+                  <span class="truncate max-w-[180px]">{{ m }}</span>
+                  <button @click="removeModel(m)" class="hover:text-[#FF3B30] ml-0.5 cursor-pointer font-bold">✕</button>
                 </span>
-                <div v-if="filteredPopoverModels.length === 0" class="py-4 text-center text-[#86868B] text-xs w-full">
+                <div v-if="filteredPopoverModels.length === 0" class="py-3 text-center text-[#86868B] text-xs w-full">
                   无匹配的已选模型
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- 5. 渠道中转站 Dimension Pill & Popover -->
+          <!-- 5. 渠道/中转站 Dimension Pill & Popover -->
           <div v-if="selectedSites.length > 0" class="relative inline-block" @click.stop>
             <span
               @click="selectedSites.length > 1 ? toggleDimensionPopover('site') : null"
               class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-[#FFF0E6] border border-[#FFD8BF] text-[#D4380D] text-[11px] font-medium transition-all"
-              :class="selectedSites.length > 1 ? 'cursor-pointer hover:bg-[#FFE6D6] hover:border-[#FFCCA8]' : ''"
+              :class="selectedSites.length > 1 ? 'cursor-pointer hover:bg-[#FFE7BA] hover:border-[#FFC069]' : ''"
             >
-              <SystemIcon name="site" custom-class="w-3 h-3 text-[#D4380D]" />
-              <span>{{ selectedSites.length === 1 ? selectedSites[0] : `渠道中转: ${selectedSites.length} 家` }}</span>
+              <SystemIcon name="channel" custom-class="w-3 h-3 text-[#D4380D]" />
+              <span>{{ selectedSites.length === 1 ? selectedSites[0] : `渠道: ${selectedSites.length} 个` }}</span>
               <span v-if="selectedSites.length > 1" class="text-[9px] text-[#D4380D]">▾</span>
-              <button @click.stop="handleSiteChange([])" class="hover:text-[#A82805] ml-0.5 cursor-pointer font-bold" title="清除所有选中的渠道">✕</button>
+              <button @click.stop="handleSiteChange([])" class="hover:text-[#871400] ml-0.5 cursor-pointer font-bold" title="清除所有选中的渠道">✕</button>
             </span>
 
             <!-- Popover Dropdown -->
@@ -413,49 +423,67 @@
           <!-- 表头 (支持点击多列排序) -->
           <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans select-none whitespace-nowrap">
             <tr>
-              <th @click="toggleSort('series')" class="py-3 px-2 cursor-pointer hover:text-[#1D1D1F] transition-colors w-36">
-                模型系列 / 厂商 <span class="text-[10px] font-mono" :class="sortField === 'series' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('series') }}</span>
-              </th>
+              <!-- 固定首列：模型标准标识 -->
               <th @click="toggleSort('model_id')" class="py-3 px-2 cursor-pointer hover:text-[#1D1D1F] transition-colors">
                 模型标准标识 <span class="text-[10px] font-mono" :class="sortField === 'model_id' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('model_id') }}</span>
               </th>
-              <th @click="toggleSort('site_name')" class="py-3 px-2 cursor-pointer hover:text-[#1D1D1F] transition-colors w-40">
-                渠道 / 供应商 <span class="text-[10px] font-mono" :class="sortField === 'site_name' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('site_name') }}</span>
-              </th>
-              <th class="py-3 px-1.5 text-center w-16">类型</th>
-              <th @click="toggleSort('calculated_input_usd')" class="py-3 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
-                输入单价 <span class="text-[10px] font-mono" :class="sortField === 'calculated_input_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('calculated_input_usd') }}</span>
-              </th>
-              <th @click="toggleSort('calculated_output_usd')" class="py-3 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
-                输出单价 <span class="text-[10px] font-mono" :class="sortField === 'calculated_output_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('calculated_output_usd') }}</span>
-              </th>
-              <th @click="toggleSort('model_ratio')" class="py-3 px-1.5 text-center cursor-pointer hover:text-[#1D1D1F] transition-colors w-14">
-                倍率 <span class="text-[10px] font-mono" :class="sortField === 'model_ratio' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('model_ratio') }}</span>
-              </th>
-              <th @click="toggleSort('last_tested_tps')" class="py-3 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-20">
-                实测 TPS <span class="text-[10px] font-mono" :class="sortField === 'last_tested_tps' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('last_tested_tps') }}</span>
-              </th>
-              <th class="py-3 px-2 text-right w-36 select-none">
-                <div class="flex items-center justify-end space-x-1">
-                  <span
-                    @click="toggleTimeDisplayMode"
-                    class="cursor-pointer hover:text-[#0071E3] transition-colors inline-flex items-center space-x-1"
-                    :title="`当前模式: ${timeDisplayMode === 'relative' ? '人性化相对时间' : '绝对日期时间'}。点击表头文字一键切换`"
-                  >
-                    <span>更新时间</span>
-                    <span class="text-[9px] font-normal text-[#86868B]">({{ timeDisplayMode === 'relative' ? '相对' : '绝对' }})</span>
-                  </span>
-                  <button
-                    @click.stop="toggleSort('updated_at')"
-                    class="p-0.5 hover:bg-[#E5E5EA] rounded cursor-pointer transition-colors"
-                    title="点击按更新时间升/降序排序"
-                  >
-                    <span class="text-[10px] font-mono" :class="sortField === 'updated_at' || sortField === 'source_updated_at' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">
-                      {{ getSortIndicator('updated_at') }}
+
+              <!-- 动态配置列表头 -->
+              <template v-for="col in visibleMatrixColumns" :key="col.key">
+                <th v-if="col.key === 'series'" @click="toggleSort('series')" class="py-3 px-2 cursor-pointer hover:text-[#1D1D1F] transition-colors w-32">
+                  模型系列 / 厂商 <span class="text-[10px] font-mono" :class="sortField === 'series' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('series') }}</span>
+                </th>
+
+                <th v-else-if="col.key === 'site_name'" @click="toggleSort('site_name')" class="py-3 px-2 cursor-pointer hover:text-[#1D1D1F] transition-colors w-36">
+                  渠道 / 供应商 <span class="text-[10px] font-mono" :class="sortField === 'site_name' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('site_name') }}</span>
+                </th>
+
+                <th v-else-if="col.key === 'site_type'" class="py-3 px-1.5 text-center w-16">
+                  类型
+                </th>
+
+                <th v-else-if="col.key === 'input_price'" @click="toggleSort('calculated_input_usd')" class="py-3 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
+                  输入单价 <span class="text-[10px] font-mono" :class="sortField === 'calculated_input_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('calculated_input_usd') }}</span>
+                </th>
+
+                <th v-else-if="col.key === 'output_price'" @click="toggleSort('calculated_output_usd')" class="py-3 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
+                  输出单价 <span class="text-[10px] font-mono" :class="sortField === 'calculated_output_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('calculated_output_usd') }}</span>
+                </th>
+
+                <th v-else-if="col.key === 'cache_price'" @click="toggleSort('calculated_cache_usd')" class="py-3 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
+                  命中缓存 <span class="text-[10px] font-mono" :class="sortField === 'calculated_cache_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('calculated_cache_usd') }}</span>
+                </th>
+
+                <th v-else-if="col.key === 'model_ratio'" @click="toggleSort('model_ratio')" class="py-3 px-1.5 text-center cursor-pointer hover:text-[#1D1D1F] transition-colors w-14">
+                  倍率 <span class="text-[10px] font-mono" :class="sortField === 'model_ratio' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('model_ratio') }}</span>
+                </th>
+
+                <th v-else-if="col.key === 'tps'" @click="toggleSort('last_tested_tps')" class="py-3 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-20">
+                  实测 TPS <span class="text-[10px] font-mono" :class="sortField === 'last_tested_tps' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getSortIndicator('last_tested_tps') }}</span>
+                </th>
+
+                <th v-else-if="col.key === 'updated_at'" class="py-3 px-2 text-right w-36 select-none">
+                  <div class="flex items-center justify-end space-x-1">
+                    <span
+                      @click="toggleTimeDisplayMode"
+                      class="cursor-pointer hover:text-[#0071E3] transition-colors inline-flex items-center space-x-1"
+                      :title="`当前模式: ${timeDisplayMode === 'relative' ? '人性化相对时间' : '绝对日期时间'}。点击表头文字一键切换`"
+                    >
+                      <span>更新时间</span>
+                      <span class="text-[9px] font-normal text-[#86868B]">({{ timeDisplayMode === 'relative' ? '相对' : '绝对' }})</span>
                     </span>
-                  </button>
-                </div>
-              </th>
+                    <button
+                      @click.stop="toggleSort('updated_at')"
+                      class="p-0.5 hover:bg-[#E5E5EA] rounded cursor-pointer transition-colors"
+                      title="点击按更新时间升/降序排序"
+                    >
+                      <span class="text-[10px] font-mono" :class="sortField === 'updated_at' || sortField === 'source_updated_at' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">
+                        {{ getSortIndicator('updated_at') }}
+                      </span>
+                    </button>
+                  </div>
+                </th>
+              </template>
             </tr>
           </thead>
 
@@ -476,132 +504,152 @@
                   : ''
               ]"
             >
-              <!-- 1. 系列与厂商 -->
-              <td class="py-3 px-2">
-                <div class="flex items-center space-x-1.5 truncate">
-                  <button
-                    @click.stop="openVendorDrawer(row.provider)"
-                    class="px-1.5 py-0.5 rounded bg-[#F2F2F7] hover:bg-[#0071E3] hover:text-white text-[#1D1D1F] border border-[#E5E5EA] text-[10px] font-mono font-bold transition-all cursor-pointer shadow-2xs group/btn flex items-center space-x-1 flex-shrink-0"
-                    :title="`点击在右侧查看 ${row.provider.toUpperCase()} 厂商所有模型规格与详情`"
-                  >
-                    <span>{{ row.provider.toUpperCase() }}</span>
-                    <SystemIcon name="detail" custom-class="w-2.5 h-2.5 text-[#0071E3] group-hover/btn:text-white" />
-                  </button>
-                  <span class="text-[#1D1D1F] font-medium truncate text-[11px]">{{ row.series || '通用' }}</span>
-                </div>
-              </td>
-
-              <!-- 2. 模型标准标识 与 梯度/分段定价标签 -->
-              <td class="py-3 px-2">
-                <div class="flex items-center space-x-1.5 truncate">
-                  <span class="font-bold text-[#0071E3] font-mono truncate text-xs" :title="row.model_id">{{ row.model_id }}</span>
-                  <!-- 分段/区间定价或自定义别名徽章 -->
-                  <span
+              <!-- 1. 模型标准标识 与 梯度/分段定价标签 (双行紧凑布局) -->
+              <td class="py-2 px-2">
+                <div class="flex flex-col space-y-0.5 truncate">
+                  <div class="font-bold text-[#0071E3] font-mono truncate text-xs" :title="row.model_id">
+                    {{ row.model_id }}
+                  </div>
+                  <!-- 第 2 行：分段/区间定价或自定义别名徽章 -->
+                  <div
                     v-if="row.site_model_name && row.site_model_name !== row.model_id"
-                    class="inline-flex items-center space-x-1 text-[#86868B] text-[11px] font-mono truncate max-w-[260px]"
+                    class="inline-flex items-center space-x-1 text-[#86868B] text-[10px] font-mono truncate max-w-[280px]"
                     :title="`渠道定价规格/区间说明: ${row.site_model_name}`"
                   >
                     <span
                       v-if="isTieredModel(row.site_model_name)"
-                      class="px-1.5 py-0.2 rounded bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[9px] font-bold shrink-0"
+                      class="px-1 py-0.2 rounded bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[9px] font-bold shrink-0 leading-tight"
                     >
                       分段
                     </span>
-                    <span class="truncate">({{ row.site_model_name }})</span>
-                  </span>
-                </div>
-              </td>
-
-              <!-- 3. 渠道站点与收藏星标 -->
-              <td class="py-3 px-2">
-                <div class="flex items-center space-x-1.5 truncate">
-                  <button
-                    @click.stop="toggleFavoriteByName(row.site_name)"
-                    class="transition-transform hover:scale-125 focus:outline-none cursor-pointer flex-shrink-0"
-                    :title="isSiteNameFavorite(row.site_name) ? '点击取消收藏' : '点击收藏该渠道'"
-                  >
-                    <SystemIcon
-                      :name="isSiteNameFavorite(row.site_name) ? 'star-filled' : 'star'"
-                      custom-class="w-3.5 h-3.5"
-                      :class="isSiteNameFavorite(row.site_name) ? 'text-amber-500 fill-amber-500' : 'text-[#AEAEB2] hover:text-amber-500'"
-                    />
-                  </button>
-                  <div class="flex items-center space-x-1 truncate">
-                    <button
-                      @click.stop="openChannelDrawer(row.site_name)"
-                      class="font-semibold text-[#1D1D1F] hover:text-[#0071E3] hover:underline cursor-pointer truncate text-xs transition-colors text-left flex items-center space-x-1 group/ch"
-                      :title="`点击在右侧查看「${row.site_name}」渠道详情与可用模型定价`"
-                    >
-                      <span class="truncate">{{ row.site_name }}</span>
-                      <SystemIcon name="detail" custom-class="w-2.5 h-2.5 text-[#0071E3] opacity-60 group-hover/ch:opacity-100" />
-                    </button>
-                    <!-- 当前比价基准渠道徽标 -->
-                    <span
-                      v-if="isBenchmarkRow(row)"
-                      class="px-1.5 py-0.2 rounded-full bg-[#0071E3] text-white text-[9px] font-bold flex-shrink-0 shadow-xs flex items-center space-x-0.5 animate-pulse"
-                      title="这是你在渠道详情中发起全网比价的原渠道（比价基准）"
-                    >
-                      <SystemIcon name="target" custom-class="w-2.5 h-2.5" />
-                      <span>基准</span>
-                    </span>
-                    <span
-                      v-if="row.group_name"
-                      class="px-1 py-0.2 rounded bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[9px] font-mono font-bold truncate flex-shrink-0 shadow-2xs flex items-center space-x-0.5"
-                      :title="`结算分组: ${row.group_name}`"
-                    >
-                      <SystemIcon name="target" custom-class="w-2.5 h-2.5 text-[#8E24AA]" />
-                      <span>{{ row.group_name }}</span>
-                    </span>
+                    <span class="truncate">{{ row.site_model_name }}</span>
                   </div>
                 </div>
               </td>
 
-              <!-- 4. 类型徽标 -->
-              <td class="py-3 px-1.5 text-center">
-                <span
-                  class="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold uppercase"
-                  :class="getTypeBadgeClass(row.site_type)"
-                >
-                  {{ row.site_type }}
-                </span>
-              </td>
+              <!-- 动态配置列单元格 -->
+              <template v-for="col in visibleMatrixColumns" :key="col.key">
+                <!-- 模型系列与厂商 (双行紧凑布局) -->
+                <td v-if="col.key === 'series'" class="py-2 px-2">
+                  <div class="flex flex-col space-y-0.5 truncate">
+                    <div class="flex items-center space-x-1">
+                      <button
+                        @click.stop="openVendorDrawer(row.provider)"
+                        class="px-1.5 py-0.2 rounded bg-[#F2F2F7] hover:bg-[#0071E3] hover:text-white text-[#1D1D1F] border border-[#E5E5EA] text-[10px] font-mono font-bold transition-all cursor-pointer shadow-2xs group/btn inline-flex items-center space-x-0.5 flex-shrink-0"
+                        :title="`点击在右侧查看 ${row.provider.toUpperCase()} 厂商所有模型规格与详情`"
+                      >
+                        <span>{{ row.provider.toUpperCase() }}</span>
+                        <SystemIcon name="detail" custom-class="w-2.5 h-2.5 text-[#0071E3] group-hover/btn:text-white" />
+                      </button>
+                    </div>
+                    <div class="text-[#6E6E73] font-medium truncate text-[11px]">
+                      {{ row.series || '通用' }}
+                    </div>
+                  </div>
+                </td>
 
-              <!-- 5. 输入价格 -->
-              <td class="py-3 px-2 text-right font-mono font-bold text-[#34C759] text-xs">
-                {{ formatPrice(row.calculated_input_usd, row.calculated_input_cny) }}
-              </td>
+                <!-- 渠道站点与收藏星标 (双行紧凑布局) -->
+                <td v-else-if="col.key === 'site_name'" class="py-2 px-2">
+                  <div class="flex flex-col space-y-0.5 truncate">
+                    <div class="flex items-center space-x-1.5 truncate">
+                      <button
+                        @click.stop="toggleFavoriteByName(row.site_name)"
+                        class="transition-transform hover:scale-125 focus:outline-none cursor-pointer flex-shrink-0"
+                        :title="isSiteNameFavorite(row.site_name) ? '点击取消收藏' : '点击收藏该渠道'"
+                      >
+                        <SystemIcon
+                          :name="isSiteNameFavorite(row.site_name) ? 'star-filled' : 'star'"
+                          custom-class="w-3.5 h-3.5"
+                          :class="isSiteNameFavorite(row.site_name) ? 'text-amber-500 fill-amber-500' : 'text-[#AEAEB2] hover:text-amber-500'"
+                        />
+                      </button>
+                      <button
+                        @click.stop="openChannelDrawer(row.site_name)"
+                        class="font-semibold text-[#1D1D1F] hover:text-[#0071E3] hover:underline cursor-pointer truncate text-xs transition-colors text-left flex items-center space-x-1 group/ch"
+                        :title="`点击在右侧查看「${row.site_name}」渠道详情与可用模型定价`"
+                      >
+                        <span class="truncate">{{ row.site_name }}</span>
+                        <SystemIcon name="detail" custom-class="w-2.5 h-2.5 text-[#0071E3] opacity-60 group-hover/ch:opacity-100" />
+                      </button>
+                      <!-- 当前比价基准渠道徽标 -->
+                      <span
+                        v-if="isBenchmarkRow(row)"
+                        class="px-1.5 py-0.2 rounded-full bg-[#0071E3] text-white text-[9px] font-bold flex-shrink-0 shadow-xs flex items-center space-x-0.5 animate-pulse"
+                        title="这是你在渠道详情中发起全网比价的原渠道（比价基准）"
+                      >
+                        <SystemIcon name="target" custom-class="w-2.5 h-2.5" />
+                        <span>基准</span>
+                      </span>
+                    </div>
 
-              <!-- 6. 输出价格 -->
-              <td class="py-3 px-2 text-right font-mono text-[#1D1D1F] text-xs">
-                {{ formatPrice(row.calculated_output_usd, row.calculated_output_cny) }}
-              </td>
+                    <!-- 结算分组第二行 -->
+                    <div v-if="row.group_name" class="flex items-center space-x-1">
+                      <span
+                        class="px-1 py-0.2 rounded bg-[#F3E8FD] text-[#8E24AA] border border-[#E1BEE7] text-[9px] font-mono font-bold truncate flex-shrink-0 shadow-2xs inline-flex items-center space-x-0.5"
+                        :title="`结算分组: ${row.group_name}`"
+                      >
+                        <SystemIcon name="target" custom-class="w-2 h-2 text-[#8E24AA]" />
+                        <span>{{ row.group_name }}</span>
+                      </span>
+                    </div>
+                  </div>
+                </td>
 
-              <!-- 7. 倍率 -->
-              <td class="py-3 px-1.5 text-center font-mono text-[#6E6E73] font-semibold text-xs">
-                {{ row.model_ratio }}x
-              </td>
-
-              <!-- 8. 实测 TPS -->
-              <td class="py-3 px-2 text-right font-mono text-[#0071E3] font-bold text-xs">
-                {{ row.last_tested_tps }} <span class="text-[9px] text-[#86868B] font-normal">tps</span>
-              </td>
-
-              <!-- 9. 数据更新时间 (区分 models.dev 原生时间与手工渠道同步时间) -->
-              <td class="py-3 px-2 text-right whitespace-nowrap">
-                <div class="flex items-center justify-end space-x-1.5" :title="getSourceTimeTooltip(row)">
+                <!-- 类型徽标 -->
+                <td v-else-if="col.key === 'site_type'" class="py-2 px-1.5 text-center">
                   <span
-                    class="w-4 h-4 rounded inline-flex items-center justify-center font-mono font-bold text-[10px] flex-shrink-0"
-                    :class="row.is_official_catalog !== false && row.source_time_type !== 'manual'
-                      ? 'bg-[#E8F2FD] text-[#0071E3] border border-[#CCE4FB]'
-                      : 'bg-[#E8F8EE] text-[#34C759] border border-[#34C759]/20'"
+                    class="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold uppercase"
+                    :class="getTypeBadgeClass(row.site_type)"
                   >
-                    {{ row.is_official_catalog !== false && row.source_time_type !== 'manual' ? 'm' : 'c' }}
+                    {{ row.site_type }}
                   </span>
-                  <span class="font-mono text-xs text-[#6E6E73]">
-                    {{ formatSourceTime(row) }}
+                </td>
+
+                <!-- 输入价格 -->
+                <td v-else-if="col.key === 'input_price'" class="py-2 px-2 text-right font-mono font-bold text-[#34C759] text-xs">
+                  {{ formatPrice(row.calculated_input_usd, row.calculated_input_cny) }}
+                </td>
+
+                <!-- 输出价格 -->
+                <td v-else-if="col.key === 'output_price'" class="py-2 px-2 text-right font-mono text-[#1D1D1F] text-xs">
+                  {{ formatPrice(row.calculated_output_usd, row.calculated_output_cny) }}
+                </td>
+
+                <!-- 命中缓存单价 -->
+                <td v-else-if="col.key === 'cache_price'" class="py-2 px-2 text-right font-mono font-semibold text-xs">
+                  <span v-if="(row.calculated_cache_usd && row.calculated_cache_usd > 0) || (row.calculated_cache_cny && row.calculated_cache_cny > 0)" class="text-[#8E24AA]">
+                    {{ formatPrice(row.calculated_cache_usd, row.calculated_cache_cny || (row.calculated_cache_usd * (store.usdToCnyRate || 7.25))) }}
                   </span>
-                </div>
-              </td>
+                  <span v-else class="text-[#AEAEB2] font-normal">-</span>
+                </td>
+
+                <!-- 倍率 -->
+                <td v-else-if="col.key === 'model_ratio'" class="py-2 px-1.5 text-center font-mono text-[#6E6E73] font-semibold text-xs">
+                  {{ row.model_ratio }}x
+                </td>
+
+                <!-- 实测 TPS -->
+                <td v-else-if="col.key === 'tps'" class="py-2 px-2 text-right font-mono text-[#0071E3] font-bold text-xs">
+                  {{ row.last_tested_tps }} <span class="text-[9px] text-[#86868B] font-normal">tps</span>
+                </td>
+
+                <!-- 数据更新时间 (区分 models.dev 原生时间与手工渠道同步时间) -->
+                <td v-else-if="col.key === 'updated_at'" class="py-2 px-2 text-right whitespace-nowrap">
+                  <div class="flex items-center justify-end space-x-1.5" :title="getSourceTimeTooltip(row)">
+                    <span
+                      class="w-4 h-4 rounded inline-flex items-center justify-center font-mono font-bold text-[10px] flex-shrink-0"
+                      :class="row.is_official_catalog !== false && row.source_time_type !== 'manual'
+                        ? 'bg-[#E8F2FD] text-[#0071E3] border border-[#CCE4FB]'
+                        : 'bg-[#E8F8EE] text-[#34C759] border border-[#34C759]/20'"
+                    >
+                      {{ row.is_official_catalog !== false && row.source_time_type !== 'manual' ? 'm' : 'c' }}
+                    </span>
+                    <span class="font-mono text-xs text-[#6E6E73]">
+                      {{ formatSourceTime(row) }}
+                    </span>
+                  </div>
+                </td>
+              </template>
             </tr>
           </tbody>
         </table>
@@ -824,6 +872,16 @@
       @close="closeVendorDrawer"
       @compare-model="handleDrawerCompareModel"
     />
+
+    <!-- 自定义表格显示列与排序配置 Modal -->
+    <TableColumnConfigModal
+      :show="showColumnConfigModal"
+      :storage-key="PRICE_MATRIX_STORAGE_KEY"
+      :default-columns="DEFAULT_MATRIX_COLUMNS"
+      fixed-start-label="模型标准标识"
+      @close="showColumnConfigModal = false"
+      @update:columns="onUpdateMatrixColumns"
+    />
   </div>
 </template>
 
@@ -836,6 +894,7 @@ import MultiSelectFilter, { type FilterOption } from '../components/MultiSelectF
 import AddChannelWizardModal from '../components/AddChannelWizardModal.vue'
 import ChannelDetailDrawer from '../components/ChannelDetailDrawer.vue'
 import VendorDetailDrawer from '../components/VendorDetailDrawer.vue'
+import TableColumnConfigModal, { type TableColumnDef } from '../components/TableColumnConfigModal.vue'
 import SystemIcon from '../components/SystemIcon.vue'
 import type { ComparisonItem } from '../types'
 import { parseUtcDate, formatRelativeTime } from '../utils/timeUtils'
@@ -845,6 +904,52 @@ const store = useDashboardStore()
 const showAddModal = ref(false)
 const isSyncingAll = ref(false)
 const isExporting = ref(false)
+
+// 自定义列配置
+const showColumnConfigModal = ref(false)
+const PRICE_MATRIX_STORAGE_KEY = 'welltoken_col_config_price_matrix'
+const DEFAULT_MATRIX_COLUMNS: TableColumnDef[] = [
+  { key: 'series', label: '模型系列 / 厂商', visible: true },
+  { key: 'site_name', label: '渠道 / 供应商', visible: true },
+  { key: 'site_type', label: '类型', visible: true },
+  { key: 'input_price', label: '输入单价', visible: true },
+  { key: 'output_price', label: '输出单价', visible: true },
+  { key: 'cache_price', label: '命中缓存单价', visible: true },
+  { key: 'model_ratio', label: '倍率', visible: true },
+  { key: 'tps', label: '实测 TPS', visible: true },
+  { key: 'updated_at', label: '更新时间', visible: true },
+]
+
+const loadMatrixColumns = (): TableColumnDef[] => {
+  try {
+    const saved = localStorage.getItem(PRICE_MATRIX_STORAGE_KEY)
+    if (saved) {
+      const parsed: TableColumnDef[] = JSON.parse(saved)
+      const merged: TableColumnDef[] = []
+      for (const p of parsed) {
+        const d = DEFAULT_MATRIX_COLUMNS.find(col => col.key === p.key)
+        if (d) {
+          merged.push({ key: p.key, label: d.label, visible: p.visible !== false })
+        }
+      }
+      for (const d of DEFAULT_MATRIX_COLUMNS) {
+        if (!merged.some(m => m.key === d.key)) {
+          merged.push({ ...d })
+        }
+      }
+      return merged
+    }
+  } catch (e) {
+    console.warn('加载全网比价列配置失败:', e)
+  }
+  return DEFAULT_MATRIX_COLUMNS.map(c => ({ ...c }))
+}
+
+const matrixColumns = ref<TableColumnDef[]>(loadMatrixColumns())
+const visibleMatrixColumns = computed(() => matrixColumns.value.filter(c => c.visible))
+const onUpdateMatrixColumns = (newCols: TableColumnDef[]) => {
+  matrixColumns.value = newCols
+}
 
 const handleExportPriceMatrix = async () => {
   if (totalRecords.value === 0) {

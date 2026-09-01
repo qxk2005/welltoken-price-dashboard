@@ -14,6 +14,7 @@ export interface ComparisonItem {
   calculated_input_usd: number
   calculated_output_usd: number
   calculated_cache_usd: number
+  calculated_cache_cny?: number
   calculated_input_cny: number
   calculated_output_cny: number
   discount_percent: number
