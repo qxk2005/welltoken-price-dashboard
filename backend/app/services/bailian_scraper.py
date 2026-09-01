@@ -114,12 +114,44 @@ def _is_tier_text(text: str) -> bool:
     return any(k in t for k in ["Token≤", "Token<", "0<", "K<", "M<", "<Token", "≤Token", "无阶梯计价", "阶梯", "单次请求"])
 
 
-def _clean_spec_segment(text: str) -> str:
-    """清洗单项规格修饰词，去除多余的技术参数与列头"""
-    t = text.strip()
-    if not t:
+def _get_table_region(table) -> str:
+    """获取表格直接归属的地域名称，确保只解析国内华北2（北京）主力地域"""
+    prev = table.find_previous(["h4", "h3", "h2"])
+    while prev:
+        txt = prev.get_text(" ", strip=True)
+        if any(r in txt for r in ["北京", "华北", "华东", "华南", "中国内地", "国内"]):
+            return "beijing"
+        if any(r in txt for r in ["新加坡", "美国", "弗吉尼亚", "德国", "法兰克福", "日本", "东京", "香港", "海外", "国际"]):
+            return "overseas"
+        if prev.name == "h2":
+            # 遇到了大类标题 (如 文本生成-千问-开源版)，默认是国内北京
+            return "beijing"
+        prev = prev.find_previous(["h4", "h3", "h2"])
+    return "beijing"
+
+
+def _clean_base_model_id(text: str) -> str:
+    """清洗模型 ID，剥离换行、括号说明及百炼官网附加特性词"""
+    if not text:
         return ""
-    if any(k in t for k in ["免费额度", "刊例价", "模型名称", "规格名称", "计费单元", "单价"]):
+    t = text.strip()
+    t = re.split(r"[\n\r\t（(]|(?:\s+(?:上下文缓存|Session\s*Cache|享有折扣|Batch\s*调用|半价|更多详情))", t, flags=re.I)[0].strip()
+    return t
+
+
+def _clean_spec_segment(text: str) -> str:
+    """清洗单项规格修饰词，仅保留真正的多模态/分辨率/功能规格，彻底过滤价格与说明词"""
+    if not text:
+        return ""
+    t = text.strip()
+    # 过滤价格
+    if re.search(r"\d+\s*(?:元|¥)", t) or "免费" in t:
+        return ""
+    # 过滤通用模式说明与计费说明
+    if any(k in t for k in [
+        "思考模式", "非思考", "Token", "无阶梯", "单次请求", "按量", "开通",
+        "申请", "有效", "服务部署", "国际", "国内", "规则", "说明", "刊例", "无免费额度"
+    ]):
         return ""
     if "audio=true" in t or t in ["有声视频", "有声"]:
         return "有声"
@@ -131,9 +163,11 @@ def _clean_spec_segment(text: str) -> str:
         return "无参考视频"
     if "首尾帧" in t:
         return "首尾帧"
-    if re.match(r"^\d+P$", t, re.I):
+    if re.match(r"^\d+P$", t, re.I) or re.match(r"^\d+K$", t, re.I):
         return t.upper()
-    return t
+    if any(k in t for k in ["文生", "图生", "视频生", "3D", "标准版", "专业版", "极速版", "文本输入", "图片输入", "文生图", "文生视频"]):
+        return t
+    return ""
 
 
 def _generate_spec_model_id(base_id: str, spec_desc: str) -> str:
@@ -212,25 +246,18 @@ class BailianScraper:
                     current_category = "向量与排序"
                 elif "千问" in h2_text:
                     current_category = "千问系列"
-            elif elem.name == "section":
-                sec_id = elem.get("id", "")
-                # 过滤海外地域板块，只保留北京或通用表格
-                if sec_id in ["美国-弗吉尼亚", "新加坡", "德国-法兰克福", "日本-东京"]:
-                    continue
+
             elif elem.name == "table":
-                parent_sec = elem.find_parent("section")
-                if parent_sec and parent_sec.get("id") in ["美国-弗吉尼亚", "新加坡", "德国-法兰克福", "日本-东京"]:
+                # 1. 精准判断表格归属地域，严格跳过海外（新加坡、美国、德国、日本等）表格
+                region = _get_table_region(elem)
+                if region == "overseas":
                     continue
 
-                tbody = elem.find("tbody")
-                if not tbody:
-                    continue
-
-                trs = tbody.find_all("tr")
+                trs = elem.find_all("tr")
                 if not trs:
                     continue
 
-                # 1. 构建 2D 虚拟矩阵，完美解决多重 rowspan / colspan 错位问题
+                # 2. 构建 2D 虚拟矩阵，完美解决多重 rowspan / colspan 跨行错位
                 grid: Dict[Tuple[int, int], str] = {}
                 for r_idx, tr in enumerate(trs):
                     c_idx = 0
@@ -250,43 +277,93 @@ class BailianScraper:
 
                 max_r = len(trs)
                 max_c = max(c for (r, c) in grid.keys()) + 1 if grid else 0
+                if max_r < 2 or max_c < 2:
+                    continue
 
-                # 2. 逐行解析矩阵中的完整实体数据
-                for r in range(max_r):
+                # 3. 动态扫描表头列名与字段映射
+                header_row = [grid.get((0, c), "").strip() for c in range(max_c)]
+                input_price_col = -1
+                output_price_col = -1
+                cache_price_col = -1
+                single_price_col = -1
+                tier_col = -1
+
+                for ci, h in enumerate(header_row):
+                    if "输入单价" in h or "输入价格" in h:
+                        input_price_col = ci
+                    elif "输出单价" in h or "输出价格" in h:
+                        output_price_col = ci
+                    elif any(k in h for k in ["缓存", "Session Cache", "上下文缓存"]):
+                        cache_price_col = ci
+                    elif any(k in h for k in ["单价", "价格"]):
+                        single_price_col = ci
+                    elif any(k in h for k in ["Token数", "阶梯", "区间"]):
+                        tier_col = ci
+
+                # 4. 逐行解析矩阵中的模型实体
+                for r in range(1, max_r):
                     row_cells = [grid.get((r, c), "").strip() for c in range(max_c)]
                     if not row_cells or not row_cells[0]:
                         continue
 
-                    first_cell = row_cells[0]
+                    raw_model_str = row_cells[0]
                     # 过滤纯说明行与过长文字
-                    if any(k in first_cell for k in ["注：", "说明", "规则", "http://", "https://"]) or len(first_cell) > 100:
+                    if any(k in raw_model_str for k in ["注：", "说明", "规则", "http://", "https://"]) or len(raw_model_str) > 100:
+                        continue
+                    if _is_tier_text(raw_model_str):
                         continue
 
-                    base_model_id = re.split(r"[\n（(]", first_cell)[0].strip()
-                    if not base_model_id or _is_tier_text(base_model_id):
+                    base_model_id = _clean_base_model_id(raw_model_str)
+                    if not base_model_id:
                         continue
 
-                    # 3. 定位价格列与提取价格
-                    price_idx = -1
-                    price_val = 0.0
-                    for ci, cell in enumerate(row_cells):
-                        if any(u in cell for u in ["元", "¥", "免费"]) and not _is_tier_text(cell):
-                            price_val = _parse_price_text(cell)
-                            price_idx = ci
-                            break
+                    # 5. 精准提取各价格列
+                    in_val = 0.0
+                    out_val = 0.0
+                    cache_val = 0.0
 
-                    if price_idx == -1:
-                        continue
+                    # a. 优先从表头匹配的输入/输出/缓存单价列提取
+                    if input_price_col != -1 and input_price_col < len(row_cells):
+                        in_val = _parse_price_text(row_cells[input_price_col])
+                    if output_price_col != -1 and output_price_col < len(row_cells):
+                        out_val = _parse_price_text(row_cells[output_price_col])
+                    if cache_price_col != -1 and cache_price_col < len(row_cells):
+                        cache_val = _parse_price_text(row_cells[cache_price_col])
 
-                    # 4. 提取中间规格列与阶梯区间
+                    # b. 单一计费列 (如生图按次/视频按秒)
+                    if single_price_col != -1 and single_price_col < len(row_cells):
+                        s_val = _parse_price_text(row_cells[single_price_col])
+                        if in_val == 0.0:
+                            in_val = s_val
+                        if out_val == 0.0:
+                            out_val = s_val
+
+                    # c. 兜底扫描：若输入和输出均未解析出有效价格
+                    if in_val == 0.0 and out_val == 0.0:
+                        for cell in row_cells[1:]:
+                            if ("元" in cell or "¥" in cell) and not _is_tier_text(cell):
+                                val = _parse_price_text(cell)
+                                if val > 0:
+                                    in_val = val
+                                    out_val = val
+                                    break
+
+                    # 6. 提取中间规格列与阶梯区间
                     specs: List[str] = []
                     tier_label = ""
-                    for ci in range(1, price_idx):
+
+                    if tier_col != -1 and tier_col < len(row_cells):
+                        tier_label = row_cells[tier_col]
+
+                    for ci in range(1, max_c):
+                        if ci in (input_price_col, output_price_col, cache_price_col, single_price_col, tier_col):
+                            continue
                         c_text = row_cells[ci]
                         if not c_text:
                             continue
                         if _is_tier_text(c_text):
-                            tier_label = c_text
+                            if not tier_label:
+                                tier_label = c_text
                         else:
                             cleaned_seg = _clean_spec_segment(c_text)
                             if cleaned_seg and cleaned_seg not in specs:
@@ -295,7 +372,7 @@ class BailianScraper:
                     spec_desc = " · ".join(specs)
                     provider = _infer_provider(base_model_id, current_category)
 
-                    # 5. 分类组织与拆分模型项
+                    # 7. 分类组织与拆分模型项
                     if spec_desc:
                         # 视频/生图等多规格模型：拆分为独立规格行展示
                         full_display_name = f"{base_model_id} ({spec_desc})"
@@ -307,10 +384,10 @@ class BailianScraper:
                             display_name=full_display_name,
                             provider=provider,
                             category=current_category,
-                            input_price_cny=price_val,
-                            output_price_cny=price_val,
-                            cache_price_cny=0.0,
-                            is_free=(price_val == 0.0),
+                            input_price_cny=in_val,
+                            output_price_cny=out_val,
+                            cache_price_cny=cache_val,
+                            is_free=(in_val == 0.0 and out_val == 0.0),
                             has_tiered_pricing=False,
                             price_tiers=[],
                             price_note=spec_desc
@@ -326,19 +403,19 @@ class BailianScraper:
                                 display_name=base_model_id,
                                 provider=provider,
                                 category=current_category,
-                                input_price_cny=price_val,
-                                output_price_cny=price_val,
-                                cache_price_cny=0.0,
-                                is_free=(price_val == 0.0),
+                                input_price_cny=in_val,
+                                output_price_cny=out_val,
+                                cache_price_cny=cache_val,
+                                is_free=(in_val == 0.0 and out_val == 0.0),
                                 has_tiered_pricing=True,
                                 price_tiers=[],
                                 price_note=""
                             )
                             item.price_tiers.append(BailianPriceTier(
                                 tier_label=tier_label,
-                                input_price_cny=price_val,
-                                output_price_cny=price_val,
-                                cache_price_cny=0.0
+                                input_price_cny=in_val,
+                                output_price_cny=out_val,
+                                cache_price_cny=cache_val
                             ))
                             models_map[item_key] = item
                         else:
@@ -348,10 +425,15 @@ class BailianScraper:
                                 existing.has_tiered_pricing = True
                                 existing.price_tiers.append(BailianPriceTier(
                                     tier_label=tier_label,
-                                    input_price_cny=price_val,
-                                    output_price_cny=price_val,
-                                    cache_price_cny=0.0
+                                    input_price_cny=in_val,
+                                    output_price_cny=out_val,
+                                    cache_price_cny=cache_val
                                 ))
+                                # 更新基准输入输出为最小有效非零单价
+                                if in_val > 0 and (existing.input_price_cny == 0 or in_val < existing.input_price_cny):
+                                    existing.input_price_cny = in_val
+                                if out_val > 0 and (existing.output_price_cny == 0 or out_val < existing.output_price_cny):
+                                    existing.output_price_cny = out_val
                     else:
                         # 普通无规格模型
                         item_key = f"{base_model_id}::{current_category}"
@@ -360,10 +442,10 @@ class BailianScraper:
                             display_name=base_model_id,
                             provider=provider,
                             category=current_category,
-                            input_price_cny=price_val,
-                            output_price_cny=price_val,
-                            cache_price_cny=0.0,
-                            is_free=(price_val == 0.0),
+                            input_price_cny=in_val,
+                            output_price_cny=out_val,
+                            cache_price_cny=cache_val,
+                            is_free=(in_val == 0.0 and out_val == 0.0),
                             has_tiered_pricing=False,
                             price_tiers=[],
                             price_note=""
@@ -547,25 +629,21 @@ class BailianScraper:
                         snapshot.raw_html = self.last_raw_html
                         snapshot.models_count = len(models)
 
-                # 3. 清理历史可能产生的非法 ModelMetadata 与 SiteModelPricing 脏数据
-                stmt_del_p = delete(SiteModelPricing).where(
-                    (SiteModelPricing.model_id.like("%<%"))
-                    | (SiteModelPricing.model_id.like("%≤%"))
-                    | (SiteModelPricing.model_id.like("%Token%"))
-                    | (SiteModelPricing.model_id.like("%参考视频%"))
-                    | (SiteModelPricing.model_id.like("%声视频%"))
-                )
-                await session.execute(stmt_del_p)
+                # 3. 清理历史可能产生的非法 ModelMetadata 脏数据
                 stmt_del_m = delete(ModelMetadata).where(
                     (ModelMetadata.model_id.like("%<%"))
                     | (ModelMetadata.model_id.like("%≤%"))
                     | (ModelMetadata.model_id.like("%Token%"))
                     | (ModelMetadata.model_id.like("%参考视频%"))
                     | (ModelMetadata.model_id.like("%声视频%"))
+                    | (ModelMetadata.model_id.like("%享有折扣%"))
                 )
                 await session.execute(stmt_del_m)
 
-                # 3. 逐个处理模型
+                # 4. 全量清空当前百炼渠道的历史旧定价条目，保证绝对纯净入库
+                await session.execute(delete(SiteModelPricing).where(SiteModelPricing.site_id == site.id))
+
+                # 5. 逐个处理模型写入最新定价
                 for item in models:
                     model_meta = await self._match_or_create_model(session, item, usd_to_cny_rate)
                     if model_meta and model_meta not in session:
@@ -575,13 +653,6 @@ class BailianScraper:
 
                     if not model_meta:
                         continue
-
-                    # 3a. 先清理该渠道下此模型的旧定价条目，保证幂等
-                    old_stmt = delete(SiteModelPricing).where(
-                        SiteModelPricing.site_id == site.id,
-                        SiteModelPricing.model_id == model_meta.model_id
-                    )
-                    await session.execute(old_stmt)
 
                     # 3b. 写入阶梯定价或单一定价
                     if item.has_tiered_pricing and item.price_tiers and len(item.price_tiers) > 1:
@@ -595,6 +666,8 @@ class BailianScraper:
                                     ((tier_input_usd - model_meta.official_input_price) / model_meta.official_input_price) * 100, 1
                                 )
 
+                            tier_cache_usd = round(tier.cache_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 and tier.cache_price_cny > 0 else 0.0
+
                             tier_pricing = SiteModelPricing(
                                 site_id=site.id,
                                 model_id=model_meta.model_id,
@@ -604,7 +677,7 @@ class BailianScraper:
                                 group_ratio=1.0,
                                 calculated_input_usd=tier_input_usd,
                                 calculated_output_usd=tier_output_usd,
-                                calculated_cache_usd=0.0,
+                                calculated_cache_usd=tier_cache_usd,
                                 discount_percent=tier_discount,
                                 is_available=True,
                                 source_updated_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M")
@@ -614,6 +687,7 @@ class BailianScraper:
                     else:
                         input_usd = round(item.input_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0.0
                         output_usd = round(item.output_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0.0
+                        cache_usd = round(item.cache_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 and item.cache_price_cny > 0 else 0.0
 
                         discount = 0.0
                         if model_meta.official_input_price > 0 and input_usd > 0:
@@ -630,7 +704,7 @@ class BailianScraper:
                             group_ratio=1.0,
                             calculated_input_usd=input_usd,
                             calculated_output_usd=output_usd,
-                            calculated_cache_usd=0.0,
+                            calculated_cache_usd=cache_usd,
                             discount_percent=discount,
                             is_available=True,
                             source_updated_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M")
