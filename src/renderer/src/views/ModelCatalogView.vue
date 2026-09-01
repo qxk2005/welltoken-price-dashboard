@@ -149,6 +149,16 @@
               <span v-if="modelSearchQuery" @click="modelSearchQuery = ''" class="absolute right-2 top-1.5 text-[#86868B] hover:text-[#1D1D1F] cursor-pointer text-xs">✕</span>
             </div>
 
+            <!-- 自定义列设置按钮 -->
+            <button
+              @click="showColumnConfigModal = true"
+              class="px-2.5 py-1.5 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] border border-[#E5E5EA] transition-all text-xs flex items-center space-x-1 cursor-pointer font-medium flex-shrink-0"
+              title="自定义表格显示列与显示顺序"
+            >
+              <span>🎛️</span>
+              <span>自定义列</span>
+            </button>
+
             <!-- 导出 Excel 按钮 -->
             <button
               @click="handleExportVendorModels"
@@ -194,28 +204,36 @@
                 <th @click="toggleSort('name')" class="py-2.5 px-3 cursor-pointer hover:text-[#1D1D1F] transition-colors">
                   模型名称 / 标准标识 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('name') }}</span>
                 </th>
-                <th @click="toggleSort('active_relay_count')" class="py-2.5 px-2 text-center cursor-pointer hover:text-[#1D1D1F] transition-colors w-20">
-                  接入渠道 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('active_relay_count') }}</span>
-                </th>
-                <th @click="toggleSort('context_window')" class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-20">
-                  上下文 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('context_window') }}</span>
-                </th>
-                <th @click="toggleSort('max_output')" class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-20">
-                  最大输出 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('max_output') }}</span>
-                </th>
-                <th class="py-2.5 px-2 text-center w-18">模态</th>
-                <th class="py-2.5 px-2 text-center w-16">推理</th>
-                <th class="py-2.5 px-2 text-center w-16">工具</th>
-                <th class="py-2.5 px-2 text-center w-16">结构化</th>
-                <th @click="toggleSort('official_input_price')" class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
-                  官方输入 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('official_input_price') }}</span>
-                </th>
-                <th @click="toggleSort('official_output_price')" class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
-                  官方输出 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('official_output_price') }}</span>
-                </th>
-                <th @click="toggleSort('lowest_price_usd')" class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
-                  全网最低 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('lowest_price_usd') }}</span>
-                </th>
+
+                <!-- 动态配置列表头 -->
+                <template v-for="col in visibleCatalogColumns" :key="col.key">
+                  <th v-if="col.key === 'channels'" @click="toggleSort('active_relay_count')" class="py-2.5 px-2 text-center cursor-pointer hover:text-[#1D1D1F] transition-colors w-20">
+                    接入渠道 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('active_relay_count') }}</span>
+                  </th>
+                  <th v-else-if="col.key === 'context'" @click="toggleSort('context_window')" class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-20">
+                    上下文 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('context_window') }}</span>
+                  </th>
+                  <th v-else-if="col.key === 'max_output'" @click="toggleSort('max_output')" class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-20">
+                    最大输出 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('max_output') }}</span>
+                  </th>
+                  <th v-else-if="col.key === 'modality'" class="py-2.5 px-2 text-center w-18">模态</th>
+                  <th v-else-if="col.key === 'reasoning'" class="py-2.5 px-2 text-center w-16">推理</th>
+                  <th v-else-if="col.key === 'tools'" class="py-2.5 px-2 text-center w-16">工具</th>
+                  <th v-else-if="col.key === 'structured'" class="py-2.5 px-2 text-center w-16">结构化</th>
+                  <th v-else-if="col.key === 'official_input'" @click="toggleSort('official_input_price')" class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
+                    官方输入 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('official_input_price') }}</span>
+                  </th>
+                  <th v-else-if="col.key === 'official_output'" @click="toggleSort('official_output_price')" class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
+                    官方输出 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('official_output_price') }}</span>
+                  </th>
+                  <th v-else-if="col.key === 'official_cache'" class="py-2.5 px-2 text-right text-[#8E24AA] font-semibold w-24">
+                    官方缓存
+                  </th>
+                  <th v-else-if="col.key === 'lowest_price'" @click="toggleSort('lowest_price_usd')" class="py-2.5 px-2 text-right cursor-pointer hover:text-[#1D1D1F] transition-colors w-24">
+                    全网最低 <span class="text-[10px] text-[#0071E3] font-mono">{{ getSortIndicator('lowest_price_usd') }}</span>
+                  </th>
+                </template>
+
                 <th class="py-2.5 px-2 text-center w-20">操作</th>
               </tr>
             </thead>
@@ -237,68 +255,79 @@
                   </div>
                 </td>
 
-                <!-- 2. 接入渠道数 (纯数字，无绿色背景) -->
-                <td class="py-2.5 px-2 text-center">
-                  <span
-                    @click="goToMatrix(model.model_id)"
-                    class="font-mono font-bold text-xs text-[#0071E3] hover:underline cursor-pointer"
-                    title="点击查看所有接入该模型的供应商"
-                  >
-                    {{ model.active_relay_count || 0 }}
-                  </span>
-                </td>
+                <!-- 动态配置列单元格 -->
+                <template v-for="col in visibleCatalogColumns" :key="col.key">
+                  <!-- 接入渠道数 -->
+                  <td v-if="col.key === 'channels'" class="py-2.5 px-2 text-center">
+                    <span
+                      @click="goToMatrix(model.model_id)"
+                      class="font-mono font-bold text-xs text-[#0071E3] hover:underline cursor-pointer"
+                      title="点击查看所有接入该模型的供应商"
+                    >
+                      {{ model.active_relay_count || 0 }}
+                    </span>
+                  </td>
 
-                <!-- 3. 上下文窗口 (紧凑 K/M 显示) -->
-                <td class="py-2.5 px-2 text-right font-mono text-[#1D1D1F]" :title="`${Number(model.context_window || 128000).toLocaleString()} tokens`">
-                  {{ formatCompactTokens(model.context_window) }}
-                </td>
+                  <!-- 上下文窗口 -->
+                  <td v-else-if="col.key === 'context'" class="py-2.5 px-2 text-right font-mono text-[#1D1D1F]" :title="`${Number(model.context_window || 128000).toLocaleString()} tokens`">
+                    {{ formatCompactTokens(model.context_window) }}
+                  </td>
 
-                <!-- 4. 最大输出 (紧凑 K/M 显示) -->
-                <td class="py-2.5 px-2 text-right font-mono text-[#6E6E73]" :title="`${Number(model.max_output || 8192).toLocaleString()} tokens`">
-                  {{ formatCompactTokens(model.max_output) }}
-                </td>
+                  <!-- 最大输出 -->
+                  <td v-else-if="col.key === 'max_output'" class="py-2.5 px-2 text-right font-mono text-[#6E6E73]" :title="`${Number(model.max_output || 8192).toLocaleString()} tokens`">
+                    {{ formatCompactTokens(model.max_output) }}
+                  </td>
 
-                <!-- 5. 输入模态 (精致 Icon 替代文字) -->
-                <td class="py-2.5 px-2 text-center whitespace-nowrap">
-                  <div class="inline-flex items-center space-x-1 text-xs">
-                    <span title="支持文本输入 (Text)">📄</span>
-                    <span v-if="isVisionModel(model.model_id, model.name)" title="支持视觉图像识别 (Vision)">🖼️</span>
-                    <span v-if="isVideoModel(model.model_id)" title="支持视频输入 (Video)">🎬</span>
-                  </div>
-                </td>
+                  <!-- 模态 -->
+                  <td v-else-if="col.key === 'modality'" class="py-2.5 px-2 text-center whitespace-nowrap">
+                    <div class="inline-flex items-center space-x-1 text-xs">
+                      <span title="支持文本输入 (Text)">📄</span>
+                      <span v-if="isVisionModel(model.model_id, model.name)" title="支持视觉图像识别 (Vision)">🖼️</span>
+                      <span v-if="isVideoModel(model.model_id)" title="支持视频输入 (Video)">🎬</span>
+                    </div>
+                  </td>
 
-                <!-- 6. 深度推理 -->
-                <td class="py-2.5 px-2 text-center font-mono">
-                  <span v-if="isReasoningModel(model.model_id, model.name)" class="text-[#34C759] font-bold">是</span>
-                  <span v-else class="text-[#86868B]">-</span>
-                </td>
+                  <!-- 推理 -->
+                  <td v-else-if="col.key === 'reasoning'" class="py-2.5 px-2 text-center">
+                    <span v-if="isReasoningModel(model.model_id, model.name)" class="text-[#34C759] font-bold">是</span>
+                    <span v-else class="text-[#86868B]">-</span>
+                  </td>
 
-                <!-- 7. 工具调用 -->
-                <td class="py-2.5 px-2 text-center font-mono">
-                  <span class="text-[#34C759] font-bold">是</span>
-                </td>
+                  <!-- 工具 -->
+                  <td v-else-if="col.key === 'tools'" class="py-2.5 px-2 text-center font-mono">
+                    <span class="text-[#34C759] font-bold">是</span>
+                  </td>
 
-                <!-- 8. 结构化输出 -->
-                <td class="py-2.5 px-2 text-center font-mono">
-                  <span class="text-[#34C759] font-bold">是</span>
-                </td>
+                  <!-- 结构化 -->
+                  <td v-else-if="col.key === 'structured'" class="py-2.5 px-2 text-center font-mono">
+                    <span class="text-[#34C759] font-bold">是</span>
+                  </td>
 
-                <!-- 9. 官方输入单价 (独立列，响应全局货币切换) -->
-                <td class="py-2.5 px-2 text-right font-mono font-medium text-[#1D1D1F]">
-                  {{ formatOfficialPrice(model.official_input_price) }}
-                </td>
+                  <!-- 官方输入 -->
+                  <td v-else-if="col.key === 'official_input'" class="py-2.5 px-2 text-right font-mono text-[#1D1D1F]">
+                    {{ formatOfficialPrice(model.official_input_price) }}
+                  </td>
 
-                <!-- 10. 官方输出单价 (独立列，响应全局货币切换) -->
-                <td class="py-2.5 px-2 text-right font-mono font-medium text-[#1D1D1F]">
-                  {{ formatOfficialPrice(model.official_output_price) }}
-                </td>
+                  <!-- 官方输出 -->
+                  <td v-else-if="col.key === 'official_output'" class="py-2.5 px-2 text-right font-mono text-[#1D1D1F]">
+                    {{ formatOfficialPrice(model.official_output_price) }}
+                  </td>
 
-                <!-- 11. 全网最低单价 (响应全局货币切换) -->
-                <td class="py-2.5 px-2 text-right font-mono font-bold text-[#34C759]">
-                  {{ store.formatCurrency(model.lowest_price_usd) }}/1M
-                </td>
+                  <!-- 官方缓存 -->
+                  <td v-else-if="col.key === 'official_cache'" class="py-2.5 px-2 text-right font-mono font-semibold">
+                    <span v-if="model.official_cache_price && model.official_cache_price > 0" class="text-[#8E24AA]">
+                      {{ formatOfficialPrice(model.official_cache_price) }}
+                    </span>
+                    <span v-else class="text-[#AEAEB2] font-normal">-</span>
+                  </td>
 
-                <!-- 12. 快捷操作 (精简下拉气泡菜单) -->
+                  <!-- 全网最低 -->
+                  <td v-else-if="col.key === 'lowest_price'" class="py-2.5 px-2 text-right font-mono font-bold text-[#34C759]">
+                    {{ store.formatCurrency(model.lowest_price_usd) }}
+                  </td>
+                </template>
+
+                <!-- 快捷操作 (精简下拉气泡菜单) -->
                 <td class="py-2.5 px-2 text-center w-20 whitespace-nowrap relative">
                   <button
                     @click.stop="toggleModelActionDropdown(model.model_id)"
@@ -334,7 +363,7 @@
               </tr>
 
               <tr v-if="paginatedModels.length === 0">
-                <td colspan="12" class="py-12 text-center text-xs text-[#86868B]">
+                <td :colspan="visibleCatalogColumns.length + 2" class="py-12 text-center text-xs text-[#86868B]">
                   当前厂商下无匹配的模型记录
                 </td>
               </tr>
@@ -405,6 +434,17 @@
         </div>
       </div>
     </template>
+
+    <!-- 自定义表格显示列与排序配置 Modal -->
+    <TableColumnConfigModal
+      :show="showColumnConfigModal"
+      :storage-key="MODEL_CATALOG_STORAGE_KEY"
+      :default-columns="DEFAULT_CATALOG_COLUMNS"
+      fixed-start-label="模型名称 / 标准标识"
+      fixed-end-label="操作"
+      @close="showColumnConfigModal = false"
+      @update:columns="onUpdateCatalogColumns"
+    />
   </div>
 </template>
 
@@ -413,8 +453,57 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useDashboardStore } from '../stores/dashboardStore'
 import LabLogo from '../components/LabLogo.vue'
 import SystemIcon from '../components/SystemIcon.vue'
+import TableColumnConfigModal, { type TableColumnDef } from '../components/TableColumnConfigModal.vue'
 import { exportVendorModelsToExcel } from '../utils/excelExport'
 import type { ModelMetadata } from '../types'
+
+// 自定义列配置
+const showColumnConfigModal = ref(false)
+const MODEL_CATALOG_STORAGE_KEY = 'welltoken_col_config_model_catalog'
+const DEFAULT_CATALOG_COLUMNS: TableColumnDef[] = [
+  { key: 'channels', label: '接入渠道', visible: true },
+  { key: 'context', label: '上下文', visible: true },
+  { key: 'max_output', label: '最大输出', visible: true },
+  { key: 'modality', label: '模态', visible: true },
+  { key: 'reasoning', label: '推理', visible: true },
+  { key: 'tools', label: '工具', visible: true },
+  { key: 'structured', label: '结构化', visible: true },
+  { key: 'official_input', label: '官方输入', visible: true },
+  { key: 'official_output', label: '官方输出', visible: true },
+  { key: 'official_cache', label: '官方缓存', visible: true },
+  { key: 'lowest_price', label: '全网最低', visible: true },
+]
+
+const loadCatalogColumns = (): TableColumnDef[] => {
+  try {
+    const saved = localStorage.getItem(MODEL_CATALOG_STORAGE_KEY)
+    if (saved) {
+      const parsed: TableColumnDef[] = JSON.parse(saved)
+      const merged: TableColumnDef[] = []
+      for (const p of parsed) {
+        const d = DEFAULT_CATALOG_COLUMNS.find(col => col.key === p.key)
+        if (d) {
+          merged.push({ key: p.key, label: d.label, visible: p.visible !== false })
+        }
+      }
+      for (const d of DEFAULT_CATALOG_COLUMNS) {
+        if (!merged.some(m => m.key === d.key)) {
+          merged.push({ ...d })
+        }
+      }
+      return merged
+    }
+  } catch (e) {
+    console.warn('加载厂商模型目录列配置失败:', e)
+  }
+  return DEFAULT_CATALOG_COLUMNS.map(c => ({ ...c }))
+}
+
+const catalogColumns = ref<TableColumnDef[]>(loadCatalogColumns())
+const visibleCatalogColumns = computed(() => catalogColumns.value.filter(c => c.visible))
+const onUpdateCatalogColumns = (newCols: TableColumnDef[]) => {
+  catalogColumns.value = newCols
+}
 
 interface OfficialLabDef {
   id: string

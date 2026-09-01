@@ -139,6 +139,16 @@
                 <span v-if="searchQuery" @click="searchQuery = ''" class="absolute right-2 top-1 text-[#86868B] hover:text-[#1D1D1F] cursor-pointer text-xs">✕</span>
               </div>
 
+              <!-- 自定义列按钮 -->
+              <button
+                @click="showColumnConfigModal = true"
+                class="px-2 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] border border-[#E5E5EA] transition-all text-xs flex items-center space-x-1 cursor-pointer font-medium flex-shrink-0"
+                title="自定义表格显示列"
+              >
+                <span>🎛️</span>
+                <span>自定义列</span>
+              </button>
+
               <!-- 导出 Excel 按钮 -->
               <button
                 @click="handleExportVendorModels"
@@ -171,9 +181,17 @@
                 <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans">
                   <tr>
                     <th class="py-2 px-2.5">模型名称 / 标准标识</th>
-                    <th class="py-2 px-2 text-right w-16">上下文</th>
-                    <th class="py-2 px-2 text-right w-18">官方单价</th>
-                    <th class="py-2 px-2 text-right w-18">全网最低</th>
+
+                    <!-- 动态配置表头 -->
+                    <template v-for="col in visibleVendorColumns" :key="col.key">
+                      <th v-if="col.key === 'context'" class="py-2 px-2 text-right w-16">上下文</th>
+                      <th v-else-if="col.key === 'max_output'" class="py-2 px-2 text-right w-16">最大输出</th>
+                      <th v-else-if="col.key === 'official_input'" class="py-2 px-2 text-right w-18">官方输入</th>
+                      <th v-else-if="col.key === 'official_output'" class="py-2 px-2 text-right w-18">官方输出</th>
+                      <th v-else-if="col.key === 'official_cache'" class="py-2 px-2 text-right w-18 text-[#8E24AA] font-semibold">官方缓存</th>
+                      <th v-else-if="col.key === 'lowest_price'" class="py-2 px-2 text-right w-18">全网最低</th>
+                    </template>
+
                     <th class="py-2 px-2 text-center w-20">操作</th>
                   </tr>
                 </thead>
@@ -193,20 +211,41 @@
                       </div>
                     </td>
 
-                    <!-- 上下文窗口 -->
-                    <td class="py-2 px-2 text-right font-mono text-[#1D1D1F] text-[11px]">
-                      {{ formatCompactTokens(model.context_window) }}
-                    </td>
+                    <!-- 动态单元格 -->
+                    <template v-for="col in visibleVendorColumns" :key="col.key">
+                      <!-- 上下文窗口 -->
+                      <td v-if="col.key === 'context'" class="py-2 px-2 text-right font-mono text-[#1D1D1F] text-[11px]">
+                        {{ formatCompactTokens(model.context_window) }}
+                      </td>
 
-                    <!-- 官方单价 -->
-                    <td class="py-2 px-2 text-right font-mono text-[#1D1D1F] text-[11px]">
-                      {{ formatOfficialPrice(model.official_input_price) }}
-                    </td>
+                      <!-- 最大输出 -->
+                      <td v-else-if="col.key === 'max_output'" class="py-2 px-2 text-right font-mono text-[#6E6E73] text-[11px]">
+                        {{ model.max_output ? Number(model.max_output).toLocaleString() : '8K' }}
+                      </td>
 
-                    <!-- 全网最低 -->
-                    <td class="py-2 px-2 text-right font-mono font-bold text-[#34C759] text-[11px]">
-                      {{ store.formatCurrency(model.lowest_price_usd) }}
-                    </td>
+                      <!-- 官方输入单价 -->
+                      <td v-else-if="col.key === 'official_input'" class="py-2 px-2 text-right font-mono text-[#1D1D1F] text-[11px]">
+                        {{ formatOfficialPrice(model.official_input_price) }}
+                      </td>
+
+                      <!-- 官方输出单价 -->
+                      <td v-else-if="col.key === 'official_output'" class="py-2 px-2 text-right font-mono text-[#1D1D1F] text-[11px]">
+                        {{ formatOfficialPrice(model.official_output_price) }}
+                      </td>
+
+                      <!-- 官方缓存单价 -->
+                      <td v-else-if="col.key === 'official_cache'" class="py-2 px-2 text-right font-mono text-[11px]">
+                        <span v-if="model.official_cache_price && model.official_cache_price > 0" class="text-[#8E24AA] font-semibold">
+                          {{ formatOfficialPrice(model.official_cache_price) }}
+                        </span>
+                        <span v-else class="text-[#AEAEB2]">-</span>
+                      </td>
+
+                      <!-- 全网最低 -->
+                      <td v-else-if="col.key === 'lowest_price'" class="py-2 px-2 text-right font-mono font-bold text-[#34C759] text-[11px]">
+                        {{ store.formatCurrency(model.lowest_price_usd) }}
+                      </td>
+                    </template>
 
                     <!-- 快捷比价/测速 -->
                     <td class="py-2 px-2 text-center whitespace-nowrap">
@@ -222,7 +261,7 @@
                   </tr>
 
                   <tr v-if="filteredModels.length === 0">
-                    <td colspan="5" class="py-12 text-center text-xs text-[#86868B]">
+                    <td :colspan="visibleVendorColumns.length + 2" class="py-12 text-center text-xs text-[#86868B]">
                       <div class="space-y-1">
                         <div>{{ viewScope === 'filtered' ? '当前厂商下暂无符合当前比价筛选条件的模型' : '无匹配的模型记录' }}</div>
                         <button
@@ -265,6 +304,17 @@
         </div>
       </div>
     </div>
+
+    <!-- 自定义表格显示列与排序配置 Modal -->
+    <TableColumnConfigModal
+      :show="showColumnConfigModal"
+      :storage-key="VENDOR_DRAWER_STORAGE_KEY"
+      :default-columns="DEFAULT_VENDOR_COLUMNS"
+      fixed-start-label="模型名称 / 标准标识"
+      fixed-end-label="操作"
+      @close="showColumnConfigModal = false"
+      @update:columns="onUpdateVendorColumns"
+    />
   </Teleport>
 </template>
 
@@ -273,6 +323,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useDashboardStore } from '../stores/dashboardStore'
 import LabLogo from './LabLogo.vue'
 import SystemIcon from './SystemIcon.vue'
+import TableColumnConfigModal, { type TableColumnDef } from './TableColumnConfigModal.vue'
 import type { ModelMetadata } from '../types'
 import { exportVendorModelsToExcel } from '../utils/excelExport'
 
@@ -281,6 +332,49 @@ export interface FilterContext {
   series?: string[]
   models?: string[]
   availableModelIds?: string[]
+}
+
+// 自定义列配置
+const showColumnConfigModal = ref(false)
+const VENDOR_DRAWER_STORAGE_KEY = 'welltoken_col_config_vendor_drawer'
+const DEFAULT_VENDOR_COLUMNS: TableColumnDef[] = [
+  { key: 'context', label: '上下文', visible: true },
+  { key: 'max_output', label: '最大输出', visible: true },
+  { key: 'official_input', label: '官方输入单价', visible: true },
+  { key: 'official_output', label: '官方输出单价', visible: true },
+  { key: 'official_cache', label: '官方缓存单价', visible: true },
+  { key: 'lowest_price', label: '全网最低价', visible: true },
+]
+
+const loadVendorColumns = (): TableColumnDef[] => {
+  try {
+    const saved = localStorage.getItem(VENDOR_DRAWER_STORAGE_KEY)
+    if (saved) {
+      const parsed: TableColumnDef[] = JSON.parse(saved)
+      const merged: TableColumnDef[] = []
+      for (const p of parsed) {
+        const d = DEFAULT_VENDOR_COLUMNS.find(col => col.key === p.key)
+        if (d) {
+          merged.push({ key: p.key, label: d.label, visible: p.visible !== false })
+        }
+      }
+      for (const d of DEFAULT_VENDOR_COLUMNS) {
+        if (!merged.some(m => m.key === d.key)) {
+          merged.push({ ...d })
+        }
+      }
+      return merged
+    }
+  } catch (e) {
+    console.warn('加载厂商抽屉列配置失败:', e)
+  }
+  return DEFAULT_VENDOR_COLUMNS.map(c => ({ ...c }))
+}
+
+const vendorColumns = ref<TableColumnDef[]>(loadVendorColumns())
+const visibleVendorColumns = computed(() => vendorColumns.value.filter(c => c.visible))
+const onUpdateVendorColumns = (newCols: TableColumnDef[]) => {
+  vendorColumns.value = newCols
 }
 
 interface OfficialLabDef {

@@ -762,6 +762,16 @@
               <span v-if="providerModelSearchQuery" @click="providerModelSearchQuery = ''" class="absolute right-2 top-1 text-[#86868B] hover:text-[#1D1D1F] cursor-pointer text-xs">✕</span>
             </div>
 
+            <!-- 自定义列设置按钮 -->
+            <button
+              @click="showColumnConfigModal = true"
+              class="px-2.5 py-1 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] border border-[#E5E5EA] transition-all text-xs flex items-center space-x-1 cursor-pointer font-medium flex-shrink-0"
+              title="自定义表格显示列与显示顺序"
+            >
+              <span>🎛️</span>
+              <span>自定义列</span>
+            </button>
+
             <!-- 导出 Excel 按钮 -->
             <button
               @click="handleExportChannelModels"
@@ -820,23 +830,39 @@
                 <th @click="toggleDetailSort('model_name')" class="py-2.5 px-3 cursor-pointer hover:text-[#0071E3] transition-colors">
                   模型名称 / 标准标识 / 所属分组 <span class="text-[10px] font-mono" :class="detailSortField === 'model_name' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('model_name') }}</span>
                 </th>
-                <th @click="toggleDetailSort('context_window')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#0071E3] transition-colors">
-                  上下文 (Context) <span class="text-[10px] font-mono" :class="detailSortField === 'context_window' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('context_window') }}</span>
-                </th>
-                <th @click="toggleDetailSort('max_output')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#0071E3] transition-colors">
-                  最大输出 (Output) <span class="text-[10px] font-mono" :class="detailSortField === 'max_output' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('max_output') }}</span>
-                </th>
-                <th @click="toggleDetailSort('calculated_input_usd')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#0071E3] transition-colors">
-                  输入单价 ({{ store.currency }}) <span class="text-[10px] font-mono" :class="detailSortField === 'calculated_input_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('calculated_input_usd') }}</span>
-                </th>
-                <th @click="toggleDetailSort('calculated_output_usd')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#0071E3] transition-colors">
-                  输出单价 ({{ store.currency }}) <span class="text-[10px] font-mono" :class="detailSortField === 'calculated_output_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('calculated_output_usd') }}</span>
-                </th>
-                <th class="py-2.5 px-3 text-center">深度推理</th>
-                <th class="py-2.5 px-3 text-center">工具调用</th>
-                <th @click="toggleDetailSort('last_tested_tps')" class="py-2.5 px-3 text-center cursor-pointer hover:text-[#0071E3] transition-colors">
-                  实测 TPS <span class="text-[10px] font-mono" :class="detailSortField === 'last_tested_tps' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('last_tested_tps') }}</span>
-                </th>
+
+                <!-- 动态配置列表头 -->
+                <template v-for="col in visibleChannelColumns" :key="col.key">
+                  <!-- 上下文 -->
+                  <th v-if="col.key === 'context'" @click="toggleDetailSort('context_window')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#0071E3] transition-colors">
+                    上下文 (Context) <span class="text-[10px] font-mono" :class="detailSortField === 'context_window' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('context_window') }}</span>
+                  </th>
+                  <!-- 最大输出 -->
+                  <th v-else-if="col.key === 'max_output'" @click="toggleDetailSort('max_output')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#0071E3] transition-colors">
+                    最大输出 (Output) <span class="text-[10px] font-mono" :class="detailSortField === 'max_output' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('max_output') }}</span>
+                  </th>
+                  <!-- 输入单价 -->
+                  <th v-else-if="col.key === 'input_price'" @click="toggleDetailSort('calculated_input_usd')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#0071E3] transition-colors">
+                    输入单价 ({{ store.currency }}) <span class="text-[10px] font-mono" :class="detailSortField === 'calculated_input_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('calculated_input_usd') }}</span>
+                  </th>
+                  <!-- 输出单价 -->
+                  <th v-else-if="col.key === 'output_price'" @click="toggleDetailSort('calculated_output_usd')" class="py-2.5 px-3 text-right cursor-pointer hover:text-[#0071E3] transition-colors">
+                    输出单价 ({{ store.currency }}) <span class="text-[10px] font-mono" :class="detailSortField === 'calculated_output_usd' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('calculated_output_usd') }}</span>
+                  </th>
+                  <!-- 命中缓存单价 -->
+                  <th v-else-if="col.key === 'cache_price'" class="py-2.5 px-3 text-right text-[#8E24AA] font-semibold">
+                    命中缓存 ({{ store.currency }})
+                  </th>
+                  <!-- 深度推理 -->
+                  <th v-else-if="col.key === 'reasoning'" class="py-2.5 px-3 text-center">深度推理</th>
+                  <!-- 工具调用 -->
+                  <th v-else-if="col.key === 'tools'" class="py-2.5 px-3 text-center">工具调用</th>
+                  <!-- 实测 TPS -->
+                  <th v-else-if="col.key === 'tps'" @click="toggleDetailSort('last_tested_tps')" class="py-2.5 px-3 text-center cursor-pointer hover:text-[#0071E3] transition-colors">
+                    实测 TPS <span class="text-[10px] font-mono" :class="detailSortField === 'last_tested_tps' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('last_tested_tps') }}</span>
+                  </th>
+                </template>
+
                 <th class="py-2.5 px-3 text-center">快捷操作</th>
               </tr>
             </thead>
@@ -860,41 +886,45 @@
                   </div>
                 </td>
 
-                <!-- 上下文 -->
-                <td class="py-2.5 px-3 text-right font-mono text-[#1D1D1F]">
-                  {{ formatContextWindow(item.context_window) }}
-                </td>
-
-                <!-- 最大输出 -->
-                <td class="py-2.5 px-3 text-right font-mono text-[#6E6E73]">
-                  {{ item.max_output ? Number(item.max_output).toLocaleString() : '8,192' }}
-                </td>
-
-                <!-- 输入单价 (响应全局货币切换) -->
-                <td class="py-2.5 px-3 text-right font-mono font-bold text-[#34C759]">
-                  {{ store.formatCurrency(item.calculated_input_usd) }}
-                </td>
-
-                <!-- 输出单价 (响应全局货币切换) -->
-                <td class="py-2.5 px-3 text-right font-mono text-[#1D1D1F]">
-                  {{ store.formatCurrency(item.calculated_output_usd) }}
-                </td>
-
-                <!-- 深度推理 -->
-                <td class="py-2.5 px-3 text-center font-mono">
-                  <span v-if="isReasoningModel(item.model_id)" class="text-[#34C759] font-bold">是</span>
-                  <span v-else class="text-[#86868B]">-</span>
-                </td>
-
-                <!-- 工具调用 -->
-                <td class="py-2.5 px-3 text-center font-mono">
-                  <span class="text-[#34C759] font-bold">是</span>
-                </td>
-
-                <!-- 实测 TPS -->
-                <td class="py-2.5 px-3 text-center font-mono text-[#0071E3] font-bold">
-                  {{ item.last_tested_tps }} tps
-                </td>
+                <!-- 动态配置列单元格 -->
+                <template v-for="col in visibleChannelColumns" :key="col.key">
+                  <!-- 上下文 -->
+                  <td v-if="col.key === 'context'" class="py-2.5 px-3 text-right font-mono text-[#1D1D1F]">
+                    {{ formatContextWindow(item.context_window) }}
+                  </td>
+                  <!-- 最大输出 -->
+                  <td v-else-if="col.key === 'max_output'" class="py-2.5 px-3 text-right font-mono text-[#6E6E73]">
+                    {{ item.max_output ? Number(item.max_output).toLocaleString() : '8,192' }}
+                  </td>
+                  <!-- 输入单价 -->
+                  <td v-else-if="col.key === 'input_price'" class="py-2.5 px-3 text-right font-mono font-bold text-[#34C759]">
+                    {{ store.formatCurrency(item.calculated_input_usd) }}
+                  </td>
+                  <!-- 输出单价 -->
+                  <td v-else-if="col.key === 'output_price'" class="py-2.5 px-3 text-right font-mono text-[#1D1D1F]">
+                    {{ store.formatCurrency(item.calculated_output_usd) }}
+                  </td>
+                  <!-- 命中缓存单价 -->
+                  <td v-else-if="col.key === 'cache_price'" class="py-2.5 px-3 text-right font-mono font-semibold">
+                    <span v-if="item.calculated_cache_usd && item.calculated_cache_usd > 0" class="text-[#8E24AA]">
+                      {{ store.formatCurrency(item.calculated_cache_usd) }}
+                    </span>
+                    <span v-else class="text-[#AEAEB2] font-normal">-</span>
+                  </td>
+                  <!-- 深度推理 -->
+                  <td v-else-if="col.key === 'reasoning'" class="py-2.5 px-3 text-center font-mono">
+                    <span v-if="isReasoningModel(item.model_id)" class="text-[#34C759] font-bold">是</span>
+                    <span v-else class="text-[#86868B]">-</span>
+                  </td>
+                  <!-- 工具调用 -->
+                  <td v-else-if="col.key === 'tools'" class="py-2.5 px-3 text-center font-mono">
+                    <span class="text-[#34C759] font-bold">是</span>
+                  </td>
+                  <!-- 实测 TPS -->
+                  <td v-else-if="col.key === 'tps'" class="py-2.5 px-3 text-center font-mono text-[#0071E3] font-bold">
+                    {{ item.last_tested_tps }} tps
+                  </td>
+                </template>
 
                 <!-- 快捷操作 (下拉操作气泡菜单) -->
                 <td class="py-2.5 px-3 text-center w-28 whitespace-nowrap relative">
@@ -1192,6 +1222,17 @@
       @close="showSnapshotModal = false"
     />
 
+    <!-- 自定义表格显示列与排序配置 Modal -->
+    <TableColumnConfigModal
+      :show="showColumnConfigModal"
+      :storage-key="CHANNEL_DETAIL_STORAGE_KEY"
+      :default-columns="DEFAULT_CHANNEL_COLUMNS"
+      fixed-start-label="模型名称 / 标准标识 / 所属分组"
+      fixed-end-label="快捷操作"
+      @close="showColumnConfigModal = false"
+      @update:columns="onUpdateChannelColumns"
+    />
+
     <!-- 弹窗：编辑渠道基础配置 Modal (Apple 极简浅色高级风格) -->
     <div
       v-if="showModal"
@@ -1361,6 +1402,7 @@ import ProviderLogo from '../components/ProviderLogo.vue'
 import AddChannelWizardModal from '../components/AddChannelWizardModal.vue'
 import SnapshotViewerModal from '../components/SnapshotViewerModal.vue'
 import ScoreBreakdownTooltip from '../components/ScoreBreakdownTooltip.vue'
+import TableColumnConfigModal, { type TableColumnDef } from '../components/TableColumnConfigModal.vue'
 import SystemIcon from '../components/SystemIcon.vue'
 import type { RelaySite } from '../types'
 import { parseUtcDate, formatRelativeTime } from '../utils/timeUtils'
@@ -1374,6 +1416,51 @@ const providerModelSearchQuery = ref('')
 const excludeZeroPrice = ref(true)
 const providerModelsList = ref<any[]>([])
 const isDetailLoading = ref(false)
+
+// 自定义列配置
+const showColumnConfigModal = ref(false)
+const CHANNEL_DETAIL_STORAGE_KEY = 'welltoken_col_config_channel_detail'
+const DEFAULT_CHANNEL_COLUMNS: TableColumnDef[] = [
+  { key: 'context', label: '上下文 (Context)', visible: true },
+  { key: 'max_output', label: '最大输出 (Output)', visible: true },
+  { key: 'input_price', label: '输入单价', visible: true },
+  { key: 'output_price', label: '输出单价', visible: true },
+  { key: 'cache_price', label: '命中缓存单价', visible: true },
+  { key: 'reasoning', label: '深度推理', visible: true },
+  { key: 'tools', label: '工具调用', visible: true },
+  { key: 'tps', label: '实测 TPS', visible: true },
+]
+
+const loadChannelColumns = (): TableColumnDef[] => {
+  try {
+    const saved = localStorage.getItem(CHANNEL_DETAIL_STORAGE_KEY)
+    if (saved) {
+      const parsed: TableColumnDef[] = JSON.parse(saved)
+      const merged: TableColumnDef[] = []
+      for (const p of parsed) {
+        const d = DEFAULT_CHANNEL_COLUMNS.find(col => col.key === p.key)
+        if (d) {
+          merged.push({ key: p.key, label: d.label, visible: p.visible !== false })
+        }
+      }
+      for (const d of DEFAULT_CHANNEL_COLUMNS) {
+        if (!merged.some(m => m.key === d.key)) {
+          merged.push({ ...d })
+        }
+      }
+      return merged
+    }
+  } catch (e) {
+    console.warn('加载渠道列配置失败:', e)
+  }
+  return DEFAULT_CHANNEL_COLUMNS.map(c => ({ ...c }))
+}
+
+const channelColumns = ref<TableColumnDef[]>(loadChannelColumns())
+const visibleChannelColumns = computed(() => channelColumns.value.filter(c => c.visible))
+const onUpdateChannelColumns = (newCols: TableColumnDef[]) => {
+  channelColumns.value = newCols
+}
 
 // 定价网页快照比对 Modal 状态
 const showSnapshotModal = ref(false)

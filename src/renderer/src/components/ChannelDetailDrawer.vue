@@ -182,6 +182,16 @@
                 <span v-if="searchQuery" @click="searchQuery = ''" class="absolute right-2 top-1 text-[#86868B] hover:text-[#1D1D1F] cursor-pointer text-xs">✕</span>
               </div>
 
+              <!-- 自定义列按钮 -->
+              <button
+                @click="showColumnConfigModal = true"
+                class="px-2 py-1 rounded-lg bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] border border-[#E5E5EA] transition-all text-xs flex items-center space-x-1 cursor-pointer font-medium flex-shrink-0"
+                title="自定义表格显示列"
+              >
+                <span>🎛️</span>
+                <span>自定义列</span>
+              </button>
+
               <!-- 导出 Excel 按钮 -->
               <button
                 @click="handleExportChannelModels"
@@ -219,9 +229,15 @@
                 <thead class="text-[11px] text-[#6E6E73] bg-[#F9F9FB] border-b border-[#E5E5EA] sticky top-0 z-10 font-sans">
                   <tr>
                     <th class="py-2 px-2.5">模型名称 / 标准标识</th>
-                    <th class="py-2 px-2 text-right w-16">输入 ({{ store.currency }})</th>
-                    <th class="py-2 px-2 text-right w-16">输出 ({{ store.currency }})</th>
-                    <th class="py-2 px-2 text-center w-14">实测TPS</th>
+
+                    <!-- 动态表头 -->
+                    <template v-for="col in visibleDrawerColumns" :key="col.key">
+                      <th v-if="col.key === 'input_price'" class="py-2 px-2 text-right w-16">输入 ({{ store.currency }})</th>
+                      <th v-else-if="col.key === 'output_price'" class="py-2 px-2 text-right w-16">输出 ({{ store.currency }})</th>
+                      <th v-else-if="col.key === 'cache_price'" class="py-2 px-2 text-right w-16 text-[#8E24AA] font-semibold">命中缓存</th>
+                      <th v-else-if="col.key === 'tps'" class="py-2 px-2 text-center w-14">实测TPS</th>
+                    </template>
+
                     <th class="py-2 px-2 text-center w-20">操作</th>
                   </tr>
                 </thead>
@@ -242,20 +258,31 @@
                       </div>
                     </td>
 
-                    <!-- 输入价格 -->
-                    <td class="py-2 px-2 text-right font-mono font-medium text-[#34C759]">
-                      {{ formatItemPrice(item.calculated_input_usd, item.calculated_input_cny) }}
-                    </td>
+                    <!-- 动态单元格 -->
+                    <template v-for="col in visibleDrawerColumns" :key="col.key">
+                      <!-- 输入价格 -->
+                      <td v-if="col.key === 'input_price'" class="py-2 px-2 text-right font-mono font-medium text-[#34C759]">
+                        {{ formatItemPrice(item.calculated_input_usd, item.calculated_input_cny) }}
+                      </td>
 
-                    <!-- 输出价格 -->
-                    <td class="py-2 px-2 text-right font-mono font-medium text-[#1D1D1F]">
-                      {{ formatItemPrice(item.calculated_output_usd, item.calculated_output_cny) }}
-                    </td>
+                      <!-- 输出价格 -->
+                      <td v-else-if="col.key === 'output_price'" class="py-2 px-2 text-right font-mono font-medium text-[#1D1D1F]">
+                        {{ formatItemPrice(item.calculated_output_usd, item.calculated_output_cny) }}
+                      </td>
 
-                    <!-- TPS -->
-                    <td class="py-2 px-2 text-center font-mono text-[#0071E3] font-bold text-[11px]">
-                      {{ item.last_tested_tps || 55 }}
-                    </td>
+                      <!-- 命中缓存价格 -->
+                      <td v-else-if="col.key === 'cache_price'" class="py-2 px-2 text-right font-mono font-medium">
+                        <span v-if="item.calculated_cache_usd && item.calculated_cache_usd > 0" class="text-[#8E24AA] font-bold">
+                          {{ formatItemPrice(item.calculated_cache_usd, item.calculated_cache_cny) }}
+                        </span>
+                        <span v-else class="text-[#AEAEB2] font-normal">-</span>
+                      </td>
+
+                      <!-- TPS -->
+                      <td v-else-if="col.key === 'tps'" class="py-2 px-2 text-center font-mono text-[#0071E3] font-bold text-[11px]">
+                        {{ item.last_tested_tps || 55 }}
+                      </td>
+                    </template>
 
                     <!-- 快捷比价/测速/快照 -->
                     <td class="py-2 px-2 text-center whitespace-nowrap">
@@ -278,7 +305,7 @@
                   </tr>
 
                   <tr v-if="displayedModels.length === 0">
-                    <td colspan="5" class="py-12 text-center text-xs text-[#86868B]">
+                    <td :colspan="visibleDrawerColumns.length + 2" class="py-12 text-center text-xs text-[#86868B]">
                       <div v-if="viewScope === 'filtered' && filterContext?.availableModelIds?.length">
                         该渠道暂未接入当前全局筛选范围内的 {{ filterContext.availableModelIds.length }} 款模型
                         <div class="mt-2">
@@ -303,13 +330,24 @@
       </div>
     </div>
 
-    <!-- 定价快照核对 Modal -->
+    <!-- 定价网页快照核对 Modal -->
     <SnapshotViewerModal
       v-if="showSnapshotModal && currentSite"
       :site-id="currentSite.id"
       :site-name="currentSite.name"
       :target-model="snapshotTargetModel"
       @close="showSnapshotModal = false"
+    />
+
+    <!-- 自定义表格显示列与排序配置 Modal -->
+    <TableColumnConfigModal
+      :show="showColumnConfigModal"
+      :storage-key="CHANNEL_DRAWER_STORAGE_KEY"
+      :default-columns="DEFAULT_DRAWER_COLUMNS"
+      fixed-start-label="模型名称 / 标准标识"
+      fixed-end-label="操作"
+      @close="showColumnConfigModal = false"
+      @update:columns="onUpdateDrawerColumns"
     />
   </Teleport>
 </template>
@@ -321,6 +359,7 @@ import { useDashboardStore } from '../stores/dashboardStore'
 import ProviderLogo from './ProviderLogo.vue'
 import SystemIcon from './SystemIcon.vue'
 import SnapshotViewerModal from './SnapshotViewerModal.vue'
+import TableColumnConfigModal, { type TableColumnDef } from './TableColumnConfigModal.vue'
 import type { RelaySite } from '../types'
 import { exportChannelModelsToExcel } from '../utils/excelExport'
 
@@ -349,6 +388,47 @@ const searchQuery = ref('')
 const excludeZeroPrice = ref(true)
 const providerModelsList = ref<any[]>([])
 const viewScope = ref<'filtered' | 'all'>('filtered')
+
+// 自定义列配置
+const showColumnConfigModal = ref(false)
+const CHANNEL_DRAWER_STORAGE_KEY = 'welltoken_col_config_channel_drawer'
+const DEFAULT_DRAWER_COLUMNS: TableColumnDef[] = [
+  { key: 'input_price', label: '输入单价', visible: true },
+  { key: 'output_price', label: '输出单价', visible: true },
+  { key: 'cache_price', label: '命中缓存单价', visible: true },
+  { key: 'tps', label: '实测 TPS', visible: true },
+]
+
+const loadDrawerColumns = (): TableColumnDef[] => {
+  try {
+    const saved = localStorage.getItem(CHANNEL_DRAWER_STORAGE_KEY)
+    if (saved) {
+      const parsed: TableColumnDef[] = JSON.parse(saved)
+      const merged: TableColumnDef[] = []
+      for (const p of parsed) {
+        const d = DEFAULT_DRAWER_COLUMNS.find(col => col.key === p.key)
+        if (d) {
+          merged.push({ key: p.key, label: d.label, visible: p.visible !== false })
+        }
+      }
+      for (const d of DEFAULT_DRAWER_COLUMNS) {
+        if (!merged.some(m => m.key === d.key)) {
+          merged.push({ ...d })
+        }
+      }
+      return merged
+    }
+  } catch (e) {
+    console.warn('加载抽屉列配置失败:', e)
+  }
+  return DEFAULT_DRAWER_COLUMNS.map(c => ({ ...c }))
+}
+
+const drawerColumns = ref<TableColumnDef[]>(loadDrawerColumns())
+const visibleDrawerColumns = computed(() => drawerColumns.value.filter(c => c.visible))
+const onUpdateDrawerColumns = (newCols: TableColumnDef[]) => {
+  drawerColumns.value = newCols
+}
 
 // 快照 Modal 状态
 const showSnapshotModal = ref(false)
