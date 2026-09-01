@@ -71,6 +71,12 @@
               <span class="px-2 py-0.5 rounded bg-[#E8F2FD] text-[#0071E3] border border-[#CCE4FB]">
                 输出: {{ store.formatCurrency(targetModel.calculated_output_usd) }}
               </span>
+              <span
+                v-if="targetModel.calculated_cache_usd && targetModel.calculated_cache_usd > 0"
+                class="px-2 py-0.5 rounded bg-[#F3E8FD] text-[#8E24AA] border border-[#E9D5FF]"
+              >
+                缓存: {{ store.formatCurrency(targetModel.calculated_cache_usd) }}
+              </span>
             </div>
           </div>
 

@@ -3,8 +3,8 @@
 
 通过纯异步原生 HTTP 请求 (httpx) 获取官方定价页内容:
 https://siliconflow.cn/pricing
-并从 Next.js SSR 结构化数据流与页面 DOM 中毫秒级提取全部官方模型与价格，涵盖：
-- 对话模型 (DeepSeek-V4-Flash / Pro, Qwen 3.5 系列, GLM 5 系列, Kimi, MiniMax 等)
+结合精细 DOM 表格三列解析 (输入价格 / 输出价格 / 命中缓存价格 / 阶梯区间) 与 Next.js SSR 数据流，涵盖：
+- 对话模型 (DeepSeek-V4-Flash / Pro, Qwen 3.5 系列, GLM 5.2 / 5.1 Pro, Kimi, MiniMax 等)
 - 生图模型 (Kolors, ERNIE-Image, Qwen-Image 等)
 - 语音模型 (SenseVoiceSmall, CosyVoice2, XingChen 等)
 - 视频模型 (Wanx, CogVideoX 等)
@@ -16,6 +16,7 @@ import httpx
 import asyncio
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
+from bs4 import BeautifulSoup
 from sqlalchemy import select, delete
 
 from backend.app.database import AsyncSessionLocal
@@ -65,12 +66,12 @@ PROVIDER_NORMALIZE = {
 
 
 def _parse_price(text: str) -> Optional[float]:
-    """从价格文本中解析数字，如 '¥ 12.00' -> 12.0, '免费' -> 0.0, '-' -> None"""
+    """从价格文本中解析数字，如 '¥ 12.00' -> 12.0, '免费' -> 0.0, '-' -> 0.0"""
     if not text:
-        return None
+        return 0.0
     text = text.strip()
-    if text in ["-", "—"]:
-        return None
+    if text in ["-", "—", ""]:
+        return 0.0
     if "免费" in text:
         return 0.0
     m = re.search(r'[\d.]+', text)
@@ -78,8 +79,8 @@ def _parse_price(text: str) -> Optional[float]:
         try:
             return float(m.group())
         except ValueError:
-            return None
-    return None
+            return 0.0
+    return 0.0
 
 
 def _is_free_text(text: str) -> bool:
@@ -88,7 +89,7 @@ def _is_free_text(text: str) -> bool:
 
 
 class SiliconFlowScraperService:
-    """硅基流动官网定价抓取与解析服务 (纯原生异步 HTTP 请求 + SSR 数据流解析，0 浏览器依赖)"""
+    """硅基流动官网定价抓取与解析服务 (纯原生异步 HTTP 请求 + DOM/SSR 融合高精度解析，0 浏览器依赖)"""
 
     def __init__(self, pricing_url: str = SILICONFLOW_PRICING_URL):
         self.pricing_url = pricing_url
@@ -110,13 +111,114 @@ class SiliconFlowScraperService:
             return resp.text
 
     def parse_pricing_html(self, raw_html: str) -> List[SiliconFlowModelItem]:
-        """从 Next.js SSR 数据流中精准提取全量模型、规格与定价"""
-        # 1. 提取所有 self.__next_f.push 数据段并拼接
-        push_chunks = re.findall(r'self\.__next_f\.push\(\[1,\s*\"(.*?)\"\]\)', raw_html)
-        combined = "".join(push_chunks).replace('\\"', '"').replace('\\\\', '\\')
-
+        """精细解析 DOM 表格三列价格 (输入/输出/缓存) 与 SSR 数据流"""
+        soup = BeautifulSoup(raw_html, "html.parser")
         models: List[SiliconFlowModelItem] = []
         seen = set()
+
+        # 1. 优先从 DOM 表格结构中提取高精度三列价格 (输入, 输出, 缓存) 与阶梯
+        rows = soup.find_all(attrs={"id": re.compile(r"^pricing-row-")})
+        for row in rows:
+            parent_sec = row.find_parent("section")
+            h2 = parent_sec.find("h2") if parent_sec else None
+            cat_title = h2.get_text(strip=True) if h2 else ""
+            category = CATEGORY_MAP.get(cat_title, "对话")
+
+            link = row.find("a", title=True) or row.find("a")
+            if link:
+                model_id = link.get("title") or link.get_text(strip=True)
+                display_name = link.get_text(strip=True).split("\n")[0]
+            else:
+                first_col = row.find("div")
+                display_name = first_col.get_text(strip=True).split("\n")[0] if first_col else ""
+                model_id = display_name
+
+            if not model_id or model_id in seen:
+                continue
+            seen.add(model_id)
+
+            provider = model_id.split("/")[0] if "/" in model_id else "SiliconFlow"
+
+            # 提取子列 (第 0 列为模型名，后续为价格列)
+            direct_children = row.find_all(recursive=False)
+            if len(direct_children) < 2:
+                continue
+
+            price_cells = direct_children[1:]
+            cell_data: List[Tuple[str, float]] = []
+            for cell in price_cells:
+                text_all = cell.get_text(" ", strip=True)
+                tier_m = re.search(r"(\[.*?[\)\]]|\(.*?\)|[><≤≥]\s*\d+[KM]?|\d+K?[~-]\d+[KM]?)", text_all)
+                tier_label = tier_m.group(1) if tier_m else ""
+
+                p_val = 0.0
+                if "免费" in text_all or text_all in ["-", "—"]:
+                    p_val = 0.0
+                else:
+                    pm = re.search(r"¥\s*([\d.]+)", text_all)
+                    if pm:
+                        p_val = float(pm.group(1))
+                    else:
+                        pm2 = re.search(r"[\d.]+", text_all)
+                        if pm2:
+                            try:
+                                p_val = float(pm2.group())
+                            except ValueError:
+                                p_val = 0.0
+                cell_data.append((tier_label, p_val))
+
+            input_price = 0.0
+            output_price = 0.0
+            cache_price = 0.0
+            tiers: List[SiliconFlowPriceTier] = []
+
+            if len(cell_data) == 3:
+                # 标准三列: 输入, 输出, 缓存 (例如 GLM-5.2 -> 输入 8.0, 输出 28.0, 缓存 2.0)
+                input_price = cell_data[0][1]
+                output_price = cell_data[1][1]
+                cache_price = cell_data[2][1]
+            elif len(cell_data) > 3 and len(cell_data) % 3 == 0:
+                # 多阶梯区间: 每 3 列一组 (例如 GLM-5.1 Pro -> 0~32k / 32k+)
+                num_tiers = len(cell_data) // 3
+                for ti in range(num_tiers):
+                    t_in = cell_data[ti * 3]
+                    t_out = cell_data[ti * 3 + 1]
+                    t_cache = cell_data[ti * 3 + 2]
+                    t_label = t_in[0] or t_out[0] or t_cache[0] or f"阶梯 {ti+1}"
+                    tiers.append(SiliconFlowPriceTier(
+                        tier_label=t_label,
+                        input_price_cny=t_in[1],
+                        output_price_cny=t_out[1],
+                        cache_price_cny=t_cache[1]
+                    ))
+                input_price = tiers[0].input_price_cny
+                output_price = tiers[0].output_price_cny
+                cache_price = tiers[0].cache_price_cny
+            elif len(cell_data) >= 1:
+                input_price = cell_data[0][1]
+                output_price = cell_data[1][1] if len(cell_data) > 1 else input_price
+                cache_price = 0.0
+
+            has_tiered = len(tiers) > 1
+            is_free = (input_price == 0.0 and output_price == 0.0)
+
+            models.append(SiliconFlowModelItem(
+                model_id=model_id,
+                display_name=display_name,
+                provider=provider,
+                category=category,
+                input_price_cny=input_price,
+                output_price_cny=output_price,
+                cache_price_cny=cache_price,
+                is_free=is_free,
+                has_tiered_pricing=has_tiered,
+                price_tiers=tiers,
+                price_note=tiers[0].tier_label if has_tiered else ""
+            ))
+
+        # 2. 从 Next.js SSR 数据流中提取并补充折叠未展开的模型
+        push_chunks = re.findall(r'self\.__next_f\.push\(\[1,\s*\"(.*?)\"\]\)', raw_html)
+        combined = "".join(push_chunks).replace('\\"', '"').replace('\\\\', '\\')
 
         for m in re.finditer(r'"modelName"\s*:\s*"([^"]+)"', combined):
             m_name = m.group(1)
@@ -133,7 +235,6 @@ class SiliconFlowScraperService:
             mf_m = re.search(r'"mf"\s*:\s*"([^"]+)"', chunk)
             type_m = re.search(r'"type"\s*:\s*"([^"]+)"', chunk)
             sub_type_m = re.search(r'"subType"\s*:\s*"([^"]+)"', chunk)
-            ctx_m = re.search(r'"contextLen"\s*:\s*([0-9]+)', chunk)
 
             disp_name = disp_m.group(1) if disp_m else m_name
             disp_name = re.split(r'["\',;\]\}\)]', disp_name)[0].strip() or m_name
@@ -143,7 +244,6 @@ class SiliconFlowScraperService:
 
             t_name = type_m.group(1) if type_m else "text"
             sub_t = sub_type_m.group(1) if sub_type_m else "chat"
-            ctx = int(ctx_m.group(1)) if ctx_m else 128000
 
             cat = "对话"
             if t_name == "image" or sub_t == "image":
@@ -227,7 +327,7 @@ class SiliconFlowScraperService:
         将爬取到的硅基流动模型价格数据写入数据库。
         - 创建或获取 RelaySite 记录
         - 智能匹配或创建 ModelMetadata
-        - 创建或更新 SiteModelPricing
+        - 创建或更新 SiteModelPricing (支持输入/输出/缓存三列价格与分段阶梯)
         - 持久化 ChannelSnapshot 网页快照
         """
         new_models_created = 0
@@ -314,33 +414,62 @@ class SiliconFlowScraperService:
                     )
                     await session.execute(old_stmt)
 
-                    # 3b. 写入定价
-                    input_usd = round(item.input_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0.0
-                    output_usd = round(item.output_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0.0
-                    cache_usd = round((item.cache_price_cny or 0) / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0.0
+                    # 3b. 写入分段阶梯定价或普通定价
+                    if item.has_tiered_pricing and item.price_tiers and len(item.price_tiers) > 1:
+                        for tier in item.price_tiers:
+                            tier_input_usd = round(tier.input_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0.0
+                            tier_output_usd = round(tier.output_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0.0
+                            tier_cache_usd = round(tier.cache_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0.0
 
-                    discount = 0.0
-                    if model_meta.official_input_price > 0 and input_usd > 0:
-                        discount = round(
-                            ((input_usd - model_meta.official_input_price) / model_meta.official_input_price) * 100, 1
+                            tier_discount = 0.0
+                            if model_meta.official_input_price > 0 and tier_input_usd > 0:
+                                tier_discount = round(
+                                    ((tier_input_usd - model_meta.official_input_price) / model_meta.official_input_price) * 100, 1
+                                )
+
+                            tier_pricing = SiteModelPricing(
+                                site_id=site.id,
+                                model_id=model_meta.model_id,
+                                group_name=item.category,
+                                site_model_name=f"{item.display_name} {tier.tier_label}",
+                                model_ratio=1.0,
+                                group_ratio=1.0,
+                                calculated_input_usd=tier_input_usd,
+                                calculated_output_usd=tier_output_usd,
+                                calculated_cache_usd=tier_cache_usd,
+                                discount_percent=tier_discount,
+                                is_available=True,
+                                source_updated_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+                            )
+                            session.add(tier_pricing)
+                            prices_created += 1
+                    else:
+                        input_usd = round(item.input_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0.0
+                        output_usd = round(item.output_price_cny / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0.0
+                        cache_usd = round((item.cache_price_cny or 0.0) / usd_to_cny_rate, 6) if usd_to_cny_rate > 0 else 0.0
+
+                        discount = 0.0
+                        if model_meta.official_input_price > 0 and input_usd > 0:
+                            discount = round(
+                                ((input_usd - model_meta.official_input_price) / model_meta.official_input_price) * 100, 1
+                            )
+
+                        new_pricing = SiteModelPricing(
+                            site_id=site.id,
+                            model_id=model_meta.model_id,
+                            group_name=item.category,
+                            site_model_name=item.display_name,
+                            model_ratio=1.0,
+                            group_ratio=1.0,
+                            calculated_input_usd=input_usd,
+                            calculated_output_usd=output_usd,
+                            calculated_cache_usd=cache_usd,
+                            discount_percent=discount,
+                            is_available=True,
+                            source_updated_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M")
                         )
-
-                    new_pricing = SiteModelPricing(
-                        site_id=site.id,
-                        model_id=model_meta.model_id,
-                        group_name=item.category,
-                        site_model_name=item.display_name,
-                        model_ratio=1.0,
-                        group_ratio=1.0,
-                        calculated_input_usd=input_usd,
-                        calculated_output_usd=output_usd,
-                        calculated_cache_usd=cache_usd,
-                        discount_percent=discount,
-                        is_available=True,
-                        source_updated_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M")
-                    )
-                    session.add(new_pricing)
-                    prices_created += 1
+                        session.add(new_pricing)
+                        prices_created += 1
 
                 await session.commit()
 
