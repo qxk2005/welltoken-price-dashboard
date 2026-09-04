@@ -7,6 +7,7 @@ from typing import List, Dict, Any, Optional, Tuple, Set
 from sqlalchemy import select
 from backend.app.database import AsyncSessionLocal
 from backend.app.models.token_price import ModelMetadata, ModelAlias, ChannelModelMapping, RelaySite
+from backend.app.services.official_benchmark_service import official_benchmark_service
 
 # 内置高频常见别名映射种子库 (渠道混乱命名 -> 标准 models.dev model_id)
 BUILTIN_SYSTEM_ALIASES = [
@@ -220,7 +221,7 @@ class ModelNormalizerService:
 
         token_group = ""
         token_group_ratio = None
-        global_group_ratios: Dict[str, float] = {"default": 1.0}
+        global_group_ratios: Dict[str, float] = {}
         raw_model_items: List[Dict[str, Any]] = []
 
         clean_base = base_url.strip().rstrip("/")
@@ -492,6 +493,11 @@ class ModelNormalizerService:
             if g_k:
                 groups_set.add(g_k)
 
+        # 若没有任何分组信息，兜底使用 default
+        if not groups_set:
+            groups_set.add("default")
+            global_group_ratios["default"] = 1.0
+
         available_groups = []
         for g_name in sorted(list(groups_set)):
             g_ratio = global_group_ratios.get(g_name, 1.0)
@@ -501,19 +507,49 @@ class ModelNormalizerService:
             for item in raw_model_items:
                 if isinstance(item, dict):
                     eg = item.get("enable_groups")
-                    if not eg or (isinstance(eg, list) and (g_name in eg or not eg)):
+                    if isinstance(eg, list) and len(eg) > 0:
+                        if g_name in eg:
+                            m_cnt += 1
+                    else:
                         m_cnt += 1
                 else:
                     m_cnt += 1
+
+            # 关键过滤：若该分组下没有任何模型 (m_cnt == 0)，且站点已有其他真实可用分组时，剔除此假分组
+            if m_cnt == 0 and g_name == "default" and len(groups_set) > 1:
+                continue
+
             available_groups.append({
                 "name": g_name,
                 "ratio": g_ratio,
                 "desc": g_desc,
-                "model_count": m_cnt if m_cnt > 0 else len(unique_raw_models)
+                "model_count": m_cnt
             })
 
         # 确定当前选中的分组 selected_group
-        selected_group = target_group or token_group or (available_groups[0]["name"] if available_groups else "default")
+        valid_group_names = [g["name"] for g in available_groups if g["model_count"] > 0]
+        if not valid_group_names:
+            valid_group_names = [g["name"] for g in available_groups]
+
+        if target_group and target_group in valid_group_names:
+            selected_group = target_group
+        elif token_group and token_group in valid_group_names:
+            selected_group = token_group
+        elif available_groups:
+            # 优先找包含模型数 > 0，且 desc 包含 '默认' 或名称叫 '默认用户' / 'default' 的分组
+            default_candidate = next(
+                (g["name"] for g in available_groups if ("默认" in g.get("desc", "") or g["name"] in ["默认用户", "default"]) and g["model_count"] > 0),
+                None
+            )
+            if default_candidate:
+                selected_group = default_candidate
+            else:
+                # 选有效模型数最多的分组
+                sorted_by_count = sorted(available_groups, key=lambda x: x["model_count"], reverse=True)
+                selected_group = sorted_by_count[0]["name"]
+        else:
+            selected_group = "default"
+
         selected_group_ratio = global_group_ratios.get(selected_group, 1.0)
 
         # 统计差异倍率模型数
@@ -576,14 +612,20 @@ class ModelNormalizerService:
                     if k:
                         items_by_name[k] = it
 
-        # 1. 如果指定了 site_id，先读取该渠道现存的专属映射表
+        # 1. 预先加载官方第一档基准模型库与渠道私有映射
         channel_mappings: Dict[str, ChannelModelMapping] = {}
-        if site_id:
-            async with AsyncSessionLocal() as session:
+        benchmarks = []
+        async with AsyncSessionLocal() as session:
+            benchmarks = await official_benchmark_service.get_benchmark_models(session)
+            if site_id:
                 cm_stmt = select(ChannelModelMapping).where(ChannelModelMapping.site_id == site_id)
                 cm_res = await session.execute(cm_stmt)
                 for cm in cm_res.scalars().all():
                     channel_mappings[cm.channel_model_name.lower()] = cm
+
+        bench_by_raw_id = {b["raw_model_id"].lower(): b for b in benchmarks if b.get("raw_model_id")}
+        bench_by_clean = {b["clean_name"].lower(): b for b in benchmarks if b.get("clean_name")}
+        bench_by_id = {b["id"]: b for b in benchmarks}
 
         results = []
         for raw in raw_model_names:
@@ -591,7 +633,13 @@ class ModelNormalizerService:
             raw_lower = raw_clean.lower()
             raw_item = items_by_name.get(raw_lower, {})
 
+            matched_bench: Optional[Dict[str, Any]] = None
+            matched_official_id: Optional[int] = None
+            matched_official_name: str = ""
             matched_standard_id: Optional[str] = None
+            standard_model_name: str = ""
+            provider: str = ""
+            series: str = ""
             match_type = "unmapped"
             confidence = 0.0
             custom_ratio = None
@@ -607,6 +655,11 @@ class ModelNormalizerService:
             # Level 1: 检查渠道私有映射 (最高优先级)
             if raw_lower in channel_mappings:
                 cm = channel_mappings[raw_lower]
+                if cm.official_model_id and cm.official_model_id in bench_by_id:
+                    matched_bench = bench_by_id[cm.official_model_id]
+                elif cm.standard_model_id:
+                    matched_bench = bench_by_raw_id.get(cm.standard_model_id.lower()) or bench_by_clean.get(cm.standard_model_id.lower())
+
                 matched_standard_id = cm.standard_model_id
                 match_type = "channel_custom"
                 confidence = 1.0
@@ -616,75 +669,100 @@ class ModelNormalizerService:
             if custom_ratio is None:
                 custom_ratio = k_ratio if k_ratio is not None else p_ratio
 
-            # Level 2: 检查全局别名库 (ModelAlias 精确模式或通配符规则)
-            if not matched_standard_id:
+            # Level 2: 检查全局别名库 (ModelAlias)
+            if not matched_bench and not matched_standard_id:
                 for alias in self._cached_aliases:
                     pat = alias["pattern"]
                     if pat == raw_lower or fnmatch.fnmatch(raw_lower, pat):
-                        matched_standard_id = alias["standard"]
-                        match_type = "global_alias"
-                        confidence = 0.95
-                        break
-
-            # Level 3: 检查是否与 models.dev 标准库直接精确一致
-            if not matched_standard_id and raw_lower in self._cached_standard_models:
-                matched_standard_id = raw_lower
-                match_type = "exact"
-                confidence = 1.0
-
-            # Level 4: 规则自动剥离归一化
-            if not matched_standard_id:
-                normalized = self.normalize_string(raw_lower)
-                for alias in self._cached_aliases:
-                    pat = alias["pattern"]
-                    if pat == normalized or fnmatch.fnmatch(normalized, pat):
-                        matched_standard_id = alias["standard"]
-                        match_type = "global_alias"
-                        confidence = 0.92
-                        break
-
-                if not matched_standard_id and normalized and normalized in self._cached_standard_models:
-                    matched_standard_id = normalized
-                    match_type = "rule_normalized"
-                    confidence = 0.88
-                elif not matched_standard_id:
-                    for std_id in self._cached_standard_models.keys():
-                        if std_id in normalized or normalized in std_id:
-                            matched_standard_id = std_id
-                            match_type = "fuzzy"
-                            confidence = 0.70
+                        alias_target = alias["standard"].lower()
+                        matched_bench = bench_by_raw_id.get(alias_target) or bench_by_clean.get(alias_target)
+                        if matched_bench:
+                            match_type = "global_alias"
+                            confidence = 0.95
                             break
 
-            std_meta = self._cached_standard_models.get(matched_standard_id) if matched_standard_id else None
+            # Level 3: 官方定价标准模型直接精确匹配 (raw_model_id 或 clean_name)
+            if not matched_bench and not matched_standard_id:
+                if raw_lower in bench_by_raw_id:
+                    matched_bench = bench_by_raw_id[raw_lower]
+                    match_type = "official_exact"
+                    confidence = 1.0
+                elif raw_lower in bench_by_clean:
+                    matched_bench = bench_by_clean[raw_lower]
+                    match_type = "official_exact"
+                    confidence = 1.0
 
-            # ---------------------------------------------------------
-            # NewAPI / OneAPI 规范价格推导引擎
-            # ---------------------------------------------------------
-            billing_mode = raw_item.get("billing_mode", "")
-            billing_expr = raw_item.get("billing_expr", "")
-            enable_groups = raw_item.get("enable_groups") or []
-            item_completion_ratio = float(raw_item.get("completion_ratio") or 1.0)
-            item_cache_ratio = float(raw_item.get("cache_ratio") or 0.1)
+            # Level 4: 规则自动剥离后匹配官方标准模型
+            if not matched_bench and not matched_standard_id:
+                normalized = self.normalize_string(raw_lower)
+                if normalized in bench_by_raw_id:
+                    matched_bench = bench_by_raw_id[normalized]
+                    match_type = "rule_normalized"
+                    confidence = 0.90
+                elif normalized in bench_by_clean:
+                    matched_bench = bench_by_clean[normalized]
+                    match_type = "rule_normalized"
+                    confidence = 0.90
 
-            # 1. 计算该模型的基准官方原价 (Base Price)
-            # 在 NewAPI 中，1.0 倍率基准配额为 $0.002/1K = $2/1M tokens，折合人民币 14.6 元/1M
-            if billing_mode == "tiered_expr" and billing_expr:
-                coeffs = self.parse_billing_expr(billing_expr)
-                base_in_cny = round(coeffs["p"] * 7.3, 2)
-                base_out_cny = round(coeffs["c"] * 7.3, 2)
-                base_ca_cny = round(coeffs["cr"] * 7.3, 3)
+            # Level 5: 多维模糊匹配官方定价基准库
+            if not matched_bench and not matched_standard_id:
+                f_match, f_score = official_benchmark_service.fuzzy_match_one(raw_clean, benchmarks, threshold=0.70)
+                if f_match and f_score >= 0.70:
+                    matched_bench = f_match
+                    match_type = "official_fuzzy"
+                    confidence = f_score
+
+            # 若成功匹配到官方标准模型
+            if matched_bench:
+                matched_official_id = matched_bench["id"]
+                matched_official_name = matched_bench["clean_name"]
+                matched_standard_id = matched_bench["raw_model_id"] or matched_bench["clean_name"]
+                standard_model_name = matched_bench["clean_name"]
+                provider = matched_bench.get("provider_name") or matched_bench.get("provider", "")
+                series = matched_bench.get("series", "")
+                is_matched = True
+
+                # 官方原厂基准价格
+                base_in_cny = float(matched_bench.get("converted_input_cny") or 0.0)
+                base_out_cny = float(matched_bench.get("converted_output_cny") or 0.0)
+                base_ca_cny = float(matched_bench.get("converted_cache_cny") or 0.0)
+                base_in_usd = float(matched_bench.get("converted_input_usd") or 0.0)
+                base_out_usd = float(matched_bench.get("converted_output_usd") or 0.0)
+                base_ca_usd = float(matched_bench.get("converted_cache_usd") or 0.0)
             else:
-                m_rat = float(raw_item.get("model_ratio") or p_ratio or 1.0)
-                # 比例换算：输入原价 = model_ratio * 14.6
-                base_in_cny = round(m_rat * 14.6, 2)
-                base_out_cny = round(base_in_cny * item_completion_ratio, 2)
-                base_ca_cny = round(base_in_cny * item_cache_ratio, 2)
+                # 未命中官方定价：脱钩 models.dev，标记为未匹配/自定义条目
+                matched_official_id = None
+                matched_official_name = ""
+                matched_standard_id = ""
+                standard_model_name = ""
+                provider = "custom"
+                series = "Custom"
+                is_matched = False
+                confidence = 0.0
+                match_type = "unmapped"
 
-            base_in_usd = round(base_in_cny / 7.25, 4)
-            base_out_usd = round(base_out_cny / 7.25, 4)
-            base_ca_usd = round(base_ca_cny / 7.25, 4)
+                # 未匹配时的原价推算（基于渠道倍率估算或默认基准）
+                billing_mode = raw_item.get("billing_mode", "")
+                billing_expr = raw_item.get("billing_expr", "")
+                if billing_mode == "tiered_expr" and billing_expr:
+                    coeffs = self.parse_billing_expr(billing_expr)
+                    base_in_cny = round(coeffs["p"] * 7.3, 2)
+                    base_out_cny = round(coeffs["c"] * 7.3, 2)
+                    base_ca_cny = round(coeffs["cr"] * 7.3, 3)
+                else:
+                    m_rat = float(raw_item.get("model_ratio") or p_ratio or 1.0)
+                    item_completion_ratio = float(raw_item.get("completion_ratio") or 1.0)
+                    item_cache_ratio = float(raw_item.get("cache_ratio") or 0.1)
+                    base_in_cny = round(m_rat * 14.6, 2)
+                    base_out_cny = round(base_in_cny * item_completion_ratio, 2)
+                    base_ca_cny = round(base_in_cny * item_cache_ratio, 2)
 
-            # 多分组价格集合 (包含所有 group_ratios_map 中的分组，以及该模型 enable_groups 中的分组)
+                base_in_usd = round(base_in_cny / 7.25, 4)
+                base_out_usd = round(base_out_cny / 7.25, 4)
+                base_ca_usd = round(base_ca_cny / 7.25, 4)
+
+            # 多分组价格集合
+            enable_groups = raw_item.get("enable_groups") or []
             all_involved_groups = set(group_ratios_map.keys())
             for eg in enable_groups:
                 if eg:
@@ -709,7 +787,6 @@ class ModelNormalizerService:
                 }
 
             # 确定该模型所属的分组集合 groups_for_this_model
-            # 若 raw_item 中包含 enable_groups 且不为空，则严格只生成属于这些启用分组的条目！
             groups_for_this_model = enable_groups if (enable_groups and len(enable_groups) > 0) else ["default"]
 
             for g_name in groups_for_this_model:
@@ -728,13 +805,15 @@ class ModelNormalizerService:
                     "channel_model_name": raw_clean,
                     "group_name": g_name,
                     "item_key": f"{raw_clean}::{g_name}",
-                    "is_matched": bool(matched_standard_id),
+                    "is_matched": is_matched,
                     "match_type": match_type,
                     "confidence": confidence,
+                    "official_model_id": matched_official_id,
+                    "official_model_name": matched_official_name,
                     "standard_model_id": matched_standard_id or "",
-                    "standard_model_name": std_meta.name if std_meta else "",
-                    "provider": std_meta.provider if std_meta else "",
-                    "series": std_meta.series if std_meta else "",
+                    "standard_model_name": standard_model_name,
+                    "provider": provider,
+                    "series": series,
                     "official_input_price": base_in_usd,
                     "official_output_price": base_out_usd,
                     "official_cache_price": base_ca_usd,
@@ -747,15 +826,12 @@ class ModelNormalizerService:
                     "has_ratio_diff": has_diff,
                     "ratio_diff_percent": diff_pct,
                     "applied_ratio_source": "key" if has_diff else "public",
-                    "is_selected": bool(matched_standard_id),
+                    "is_selected": is_matched, # 仅官方定价命中的默认选中收录
                     "input_price_cny": in_cny,
                     "output_price_cny": out_cny,
                     "cache_price_cny": ca_cny,
                     "input_price_usd": in_usd,
                     "output_price_usd": out_usd,
-                    "cache_price_usd": ca_usd,
-                    "enable_groups": enable_groups,
-                    "group_pricings": group_pricings
                 })
 
         return results

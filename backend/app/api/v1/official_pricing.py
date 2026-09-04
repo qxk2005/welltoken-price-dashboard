@@ -551,11 +551,29 @@ async def view_snapshot_html(
       // ================= 场景 2: 行式模型表格定位 (如 Claude、OpenAI、阿里百炼、智谱等) =================
       if (!targetScrollEl) {
         // 构建候选模型关键字列表，严禁单一取第 0 个单词截断导致变成厂商名 (如将 'claude opus 4.8' 变成 'claude')
-        var modelCandidates = [cleanKw];
-        var vendorPrefixes = ['claude ', 'openai ', 'alibaba ', 'zhipu ', 'deepseek ', 'baichuan ', 'minimax ', 'moonshot ', 'google '];
-        for (var pfx = 0; pfx < vendorPrefixes.length; pfx++) {
-          if (cleanKw.startsWith(vendorPrefixes[pfx])) {
-            modelCandidates.push(cleanKw.slice(vendorPrefixes[pfx].length).trim());
+        var rawTargets = kw.split('|');
+        var modelCandidates = [];
+
+        function addCandidate(term) {
+          if (!term) return;
+          var n = norm(term);
+          if (n && modelCandidates.indexOf(n) === -1) modelCandidates.push(n);
+          // 空格转连字符 (如 mimo-v2.5 pro -> mimo-v2.5-pro)
+          var hyp = n.replace(/\s+/g, '-');
+          if (hyp && modelCandidates.indexOf(hyp) === -1) modelCandidates.push(hyp);
+          // 连字符转空格 (如 mimo-v2.5-pro -> mimo v2.5 pro)
+          var spc = n.replace(/[-_]+/g, ' ');
+          if (spc && modelCandidates.indexOf(spc) === -1) modelCandidates.push(spc);
+        }
+
+        for (var rt = 0; rt < rawTargets.length; rt++) {
+          var cleanPart = norm(rawTargets[rt].split(' [')[0].split(' (')[0]);
+          addCandidate(cleanPart);
+          var vendorPrefixes = ['claude ', 'openai ', 'alibaba ', 'zhipu ', 'deepseek ', 'baichuan ', 'minimax ', 'moonshot ', 'google ', 'xiaomi ', 'mimo '];
+          for (var pfx = 0; pfx < vendorPrefixes.length; pfx++) {
+            if (cleanPart.startsWith(vendorPrefixes[pfx])) {
+              addCandidate(cleanPart.slice(vendorPrefixes[pfx].length).trim());
+            }
           }
         }
 
@@ -591,7 +609,7 @@ async def view_snapshot_html(
             var leftOk = (idx === 0) || !/[a-zA-Z0-9]/.test(t[idx - 1]);
             var endIdx = idx + q.length;
             var rightChar = endIdx < t.length ? t[endIdx] : '';
-            var rightOk = (endIdx >= t.length) || !/[a-zA-Z0-9._\\-]/.test(rightChar);
+            var rightOk = (endIdx >= t.length) || !/[a-zA-Z0-9._\-]/.test(rightChar);
             if (leftOk && rightOk) {
               return true;
             }
@@ -655,7 +673,7 @@ async def view_snapshot_html(
             // 普通单阶梯行：高亮所有带货币符号或数值的价格单元格
             for (var c = 0; c < cells.length; c++) {
               var cText = cells[c].innerText;
-              if (/\\d+(?:\\.\\d+)?\\s*(?:元|￥|¥|\\$|\\/)/.test(cText) || /\\$\\s*\\d+/.test(cText)) {
+              if (/¥|\\$|元|￥|\\/小时|免费/.test(cText) || /\\d+(?:\\.\\d+)?\\s*(?:元|￥|¥|\\$|\\/)/.test(cText) || /\\$\\s*\\d+/.test(cText)) {
                 cells[c].classList.add('wpd-highlight-cell');
               }
             }

@@ -317,6 +317,8 @@ class ModelMappingItem(BaseModel):
     confidence: float = 0.0
     standard_model_id: str = ""
     standard_model_name: str = ""
+    official_model_id: Optional[int] = None
+    official_model_name: Optional[str] = ""
     provider: str = ""
     series: str = ""
     official_input_price: float = 0.0

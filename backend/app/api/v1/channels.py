@@ -231,47 +231,76 @@ async def wizard_create_channel(payload: ChannelWizardCreateRequest, db: AsyncSe
 
     for item in selected_items:
         std_id = item.standard_model_id.strip()
-        # A. 写入渠道私有映射记录
+        # A. 查验标准模型是否存在，若不存在则自动登记到 ModelMetadata，确保外键与全网比价完整
+        std_meta = standard_models.get(std_id)
+        if not std_meta:
+            std_meta = ModelMetadata(
+                model_id=std_id,
+                name=item.standard_model_name or std_id,
+                provider=(item.provider or "custom").lower(),
+                series=item.series or "Official",
+                official_input_price=item.official_input_price or 2.0,
+                official_output_price=item.official_output_price or 2.0,
+                official_cache_price=item.official_cache_price or 0.2,
+                context_window=128000,
+                max_output=4096,
+                description=f"来自官方定价标准库 ({item.official_model_name})" if item.official_model_id else "渠道自定义模型",
+                is_featured=False
+            )
+            db.add(std_meta)
+            await db.flush()
+            standard_models[std_id] = std_meta
+
+        # B. 写入渠道私有映射记录
         cm = ChannelModelMapping(
             site_id=site.id,
             channel_model_name=item.channel_model_name.strip(),
             standard_model_id=std_id,
+            official_model_id=item.official_model_id,
+            official_model_name=item.official_model_name or "",
             custom_ratio=item.custom_ratio,
             is_enabled=True
         )
         db.add(cm)
 
-        # B. 查验标准模型是否存在，计算折算价格
-        std_meta = standard_models.get(std_id)
-        if std_meta:
-            ratio = item.custom_ratio if item.custom_ratio is not None else payload.default_ratio
-            if item.input_price_usd > 0:
-                calc_in = item.input_price_usd
-                calc_out = item.output_price_usd
-                calc_cache = item.cache_price_usd
-            else:
-                calc_in = round(std_meta.official_input_price * ratio * site.recharge_rate, 4)
-                calc_out = round(std_meta.official_output_price * ratio * site.recharge_rate, 4)
-                calc_cache = round(std_meta.official_cache_price * ratio * site.recharge_rate, 4)
+        # C. 计算折算价格与官方真实折扣
+        ratio = item.custom_ratio if item.custom_ratio is not None else payload.default_ratio
+        if item.input_price_usd > 0:
+            calc_in = item.input_price_usd
+            calc_out = item.output_price_usd
+            calc_cache = item.cache_price_usd
+        else:
+            calc_in = round(std_meta.official_input_price * ratio * site.recharge_rate, 4)
+            calc_out = round(std_meta.official_output_price * ratio * site.recharge_rate, 4)
+            calc_cache = round(std_meta.official_cache_price * ratio * site.recharge_rate, 4)
 
-            discount = round(((calc_in - std_meta.official_input_price) / std_meta.official_input_price * 100), 1) if std_meta.official_input_price > 0 else 0.0
+        discount = round(((calc_in - std_meta.official_input_price) / std_meta.official_input_price * 100), 1) if std_meta.official_input_price > 0 else 0.0
 
-            pricing = SiteModelPricing(
-                site_id=site.id,
-                model_id=std_id,
-                group_name=item.group_name or selected_grp,
-                site_model_name=item.channel_model_name.strip(),
-                model_ratio=ratio,
-                group_ratio=1.0,
-                calculated_input_usd=calc_in,
-                calculated_output_usd=calc_out,
-                calculated_cache_usd=calc_cache,
-                discount_percent=discount,
-                is_available=True,
-                last_tested_tps=50.0
-            )
-            db.add(pricing)
-            created_models_count += 1
+        pricing = SiteModelPricing(
+            site_id=site.id,
+            model_id=std_id,
+            group_name=item.group_name or selected_grp,
+            site_model_name=item.channel_model_name.strip(),
+            model_ratio=ratio,
+            group_ratio=1.0,
+            calculated_input_usd=calc_in,
+            calculated_output_usd=calc_out,
+            calculated_cache_usd=calc_cache,
+            discount_percent=discount,
+            official_model_id=item.official_model_id,
+            official_model_name=item.official_model_name or "",
+            is_available=True,
+            last_tested_tps=50.0
+        )
+
+        if item.official_model_id and item.official_input_price > 0:
+            pricing.official_input_discount = round(calc_in / item.official_input_price, 3)
+            if item.official_output_price > 0:
+                pricing.official_output_discount = round(calc_out / item.official_output_price, 3)
+                pricing.official_composite_discount = round((pricing.official_input_discount * 2 + pricing.official_output_discount) / 3, 3)
+
+        db.add(pricing)
+        created_models_count += 1
 
     await db.commit()
     await db.refresh(site)

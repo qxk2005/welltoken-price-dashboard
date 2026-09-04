@@ -22,17 +22,22 @@
         </button>
       </div>
 
-      <!-- 2. 步骤指示器 (Apple 精简胶囊进度条) -->
-      <div class="px-6 py-3 bg-[#FFFFFF] border-b border-[#E5E5EA] flex items-center justify-between">
+      <!-- 2. 步骤指示器 (Apple 精简胶囊进度条，支持直达跳转) -->
+      <div class="px-6 py-3 bg-[#FFFFFF] border-b border-[#E5E5EA] flex items-center justify-between select-none">
         <div
           v-for="(step, idx) in steps"
           :key="step.number"
-          class="flex items-center space-x-2 cursor-default"
-          :class="{
-            'text-[#0071E3] font-bold': currentStep === step.number,
-            'text-[#34C759] font-medium': currentStep > step.number,
-            'text-[#86868B]': currentStep < step.number
-          }"
+          class="flex items-center space-x-2 transition-all"
+          :class="[
+            canJumpToStep(step.number) ? 'cursor-pointer hover:opacity-80' : 'cursor-default opacity-60',
+            {
+              'text-[#0071E3] font-bold': currentStep === step.number,
+              'text-[#34C759] font-medium': currentStep > step.number,
+              'text-[#86868B]': currentStep < step.number
+            }
+          ]"
+          @click="jumpToStep(step.number)"
+          :title="canJumpToStep(step.number) ? `点击切换至第 ${step.number} 步: ${step.title}` : undefined"
         >
           <div
             class="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-mono transition-all"
@@ -48,7 +53,7 @@
             <span v-else>{{ step.number }}</span>
           </div>
           <span class="text-xs">{{ step.title }}</span>
-          <span v-if="idx < steps.length - 1" class="text-[#D1D1D6] ml-2">›</span>
+          <span v-if="idx < steps.length - 1" class="text-[#D1D1D6] ml-2 cursor-default">›</span>
         </div>
       </div>
 
@@ -711,7 +716,7 @@
                   <th class="py-2.5 px-3 text-center w-10">收录</th>
                   <th class="py-2.5 px-3.5 min-w-[190px]">渠道模型 & 分组</th>
                   <th class="py-2.5 px-1 text-center w-6">➔</th>
-                  <th class="py-2.5 px-3 min-w-[280px]">对应 models.dev 标准模型</th>
+                  <th class="py-2.5 px-3 min-w-[280px]">对应官方定价标准模型</th>
                   <th class="py-2.5 px-3 text-center w-32 font-semibold">标准官方原价 ({{ form.currency === 'USD' ? '$' : '¥' }})</th>
                   <th class="py-2.5 px-3 text-center w-28 font-semibold">计费倍率 & 机制</th>
                   <th class="py-2.5 px-3.5 text-center w-36 font-semibold">折算实际单价 (每1M - {{ form.currency === 'USD' ? 'USD $' : 'CNY ¥' }})</th>
@@ -756,11 +761,11 @@
                   <!-- 3. 箭头 -->
                   <td class="py-2 px-1 text-center text-[#86868B]">➔</td>
 
-                  <!-- 4. 目标标准模型下拉选择 (支持模糊搜索与新建别名) -->
+                  <!-- 4. 目标官方标准模型下拉选择 (支持模糊搜索与新建别名) -->
                   <td class="py-2 px-3 min-w-[240px]">
                     <ModelSearchSelect
                       v-model="item.standard_model_id"
-                      :models-catalog="store.modelsCatalog"
+                      :models-catalog="store.officialBenchmarks.length > 0 ? store.officialBenchmarks : store.modelsCatalog"
                       :raw-model-name="item.channel_model_name"
                       :current-price-usd="item.input_price_usd"
                       :current-price-cny="item.input_price_cny"
@@ -944,8 +949,10 @@
         <div>
           <button
             v-if="currentStep > 1"
-            @click="currentStep--"
-            class="px-4 py-2 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] font-medium transition-all"
+            type="button"
+            :disabled="isStepTransitioning"
+            @click="goPrevStep"
+            class="px-4 py-2 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] font-medium transition-all cursor-pointer disabled:opacity-40"
           >
             ◀ 上一步
           </button>
@@ -953,17 +960,20 @@
 
         <div class="flex items-center space-x-2">
           <button
+            type="button"
             @click="emit('close')"
-            class="px-4 py-2 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] font-medium transition-all"
+            class="px-4 py-2 rounded-xl bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1D1D1F] font-medium transition-all cursor-pointer"
           >
             取消
           </button>
 
           <button
             v-if="currentStep < 4"
+            :key="'step-btn-next-' + currentStep"
+            type="button"
             @click="goNextStep"
-            :disabled="isNextDisabled"
-            class="px-5 py-2 rounded-xl text-white font-medium shadow-sm disabled:opacity-40 transition-all flex items-center space-x-1"
+            :disabled="isNextDisabled || isStepTransitioning"
+            class="px-5 py-2 rounded-xl text-white font-medium shadow-sm disabled:opacity-40 transition-all flex items-center space-x-1 cursor-pointer"
             :class="(form.site_type === 'siliconflow' && currentStep === 2)
               ? 'bg-[#6E29F6] hover:bg-[#5d20d8] active:bg-[#4A148C]'
               : ((form.site_type === 'aliyun_bailian' && currentStep === 2)
@@ -978,9 +988,11 @@
 
           <button
             v-else
+            :key="'step-btn-submit-' + currentStep"
+            type="button"
             @click="submitWizard"
-            :disabled="isSubmitting"
-            class="px-6 py-2 rounded-xl bg-[#34C759] hover:bg-[#2DB84D] active:bg-[#249D3F] text-white font-bold shadow-sm disabled:opacity-40 transition-all flex items-center space-x-1"
+            :disabled="isSubmitting || isStepTransitioning"
+            class="px-6 py-2 rounded-xl bg-[#34C759] hover:bg-[#2DB84D] active:bg-[#249D3F] text-white font-bold shadow-sm disabled:opacity-40 transition-all flex items-center space-x-1 cursor-pointer"
           >
             <span v-if="isSubmitting">⏳ 入库中...</span>
             <span v-else>🎉 完成并确认入库</span>
@@ -1029,7 +1041,10 @@ const form = reactive({
   notes: props.initialChannel?.notes || ''
 })
 
-onMounted(() => {
+onMounted(async () => {
+  if (store.officialBenchmarks.length === 0) {
+    await store.fetchOfficialBenchmarks()
+  }
   if (props.initialStep === 2) {
     if (form.site_type === 'siliconflow') {
       runSiliconFlowScrape()
@@ -1221,13 +1236,10 @@ async function runProbe() {
     probeResult.error = res.data.error
 
     const rawList = res.data.mappings || []
-    const defaultActiveGroup = probeResult.token_group || probeResult.selected_group || (probeResult.available_groups[0]?.name || '')
     
-    // 精准收敛：仅将当前默认激活分组下的匹配模型初始设为 is_selected = true，其余分组模型全部设为 false
+    // 默认勾选：所有已命中官方标准模型的条目默认 is_selected = true，未命中的自定义模型默认 false
     rawList.forEach((m: any) => {
-      if (defaultActiveGroup && m.group_name === defaultActiveGroup && m.standard_model_id) {
-        m.is_selected = true
-      } else if (!defaultActiveGroup && m.standard_model_id) {
+      if (m.official_model_id || m.is_matched) {
         m.is_selected = true
       } else {
         m.is_selected = false
@@ -1235,14 +1247,8 @@ async function runProbe() {
     })
     mappingsList.value = rawList
 
-    // 默认分组筛选器：优先绑定当前令牌所属分组，若无则默认选中目标分组
-    if (probeResult.token_group) {
-      selectedGroupFilters.value = [probeResult.token_group]
-    } else if (probeResult.selected_group) {
-      selectedGroupFilters.value = [probeResult.selected_group]
-    } else {
-      selectedGroupFilters.value = ['all']
-    }
+    // 默认分组多选过滤器：根据设计决策，进入第3步默认展示「全部」所有模型，杜绝因分组空选导致列表空白
+    selectedGroupFilters.value = ['all']
   } catch (e: any) {
     probeResult.is_online = false
     probeResult.fetch_source = ''
@@ -1257,36 +1263,87 @@ async function runProbe() {
   }
 }
 
+const isStepTransitioning = ref(false)
+
+function canJumpToStep(target: number): boolean {
+  if (isProbing.value || isSubmitting.value || isSfImporting.value || isBailianImporting.value) return false
+  if (target === currentStep.value) return true
+  // 任何时候都可以退回之前走过的步骤
+  if (target < currentStep.value) return true
+  // 前往第 2 步需要第 1 步基本信息已填
+  if (target === 2) {
+    return !!(form.name.trim() && form.base_url.trim())
+  }
+  // 前往第 3 步需要已成功探测并获得模型列表
+  if (target === 3) {
+    return probeResult.is_online || mappingsList.value.length > 0
+  }
+  // 前往第 4 步需要第 3 步有已勾选的模型
+  if (target === 4) {
+    return selectedMappingsCount.value > 0
+  }
+  return false
+}
+
+function jumpToStep(target: number) {
+  if (!canJumpToStep(target) || isStepTransitioning.value) return
+  isStepTransitioning.value = true
+  currentStep.value = target
+  setTimeout(() => {
+    isStepTransitioning.value = false
+  }, 250)
+}
+
+function goPrevStep() {
+  if (currentStep.value <= 1 || isStepTransitioning.value) return
+  isStepTransitioning.value = true
+  currentStep.value--
+  setTimeout(() => {
+    isStepTransitioning.value = false
+  }, 250)
+}
+
 async function goNextStep() {
-  if (currentStep.value === 1) {
-    if (form.site_type === 'siliconflow') {
-      if (!form.name) form.name = '硅基流动 SiliconFlow'
-      if (!form.base_url) form.base_url = 'https://api.siliconflow.cn/v1'
-      form.currency = 'CNY'
-      currentStep.value = 2
-      await runSiliconFlowScrape()
-    } else if (form.site_type === 'aliyun_bailian') {
-      if (!form.name) form.name = '阿里云百炼'
-      if (!form.base_url) form.base_url = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
-      form.currency = 'CNY'
-      currentStep.value = 2
-      await runBailianScrape()
-    } else {
-      currentStep.value = 2
-      await runProbe()
+  if (isStepTransitioning.value) return
+  isStepTransitioning.value = true
+
+  try {
+    if (currentStep.value === 1) {
+      if (form.site_type === 'siliconflow') {
+        if (!form.name) form.name = '硅基流动 SiliconFlow'
+        if (!form.base_url) form.base_url = 'https://api.siliconflow.cn/v1'
+        form.currency = 'CNY'
+        currentStep.value = 2
+        await runSiliconFlowScrape()
+      } else if (form.site_type === 'aliyun_bailian') {
+        if (!form.name) form.name = '阿里云百炼'
+        if (!form.base_url) form.base_url = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+        form.currency = 'CNY'
+        currentStep.value = 2
+        await runBailianScrape()
+      } else {
+        currentStep.value = 2
+        await runProbe()
+      }
+    } else if (currentStep.value === 2) {
+      if (form.site_type === 'siliconflow') {
+        if (sfScrapeResult.value?.models?.length) importSiliconFlowData()
+        return
+      }
+      if (form.site_type === 'aliyun_bailian') {
+        if (bailianScrapeResult.value?.models?.length) importBailianData()
+        return
+      }
+      // 进入第3步：默认展示「全部」所有模型
+      selectedGroupFilters.value = ['all']
+      currentStep.value = 3
+    } else if (currentStep.value === 3) {
+      currentStep.value = 4
     }
-  } else if (currentStep.value === 2) {
-    if (form.site_type === 'siliconflow') {
-      if (sfScrapeResult.value?.models?.length) importSiliconFlowData()
-      return
-    }
-    if (form.site_type === 'aliyun_bailian') {
-      if (bailianScrapeResult.value?.models?.length) importBailianData()
-      return
-    }
-    currentStep.value = 3
-  } else if (currentStep.value === 3) {
-    currentStep.value = 4
+  } finally {
+    setTimeout(() => {
+      isStepTransitioning.value = false
+    }, 250)
   }
 }
 
@@ -1307,23 +1364,48 @@ function onStandardModelChange(item: any) {
     item.is_matched = true
     item.is_selected = true
     item.match_type = 'channel_custom'
-    const std = store.modelsCatalog.find(m => m.model_id.toLowerCase() === item.standard_model_id.toLowerCase())
+
+    // 优先在官方基准模型列表中查找该模型
+    const stdOff = (store.officialBenchmarks || []).find((m: any) =>
+      (m.raw_model_id && m.raw_model_id.toLowerCase() === item.standard_model_id.toLowerCase()) ||
+      (m.clean_name && m.clean_name.toLowerCase() === item.standard_model_id.toLowerCase()) ||
+      (m.model_id && m.model_id.toLowerCase() === item.standard_model_id.toLowerCase())
+    )
+    const stdCatalog = store.modelsCatalog.find(m => m.model_id.toLowerCase() === item.standard_model_id.toLowerCase())
+    const std = stdOff || stdCatalog
+
     if (std) {
-      item.standard_model_name = std.name
-      item.provider = std.provider
-      item.series = std.series
-      item.official_input_price = std.official_input_price
-      item.official_output_price = std.official_output_price
-      item.official_cache_price = std.official_cache_price
-      item.official_input_cny = roundNum(std.official_input_price * 7.25, 2)
-      item.official_output_cny = roundNum(std.official_output_price * 7.25, 2)
-      item.official_cache_cny = roundNum(std.official_cache_price * 7.25, 3)
+      if (stdOff) {
+        item.official_model_id = stdOff.id
+        item.official_model_name = stdOff.clean_name || stdOff.name
+        item.standard_model_name = stdOff.clean_name || stdOff.name
+        item.provider = stdOff.provider_name || stdOff.provider
+        item.series = stdOff.series
+        item.official_input_price = stdOff.converted_input_usd ?? stdOff.official_input_price ?? 2.0
+        item.official_output_price = stdOff.converted_output_usd ?? stdOff.official_output_price ?? 2.0
+        item.official_cache_price = stdOff.converted_cache_usd ?? stdOff.official_cache_price ?? 0.2
+        item.official_input_cny = stdOff.converted_input_cny ?? roundNum(item.official_input_price * 7.25, 2)
+        item.official_output_cny = stdOff.converted_output_cny ?? roundNum(item.official_output_price * 7.25, 2)
+        item.official_cache_cny = stdOff.converted_cache_cny ?? roundNum(item.official_cache_price * 7.25, 3)
+      } else {
+        item.official_model_id = null
+        item.official_model_name = ""
+        item.standard_model_name = std.name
+        item.provider = std.provider
+        item.series = std.series
+        item.official_input_price = std.official_input_price
+        item.official_output_price = std.official_output_price
+        item.official_cache_price = std.official_cache_price
+        item.official_input_cny = roundNum(std.official_input_price * 7.25, 2)
+        item.official_output_cny = roundNum(std.official_output_price * 7.25, 2)
+        item.official_cache_cny = roundNum(std.official_cache_price * 7.25, 3)
+      }
 
       const ratio = item.custom_ratio !== null ? item.custom_ratio : (item.public_ratio || 1.0)
       const recharge = form.recharge_rate || 1.0
-      item.input_price_usd = roundNum(std.official_input_price * ratio * recharge, 3)
-      item.output_price_usd = roundNum(std.official_output_price * ratio * recharge, 3)
-      item.cache_price_usd = roundNum(std.official_cache_price * ratio * recharge, 3)
+      item.input_price_usd = roundNum(item.official_input_price * ratio * recharge, 3)
+      item.output_price_usd = roundNum(item.official_output_price * ratio * recharge, 3)
+      item.cache_price_usd = roundNum(item.official_cache_price * ratio * recharge, 3)
       item.input_price_cny = roundNum(item.official_input_cny * ratio * recharge, 2)
       item.output_price_cny = roundNum(item.official_output_cny * ratio * recharge, 2)
       item.cache_price_cny = roundNum(item.official_cache_cny * ratio * recharge, 3)
@@ -1331,6 +1413,8 @@ function onStandardModelChange(item: any) {
   } else {
     item.is_matched = false
     item.match_type = 'unmapped'
+    item.official_model_id = null
+    item.official_model_name = ""
   }
 }
 
@@ -1350,8 +1434,11 @@ async function promoteAlias(item: any) {
 
 function getMatchBadgeClass(type: string) {
   switch (type) {
+    case 'official_exact':
     case 'exact':
-      return 'bg-[#E6F4EA] text-[#137333] border-[#CEEAD6]'
+      return 'bg-[#E6F4EA] text-[#137333] border-[#CEEAD6] font-bold'
+    case 'official_fuzzy':
+      return 'bg-[#E0F2FE] text-[#0284C7] border-[#BAE6FD] font-semibold'
     case 'global_alias':
       return 'bg-[#E8F2FD] text-[#0071E3] border-[#CCE4FB] font-bold'
     case 'rule_normalized':
@@ -1367,6 +1454,10 @@ function getMatchBadgeClass(type: string) {
 
 function getMatchBadgeLabel(type: string) {
   switch (type) {
+    case 'official_exact':
+      return '官方精准'
+    case 'official_fuzzy':
+      return '官方匹配'
     case 'exact':
       return '精确匹配'
     case 'global_alias':

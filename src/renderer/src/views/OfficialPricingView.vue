@@ -810,6 +810,8 @@ function getProviderBadgeClass(provider: string): string {
       return 'bg-[#EC4899]/10 text-[#EC4899] border border-[#EC4899]/20'
     case 'alibaba':
       return 'bg-[#FF6A00]/10 text-[#FF6A00] border border-[#FF6A00]/20'
+    case 'xiaomi':
+      return 'bg-[#FF6900]/10 text-[#FF6900] border border-[#FF6900]/20'
     default:
       return 'bg-[#86868B]/10 text-[#86868B]'
   }

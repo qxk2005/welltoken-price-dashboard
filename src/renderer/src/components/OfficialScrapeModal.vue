@@ -32,7 +32,7 @@
             <span>官方模型价格对账保障</span>
           </div>
           <div class="text-[#48484A] leading-relaxed">
-            系统已内置经过权威校验的 8 大官网全部最新模型基准价与静态快照。若官网有新品发布或调价，您可在此一键发起全新实时抓取。抓取时将自动生成完整 HTML 快照文件以备对账。
+            系统已内置经过权威校验的 9 大官网全部最新模型基准价与静态快照。若官网有新品发布或调价，您可在此一键发起全新实时抓取。抓取时将自动生成完整 HTML 快照文件以备对账。
           </div>
         </div>
 
@@ -96,7 +96,7 @@
             class="px-4 py-1.5 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] text-white text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 flex items-center space-x-1.5"
           >
             <SystemIcon name="refresh" custom-class="w-3 h-3" :class="store.isScraping ? 'animate-spin' : ''" />
-            <span>{{ store.isScraping ? '正在全网抓取...' : '一键抓取全部 8 家' }}</span>
+            <span>{{ store.isScraping ? '正在全网抓取...' : '一键抓取全部 9 家' }}</span>
           </button>
         </div>
       </div>
@@ -116,6 +116,7 @@ const targets = [
   { key: 'kimi', name: 'Moonshot Kimi' },
   { key: 'minimax', name: 'MiniMax 稀宇' },
   { key: 'bailian', name: '阿里百炼千问' },
+  { key: 'xiaomi', name: '小米 (MiMo)' },
   { key: 'openai', name: 'OpenAI' },
   { key: 'claude', name: 'Anthropic Claude' },
   { key: 'gemini', name: 'Google Gemini' }

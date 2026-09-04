@@ -37,6 +37,7 @@ export const useDashboardStore = defineStore('dashboard', {
     comparisonMatrix: [] as ComparisonItem[],
     relaySites: [] as RelaySite[],
     modelsCatalog: [] as ModelMetadata[],
+    officialBenchmarks: [] as any[],
     speedTestHistory: [] as SpeedTestResult[],
     syncStatus: null as SyncStatus | null,
     syncLogs: [] as SyncLog[],
@@ -208,6 +209,17 @@ export const useDashboardStore = defineStore('dashboard', {
         this.modelsCatalog = res.data
       } catch (e) {
         console.error('Fetch models failed:', e)
+      }
+    },
+
+    async fetchOfficialBenchmarks() {
+      try {
+        const res = await axios.get<{ benchmarks: any[] }>(`${this.apiUrl}/api/v1/official-pricing/benchmarks`)
+        if (res.data?.benchmarks) {
+          this.officialBenchmarks = res.data.benchmarks
+        }
+      } catch (e) {
+        console.error('Fetch official benchmarks failed:', e)
       }
     },
 

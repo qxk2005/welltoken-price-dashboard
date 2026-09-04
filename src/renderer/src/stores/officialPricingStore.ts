@@ -436,7 +436,7 @@ export const useOfficialPricingStore = defineStore('officialPricing', {
         sourceUrl: item.source_page_url,
         modelName: item.model_name,
         pageTitle: `${item.provider_name} 官方定价快照对账`,
-        highlightTarget: item.model_name || item.raw_model_id
+        highlightTarget: item.raw_model_id ? `${item.model_name}|${item.raw_model_id}` : (item.model_name || '')
       }
     },
 

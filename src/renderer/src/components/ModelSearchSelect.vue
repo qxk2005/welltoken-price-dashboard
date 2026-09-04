@@ -69,34 +69,36 @@
       <div v-if="!isCreatingNew" class="max-h-52 overflow-y-auto space-y-0.5 custom-scrollbar pr-0.5">
         <div
           v-for="(item, idx) in filteredModels"
-          :key="item.model_id"
-          @click="selectModel(item.model_id)"
+          :key="getModelId(item)"
+          @click="selectModel(getModelId(item))"
           @mouseenter="highlightedIndex = idx"
           class="px-2.5 py-1.5 rounded-lg flex items-center justify-between cursor-pointer transition-colors"
           :class="[
             highlightedIndex === idx ? 'bg-[#E8F2FD] text-[#0071E3]' : 'hover:bg-[#F2F2F7] text-[#1D1D1F]',
-            item.model_id === modelValue ? 'font-bold bg-[#F2F2F7]' : ''
+            getModelId(item) === modelValue ? 'font-bold bg-[#F2F2F7]' : ''
           ]"
         >
           <div class="flex items-center space-x-2 truncate flex-1 mr-2">
             <span class="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase font-mono shrink-0" :class="getProviderBadgeClass(item.provider)">
-              {{ item.provider }}
+              {{ item.provider_name || item.provider }}
             </span>
             <div class="truncate">
-              <div class="font-mono text-[11px] truncate leading-tight">{{ item.model_id }}</div>
-              <div v-if="item.name && item.name !== item.model_id" class="text-[10px] text-[#86868B] truncate">
-                {{ item.name }}
+              <div class="font-mono text-[11px] truncate leading-tight">{{ getModelId(item) }}</div>
+              <div v-if="getModelName(item) && getModelName(item) !== getModelId(item)" class="text-[10px] text-[#86868B] truncate">
+                {{ getModelName(item) }}
               </div>
             </div>
           </div>
 
           <div class="text-[10px] font-mono text-[#86868B] shrink-0">
-            ${{ item.official_input_price }} / 1M
+            <span v-if="item.converted_input_cny !== undefined && currency !== 'USD'">¥{{ item.converted_input_cny }}</span>
+            <span v-else>${{ item.converted_input_usd ?? item.official_input_price }}</span>
+            / 1M
           </div>
         </div>
 
         <div v-if="filteredModels.length === 0" class="py-4 text-center text-[#86868B] text-[11px]">
-          <div>未找到匹配的标准模型「{{ searchQuery }}」</div>
+          <div>未找到匹配的官方标准模型「{{ searchQuery }}」</div>
           <div class="text-[10px] text-[#0071E3] mt-1">可在下方点击「+ 创建新模型/别名」自动生成并入库！</div>
         </div>
       </div>
@@ -201,7 +203,7 @@
 
       <!-- 底部快捷新建按钮 -->
       <div v-if="!isCreatingNew" class="pt-1.5 border-t border-[#E5E5EA] flex items-center justify-between text-[11px]">
-        <span class="text-[#86868B]">共 {{ modelsCatalog.length }} 款标准模型</span>
+        <span class="text-[#86868B]">共 {{ modelsCatalog.length }} 款官方标准模型</span>
         <button
           type="button"
           @click="openCreateNewModel"
@@ -223,7 +225,7 @@ import type { ModelMetadata } from '../types'
 
 const props = defineProps<{
   modelValue?: string
-  modelsCatalog: ModelMetadata[]
+  modelsCatalog: (ModelMetadata | any)[]
   rawModelName?: string
   currentPriceUsd?: number
   currentPriceCny?: number
@@ -233,7 +235,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string): void
   (e: 'change', value: string): void
-  (e: 'created', newModel: ModelMetadata): void
+  (e: 'created', newModel: any): void
 }>()
 
 const store = useDashboardStore()
@@ -245,6 +247,16 @@ const searchQuery = ref('')
 const highlightedIndex = ref(0)
 const isCreatingNew = ref(false)
 const isSubmittingNewModel = ref(false)
+
+function getModelId(item: any): string {
+  if (!item) return ''
+  return item.model_id || item.raw_model_id || item.clean_name || ''
+}
+
+function getModelName(item: any): string {
+  if (!item) return ''
+  return item.clean_name || item.name || item.model_name || getModelId(item)
+}
 
 const newModelForm = reactive({
   model_id: '',
@@ -258,27 +270,34 @@ const newModelForm = reactive({
 
 const selectedModel = computed(() => {
   if (!props.modelValue) return null
-  return props.modelsCatalog.find(m => m.model_id.toLowerCase() === props.modelValue?.toLowerCase()) || {
-    model_id: props.modelValue,
-    name: props.modelValue,
-    provider: 'custom',
-    official_input_price: 2.0
-  } as any
+  const target = props.modelValue.toLowerCase()
+  return (
+    props.modelsCatalog.find((m: any) =>
+      getModelId(m).toLowerCase() === target ||
+      (m.clean_name && m.clean_name.toLowerCase() === target)
+    ) || {
+      model_id: props.modelValue,
+      name: props.modelValue,
+      provider: 'custom',
+      official_input_price: 2.0
+    }
+  )
 })
 
 const filteredModels = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   if (!q) {
-    return props.modelsCatalog.slice(0, 80)
+    return props.modelsCatalog.slice(0, 100)
   }
   return props.modelsCatalog
-    .filter(m =>
-      m.model_id.toLowerCase().includes(q) ||
-      (m.name && m.name.toLowerCase().includes(q)) ||
-      (m.provider && m.provider.toLowerCase().includes(q)) ||
-      (m.series && m.series.toLowerCase().includes(q))
-    )
-    .slice(0, 80)
+    .filter((m: any) => {
+      const id = getModelId(m).toLowerCase()
+      const name = getModelName(m).toLowerCase()
+      const provider = (m.provider_name || m.provider || '').toLowerCase()
+      const series = (m.series || '').toLowerCase()
+      return id.includes(q) || name.includes(q) || provider.includes(q) || series.includes(q)
+    })
+    .slice(0, 100)
 })
 
 function inferProvider(rawName: string): string {

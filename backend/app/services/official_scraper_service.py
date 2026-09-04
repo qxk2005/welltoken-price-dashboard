@@ -52,6 +52,12 @@ OFFICIAL_TARGETS = {
         "url": "https://help.aliyun.com/zh/model-studio/model-pricing",
         "currency": "CNY",
     },
+    "xiaomi": {
+        "code": "xiaomi",
+        "name": "小米 (MiMo)",
+        "url": "https://mimo.mi.com/docs/zh-CN/price/pay-as-you-go",
+        "currency": "CNY",
+    },
     "openai": {
         "code": "openai",
         "name": "OpenAI",
@@ -1219,6 +1225,162 @@ class OfficialScraperService:
 
         return items
 
+    def parse_xiaomi(self, soup: BeautifulSoup, source_url: str, snapshot_id: Optional[int]) -> List[Dict[str, Any]]:
+        """小米 (MiMo) 官方定价解析 (提取国内 MiMo-V2.5 语言模型、ASR 语音识别以及 TTS 限免模型)"""
+        items = []
+        now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+        tables = soup.find_all("table")
+        for table in tables:
+            prev_h = table.find_previous(["h1", "h2", "h3", "h4"])
+            sec_title = prev_h.get_text(strip=True) if prev_h else ""
+
+            headers = [th.get_text(strip=True) for th in table.find_all("th")]
+            header_str = " ".join(headers)
+
+            # 1. 语言模型表格: 包含 '命中缓存', '未命中缓存', '输出'
+            if "命中缓存" in header_str and "输出" in header_str:
+                # 排除海外表格（海外表格含有 $ 符号或上一级标题包含海外）
+                is_overseas = "海外" in sec_title or any("$" in c.get_text() for c in table.find_all("td"))
+                if is_overseas:
+                    continue
+
+                rows = table.find_all("tr")
+                for r in rows:
+                    tds = [td.get_text(strip=True) for td in r.find_all("td")]
+                    if len(tds) >= 4:
+                        raw_name = tds[0].strip()
+                        raw_low = raw_name.lower()
+                        clean_name = raw_name
+                        if raw_low == "mimo-v2.5-pro":
+                            clean_name = "MiMo-V2.5 Pro"
+                        elif raw_low == "mimo-v2.5":
+                            clean_name = "MiMo-V2.5"
+
+                        cache_m = re.search(r"[\d\.]+", tds[1])
+                        cache_read = float(cache_m.group()) if cache_m else 0.0
+
+                        in_m = re.search(r"[\d\.]+", tds[2])
+                        input_p = float(in_m.group()) if in_m else 0.0
+
+                        out_m = re.search(r"[\d\.]+", tds[3])
+                        output_p = float(out_m.group()) if out_m else 0.0
+
+                        rem = "小米旗舰全血推理大模型，1M上下文，支持Prompt Cache" if "pro" in raw_low else "小米高性价比主力大模型，支持Prompt Cache"
+
+                        items.append({
+                            "provider": "xiaomi",
+                            "provider_name": "小米 (MiMo)",
+                            "series": "mimo-v2.5",
+                            "model_name": clean_name,
+                            "raw_model_id": raw_low,
+                            "billing_mode": "Standard",
+                            "tier_range": "无阶梯",
+                            "currency": "CNY",
+                            "input_price": input_p,
+                            "output_price": output_p,
+                            "cache_read_price": cache_read,
+                            "cache_write_price": 0.0,
+                            "remarks": rem,
+                            "price_date": now_str,
+                            "source_page_url": source_url,
+                            "source_anchor": f"{raw_name} (按量计费)",
+                            "snapshot_id": snapshot_id,
+                        })
+
+            # 2. ASR 系列表格: 包含 'ASR' 或 '输入音频时长'
+            elif "asr" in header_str.lower() or "音频时长" in header_str:
+                is_overseas = "海外" in sec_title or any("$" in c.get_text() for c in table.find_all("td"))
+                if is_overseas:
+                    continue
+
+                rows = table.find_all("tr")
+                for r in rows:
+                    tds = [td.get_text(strip=True) for td in r.find_all("td")]
+                    if len(tds) >= 2:
+                        raw_name = tds[0].strip()
+                        raw_low = raw_name.lower()
+                        clean_name = "MiMo-V2.5 ASR"
+                        p_match = re.search(r"[\d\.]+", tds[1])
+                        p_val = float(p_match.group()) if p_match else 0.5
+
+                        items.append({
+                            "provider": "xiaomi",
+                            "provider_name": "小米 (MiMo)",
+                            "series": "audio",
+                            "model_name": clean_name,
+                            "raw_model_id": raw_low,
+                            "billing_mode": "Standard",
+                            "tier_range": "无阶梯",
+                            "currency": "CNY",
+                            "input_price": p_val,
+                            "output_price": 0.0,
+                            "cache_read_price": 0.0,
+                            "cache_write_price": 0.0,
+                            "remarks": f"语音识别大模型，时长精确到秒折算计费 ({tds[1]})",
+                            "price_date": now_str,
+                            "source_page_url": source_url,
+                            "source_anchor": f"{raw_name} (语音识别)",
+                            "snapshot_id": snapshot_id,
+                        })
+
+        # 3. 语音合成 TTS 系列模型 (限免)
+        tts_models = [
+            ("mimo-v2.5-tts", "MiMo-V2.5 TTS", "语音合成大模型 (限时免费)"),
+            ("mimo-v2.5-tts-voiceclone", "MiMo-V2.5 TTS VoiceClone", "声音克隆大模型 (限时免费)"),
+            ("mimo-v2.5-tts-voicedesign", "MiMo-V2.5 TTS VoiceDesign", "声音设计大模型 (限时免费)"),
+        ]
+        for raw_id, c_name, rem in tts_models:
+            items.append({
+                "provider": "xiaomi",
+                "provider_name": "小米 (MiMo)",
+                "series": "audio",
+                "model_name": c_name,
+                "raw_model_id": raw_id,
+                "billing_mode": "Standard",
+                "tier_range": "限时免费",
+                "currency": "CNY",
+                "input_price": 0.0,
+                "output_price": 0.0,
+                "cache_read_price": 0.0,
+                "cache_write_price": 0.0,
+                "remarks": rem,
+                "price_date": now_str,
+                "source_page_url": source_url,
+                "source_anchor": f"{raw_id} (限免)",
+                "snapshot_id": snapshot_id,
+            })
+
+        # 4. 若解析未果，预置硬编码基准兜底
+        if not items:
+            default_mimo = [
+                ("mimo-v2.5-pro", "MiMo-V2.5 Pro", "mimo-v2.5", 3.0, 6.0, 0.025, "小米旗舰全血推理大模型，1M上下文，支持Prompt Cache"),
+                ("mimo-v2.5", "MiMo-V2.5", "mimo-v2.5", 1.0, 2.0, 0.02, "小米高性价比主力大模型，支持Prompt Cache"),
+                ("mimo-v2.5-asr", "MiMo-V2.5 ASR", "audio", 0.5, 0.0, 0.0, "语音识别大模型 (¥0.5/小时)"),
+            ]
+            for r_id, c_name, ser, inp, outp, crp, rem in default_mimo:
+                items.append({
+                    "provider": "xiaomi",
+                    "provider_name": "小米 (MiMo)",
+                    "series": ser,
+                    "model_name": c_name,
+                    "raw_model_id": r_id,
+                    "billing_mode": "Standard",
+                    "tier_range": "无阶梯",
+                    "currency": "CNY",
+                    "input_price": inp,
+                    "output_price": outp,
+                    "cache_read_price": crp,
+                    "cache_write_price": 0.0,
+                    "remarks": rem,
+                    "price_date": now_str,
+                    "source_page_url": source_url,
+                    "source_anchor": f"{r_id} (基准兜底)",
+                    "snapshot_id": snapshot_id,
+                })
+
+        return items
+
     # ---------------- 整体执行调度与同步 ----------------
 
     async def scrape_target(self, target_key: str, proxy: Optional[str] = None, use_local_sample: bool = False) -> Tuple[int, Optional[str]]:
@@ -1275,6 +1437,8 @@ class OfficialScraperService:
                     parsed_items = self.parse_minimax(soup, target["url"], snapshot_id)
                 elif target_key == "bailian":
                     parsed_items = self.parse_bailian(soup, target["url"], snapshot_id)
+                elif target_key == "xiaomi":
+                    parsed_items = self.parse_xiaomi(soup, target["url"], snapshot_id)
                 elif target_key == "openai":
                     parsed_items = self.parse_openai(soup, target["url"], snapshot_id)
                 elif target_key == "claude":
