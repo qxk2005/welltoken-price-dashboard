@@ -522,3 +522,76 @@ class BailianImportResponse(BaseModel):
     prices_created: int = 0
     error_message: str = ""
 
+
+# --- 官方模型价格表相关 Schema ---
+class OfficialSnapshotSchema(BaseModel):
+    id: int
+    provider: str
+    source_url: str
+    page_title: str
+    local_file_path: str
+    file_size_bytes: int
+    models_count: int
+    captured_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class OfficialModelPriceSchema(BaseModel):
+    id: int
+    provider: str
+    provider_name: str
+    series: str
+    model_name: str
+    raw_model_id: str
+    billing_mode: str
+    tier_range: str
+    currency: str
+    input_price: float
+    output_price: float
+    cache_read_price: float
+    cache_write_price: float
+    remarks: str
+    custom_notes: str = ""
+    user_tags: str = ""
+    price_date: str
+    source_page_url: str
+    source_anchor: str
+    snapshot_id: Optional[int] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    # 汇率换算附加属性（由服务层在返回时自动计算或前端按需计算）
+    converted_input_cny: Optional[float] = None
+    converted_output_cny: Optional[float] = None
+    converted_cache_read_cny: Optional[float] = None
+    converted_cache_write_cny: Optional[float] = None
+    converted_input_usd: Optional[float] = None
+    converted_output_usd: Optional[float] = None
+    converted_cache_read_usd: Optional[float] = None
+    converted_cache_write_usd: Optional[float] = None
+
+    class Config:
+        from_attributes = True
+
+
+class OfficialModelPriceUpdateNotes(BaseModel):
+    custom_notes: Optional[str] = None
+    user_tags: Optional[str] = None
+
+
+class OfficialScrapeRequest(BaseModel):
+    provider: Optional[str] = None # 若为 None 或 "all" 则全量抓取，否则为指定厂商 code
+    proxy: Optional[str] = None    # 可选代理地址，如 "http://127.0.0.1:7890"
+
+
+class OfficialScrapeResponse(BaseModel):
+    status: str = "success"
+    total_models: int = 0
+    providers_scraped: List[str] = []
+    duration_ms: float = 0.0
+    error_message: str = ""
+
+

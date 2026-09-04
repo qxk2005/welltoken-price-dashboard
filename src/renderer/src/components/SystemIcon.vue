@@ -220,6 +220,20 @@
       <line x1="12" y1="15" x2="12" y2="3" />
     </template>
 
+    <!-- 官方定价 / 官方权威认证 / 盾牌徽章 -->
+    <template v-else-if="name === 'official-pricing' || name === 'official' || name === 'shield-check'">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path d="m9 12 2 2 4-4" />
+    </template>
+
+    <!-- 树形层级 / 分支 / 结构 -->
+    <template v-else-if="name === 'tree' || name === 'git-branch'">
+      <line x1="6" y1="3" x2="6" y2="15" />
+      <circle cx="18" cy="6" r="3" />
+      <circle cx="6" cy="18" r="3" />
+      <path d="M18 9a9 9 0 0 1-9 9" />
+    </template>
+
     <!-- 默认兜底 -->
     <template v-else>
       <circle cx="12" cy="12" r="10" />

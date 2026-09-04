@@ -180,3 +180,53 @@ class ChannelSnapshot(Base):
     site = relationship("RelaySite", back_populates="snapshots")
 
 
+class OfficialSnapshot(Base):
+    """官方定价网页 HTML 原始快照与对账凭证"""
+    __tablename__ = "official_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    provider = Column(String(80), index=True, nullable=False) # openai, anthropic, google, alibaba, deepseek, zhipuai, moonshotai, minimax
+    source_url = Column(String(500), nullable=False)
+    page_title = Column(String(255), default="")
+    local_file_path = Column(String(500), nullable=False)     # 存放在 data/official_snapshots/ 的相对路径
+    file_size_bytes = Column(Integer, default=0)
+    models_count = Column(Integer, default=0)
+    captured_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    # 关系
+    prices = relationship("OfficialModelPrice", back_populates="snapshot", cascade="all, delete-orphan")
+
+
+class OfficialModelPrice(Base):
+    """大模型官方原厂定价明细表"""
+    __tablename__ = "official_model_prices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    provider = Column(String(80), index=True, nullable=False) # 厂商代码: openai, anthropic, google, alibaba, deepseek, zhipuai, moonshotai, minimax
+    provider_name = Column(String(100), nullable=False)       # 厂商展示名称
+    series = Column(String(80), index=True, default="")       # 模型系列 (如 gpt-5.6, claude-3-5, gemini-2.5, qwen-max 等)
+    model_name = Column(String(150), index=True, nullable=False) # 模型完整名 (含 [0,272k) 阶梯或 (Batch) 等模式标记)
+    raw_model_id = Column(String(150), default="")            # 官网原始标识
+    billing_mode = Column(String(50), default="Standard")     # 计费模式 (Standard, Batch, Flex, Fast, 闲时优惠等)
+    tier_range = Column(String(80), default="")               # 分段区间说明 (如 [0,272k), [272k+) 或空)
+    currency = Column(String(10), default="USD")              # 官方原始货币 (国外 USD $, 国内 CNY ¥)
+    input_price = Column(Float, default=0.0)                  # 输入单价 (每 1M tokens)
+    output_price = Column(Float, default=0.0)                 # 输出单价 (每 1M tokens)
+    cache_read_price = Column(Float, default=0.0)             # 缓存命中/读取单价 (每 1M tokens)
+    cache_write_price = Column(Float, default=0.0)            # 缓存写入单价 (每 1M tokens)
+    remarks = Column(Text, default="")                        # 官方备注 (上下文长度、免费额度、阶梯说明等)
+    custom_notes = Column(Text, default="")                   # 用户自定义备注 (重新抓取时不覆盖)
+    user_tags = Column(String(255), default="")               # 用户自定义标签 (如: 主力, 待测)
+    price_date = Column(String(50), default="")               # 价格生效/对账时间 (YYYY-MM-DD HH:mm:ss)
+    source_page_url = Column(String(500), default="")         # 官网页面 URL
+    source_anchor = Column(String(200), default="")           # 页面中具体章节定位/标题锚点
+    snapshot_id = Column(Integer, ForeignKey("official_snapshots.id"), nullable=True, index=True)
+    is_active = Column(Boolean, default=True)                 # 是否有效
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 关系
+    snapshot = relationship("OfficialSnapshot", back_populates="prices")
+
+
+

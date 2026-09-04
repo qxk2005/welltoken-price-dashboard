@@ -181,9 +181,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useDashboardStore } from '../stores/dashboardStore'
+import { useOfficialPricingStore } from '../stores/officialPricingStore'
 import SystemIcon from './SystemIcon.vue'
 
 const store = useDashboardStore()
+const officialStore = useOfficialPricingStore()
 
 function formatBadgeCount(count: number): string {
   if (!count) return '0'
@@ -191,11 +193,12 @@ function formatBadgeCount(count: number): string {
 }
 
 const navItems = computed<Array<{
-  id: 'price-matrix' | 'channels' | 'models' | 'speed-tester' | 'settings'
+  id: 'official-pricing' | 'price-matrix' | 'channels' | 'models' | 'speed-tester' | 'settings'
   label: string
   iconName: string
   badge?: string | number
 }>>(() => [
+  { id: 'official-pricing', label: '官方定价', iconName: 'official-pricing', badge: formatBadgeCount(officialStore.allModels.length) },
   { id: 'price-matrix', label: '全网比价', iconName: 'price-matrix', badge: formatBadgeCount(store.syncStatus?.total_pricings_cached || store.comparisonMatrix.length) },
   { id: 'channels', label: '供应商表', iconName: 'channels', badge: formatBadgeCount(store.syncStatus?.total_active_sites || store.relaySites.length) },
   { id: 'models', label: '模型厂商', iconName: 'models', badge: formatBadgeCount(store.syncStatus?.models_dev_total_models || store.modelsCatalog.length) },

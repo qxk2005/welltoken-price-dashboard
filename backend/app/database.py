@@ -48,6 +48,25 @@ async def init_db():
         except Exception:
             pass
 
+    # 检查并自动导入官方模型价格种子数据
+    try:
+        import os, json
+        seed_path = os.path.join(os.getcwd(), "data", "official_prices_seed.json")
+        if os.path.exists(seed_path):
+            async with AsyncSessionLocal() as session:
+                from backend.app.models.token_price import OfficialModelPrice
+                from sqlalchemy import select, func
+                cnt_res = await session.execute(select(func.count(OfficialModelPrice.id)))
+                if cnt_res.scalar() == 0:
+                    with open(seed_path, "r", encoding="utf-8") as f:
+                        items = json.load(f)
+                    for item in items:
+                        session.add(OfficialModelPrice(**item))
+                    await session.commit()
+    except Exception:
+        pass
+
+
 async def get_db():
     async with AsyncSessionLocal() as session:
         try:

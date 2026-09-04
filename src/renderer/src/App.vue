@@ -50,19 +50,24 @@ import SidebarNav from './components/SidebarNav.vue'
 import AddChannelWizardModal from './components/AddChannelWizardModal.vue'
 import SyncProgressModal from './components/SyncProgressModal.vue'
 import PriceMatrixView from './views/PriceMatrixView.vue'
+import OfficialPricingView from './views/OfficialPricingView.vue'
 import ChannelManagementView from './views/ChannelManagementView.vue'
 import ModelCatalogView from './views/ModelCatalogView.vue'
 import SpeedTesterView from './views/SpeedTesterView.vue'
 import SyncSettingsView from './views/SyncSettingsView.vue'
 import { useDashboardStore } from './stores/dashboardStore'
+import { useOfficialPricingStore } from './stores/officialPricingStore'
 
 const store = useDashboardStore()
+const officialStore = useOfficialPricingStore()
 const showInitialWizardModal = ref(false)
 
 const currentView = computed(() => {
   switch (store.activeTab) {
     case 'price-matrix':
       return PriceMatrixView
+    case 'official-pricing':
+      return OfficialPricingView
     case 'channels':
       return ChannelManagementView
     case 'models':
@@ -72,12 +77,13 @@ const currentView = computed(() => {
     case 'settings':
       return SyncSettingsView
     default:
-      return PriceMatrixView
+      return OfficialPricingView
   }
 })
 
 onMounted(async () => {
   await store.init()
+  await officialStore.fetchOfficialPrices()
   // 检测数据库是否完全为空，若是则友好弹出初始化向导
   if (store.backendHealthy && store.relaySites.length === 0 && store.modelsCatalog.length === 0) {
     showInitialWizardModal.value = true
