@@ -19,7 +19,7 @@ export const useDashboardStore = defineStore('dashboard', {
     wsUrl: 'ws://127.0.0.1:8765/api/v1/price/ws',
     activeTab: (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab'))
       ? (new URLSearchParams(window.location.search).get('tab') as any)
-      : ('official-pricing' as 'official-pricing' | 'price-matrix' | 'channels' | 'models' | 'speed-tester' | 'settings'),
+      : ('official-pricing' as 'official-pricing' | 'price-matrix' | 'channels' | 'models' | 'speed-tester' | 'settings' | 'about'),
     currency: 'USD' as 'USD' | 'CNY',
     usdToCnyRate: 7.25,
     searchQuery: '',

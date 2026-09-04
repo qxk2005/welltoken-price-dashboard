@@ -136,14 +136,30 @@ jobs:
             echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
           fi
 
+      - name: Extract Release Notes from CHANGELOG (Chinese)
+        run: |
+          python -c "
+          import re
+          with open('CHANGELOG.md', 'r', encoding='utf-8') as f:
+              content = f.read()
+          tag = '${{ steps.vars.outputs.tag }}'
+          pattern = rf'## 🚀 \[{re.escape(tag)}.*?\n(.*?)(?=\n## 🚀 \[|\Z)'
+          match = re.search(pattern, content, re.DOTALL)
+          body = match.group(1).strip() if match else 'WellToken Price Dashboard 版本更新'
+          with open('release_body.md', 'w', encoding='utf-8') as out:
+              out.write(body)
+          "
+
       - name: Publish GitHub Release with Artifacts
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.vars.outputs.tag }}
           name: "WellToken Price Dashboard ${{ steps.vars.outputs.tag }}"
+          body_path: release_body.md
           files: dist-release/*
           draft: false
           prerelease: false
-          generate_release_notes: true
+          generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

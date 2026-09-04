@@ -22,7 +22,7 @@
         <span>数据规范: models.dev + relaywatch + speed-tester</span>
       </div>
       <div class="flex items-center space-x-3">
-        <span>WellToken 价格与测评看板 v1.2.0</span>
+        <span>{{ versionInfo.productName }} {{ versionInfo.fullVersion }}</span>
         <span>•</span>
         <span class="flex items-center space-x-1">
           <span class="w-1.5 h-1.5 rounded-full" :class="store.isConnected ? 'bg-[#34C759]' : 'bg-[#FF3B30]'"></span>
@@ -55,6 +55,8 @@ import ChannelManagementView from './views/ChannelManagementView.vue'
 import ModelCatalogView from './views/ModelCatalogView.vue'
 import SpeedTesterView from './views/SpeedTesterView.vue'
 import SyncSettingsView from './views/SyncSettingsView.vue'
+import AboutAppView from './views/AboutAppView.vue'
+import { versionInfo } from './generated/version_info'
 import { useDashboardStore } from './stores/dashboardStore'
 import { useOfficialPricingStore } from './stores/officialPricingStore'
 
@@ -76,6 +78,8 @@ const currentView = computed(() => {
       return SpeedTesterView
     case 'settings':
       return SyncSettingsView
+    case 'about':
+      return AboutAppView
     default:
       return OfficialPricingView
   }

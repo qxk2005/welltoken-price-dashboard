@@ -36,6 +36,16 @@ if not cache_dir.exists():
     cache_dir.mkdir(parents=True, exist_ok=True)
 datas.append(('data/cache', 'data/cache'))
 
+# 官方定价离线种子包与官方 HTML 快照证据链目录
+seed_file = project_dir / 'data' / 'official_prices_seed.json'
+if seed_file.exists():
+    datas.append(('data/official_prices_seed.json', 'data'))
+
+snapshots_dir = project_dir / 'data' / 'official_snapshots'
+if not snapshots_dir.exists():
+    snapshots_dir.mkdir(parents=True, exist_ok=True)
+datas.append(('data/official_snapshots', 'data/official_snapshots'))
+
 a = Analysis(
     ['backend/run_server.py'],
     pathex=[str(project_dir)],

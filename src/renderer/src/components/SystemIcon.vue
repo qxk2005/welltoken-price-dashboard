@@ -234,6 +234,13 @@
       <path d="M18 9a9 9 0 0 1-9 9" />
     </template>
 
+    <!-- 关于程序 / 信息 / Info -->
+    <template v-else-if="name === 'about' || name === 'info'">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="16" x2="12" y2="12" />
+      <line x1="12" y1="8" x2="12.01" y2="8" />
+    </template>
+
     <!-- 默认兜底 -->
     <template v-else>
       <circle cx="12" cy="12" r="10" />

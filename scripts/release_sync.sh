@@ -7,18 +7,24 @@ set -e
 
 VERSION=$(node -p "require('./package.json').version")
 TAG="v$VERSION"
-PYTHON_ENV="$HOME/.pyenv/versions/WPD/bin/python"
-PYINSTALLER_BIN="$HOME/.pyenv/versions/WPD/bin/pyinstaller"
+if [ -f "$HOME/.pyenv/versions/WPD/bin/pyinstaller" ]; then
+    PYINSTALLER_BIN="$HOME/.pyenv/versions/WPD/bin/pyinstaller"
+else
+    PYINSTALLER_BIN="$(which pyinstaller)"
+fi
+
+RELEASE_DESC="release: $TAG - 官方模型定价中心与全量快照对账升级版 (新增关于程序及编译日志注入)"
 
 echo "========================================================"
 echo "🚀 开始执行 WellToken Price Dashboard $TAG 本地+云端同步打包"
 echo "========================================================"
 
 # 1. 确保 Git 工作区代码与标签同步
-echo "📦 [1/5] 同步配置文件、提交代码并打标签 $TAG..."
+echo "📦 [1/5] 同步配置文件、生成版本信息、提交代码并打标签 $TAG..."
+npm run version:gen
 git add -A
 if ! git diff-index --quiet HEAD --; then
-    git commit -m "release: $TAG - 自动同步发布"
+    git commit -m "$RELEASE_DESC"
 fi
 
 # 检查 tag 是否已存在，若存在先删除并覆盖
@@ -28,7 +34,7 @@ if git rev-parse "$TAG" >/dev/null 2>&1; then
     git push origin :refs/tags/"$TAG" 2>/dev/null || true
 fi
 
-git tag -a "$TAG" -m "Release $TAG: 本地与云端同步发布"
+git tag -a "$TAG" -m "$RELEASE_DESC"
 echo "☁️ [2/5] 推送至 GitHub 并触发 Actions 编译发布..."
 git push origin main
 git push origin "$TAG" --force

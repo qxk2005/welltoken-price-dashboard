@@ -1,0 +1,267 @@
+{
+  "name": "welltoken-price-dashboard",
+  "productName": "WellToken Price Dashboard",
+  "version": "1.4.0",
+  "fullVersion": "v1.4.0",
+  "description": "Cross-platform Token & Crypto Price Dashboard built with Electron, Vue 3, SQLite and Python FastAPI",
+  "author": "qxk2005",
+  "homepage": "https://github.com/qxk2005/welltoken-price-dashboard",
+  "git": {
+    "commit": "0f4e8ae",
+    "branch": "main",
+    "date": "2026-09-04 09:07:47 +0800"
+  },
+  "build": {
+    "time": "2026-09-04 09:24:09",
+    "iso": "2026-09-04T01:24:09.999Z",
+    "node": "v25.9.0",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "changelog": [
+    {
+      "version": "1.4.0",
+      "tag": "v1.4.0 官方模型定价中心与全量快照对账升级版",
+      "fullTitle": "[v1.4.0 官方模型定价中心与全量快照对账升级版] - 2026-09-04",
+      "date": "2026-09-04",
+      "sections": [
+        {
+          "title": "🌟 重大新增与核心改进",
+          "items": [
+            "**官方模型定价中心全新上线**：新增各主流大模型厂商（阿里百炼、DeepSeek、OpenAI、Anthropic Claude、Google Gemini、智谱 GLM、月之暗面 Kimi、MiniMax 等）官方权威定价同步与展示；",
+            "**Google (Gemini) 全量 HTML DOM 动态解析引擎**：彻底重构 Gemini 定价解析器，全面收录 79 款官方规格模型，涵盖最新 Gemini 3.6 Flash、Gemini 3.5 Flash/Lite、Gemini 3 Pro、Imagen 4、Veo 3.1 等全系列，及 Standard、Batch 批处理、Flex 弹性、Priority 优先等完整计费模式；",
+            "**官方快照对账纵横双向高亮定位系统**：",
+            "支持直接在快照抽屉中查看官方原始网页 HTML 离线证据链；",
+            "引入金色呼吸发光框与智能平滑居中算法，瞬间秒级定位到目标模型与具体的输入/输出单价数值单元格；",
+            "支持 OpenAI / Gemini 等选项卡 (Content Switcher / devsite-selector) 模式自动切换与对应面板激活；",
+            "引入严格单词边界匹配（Word Boundary），彻底杜绝 `Fable 5` 误伤 `Fable 5.1` 或 `Claude` 厂商名前缀误伤问题；",
+            "支持独立 Batch 表格识别与路由，以及 `[0, 200k)`、`[200k+)` 上下文双阶梯精准定位；",
+            "**官方定价数据精细化治理**：",
+            "国内厂商（如阿里百炼）专注国内北京地域定价，自动过滤海外及特定代理数据；",
+            "智能拆分多阶梯输入/输出单价与上下文阶梯名；",
+            "计费模式统一规范化为 Standard、Batch 批处理、Flex 弹性、Priority 优先、限时半价等清晰分类；",
+            "**新增「关于程序」栏目与编译打包版本日志自动化注入**：",
+            "在左侧工作台导航「系统设置」正下方新增「关于程序」独立视图；",
+            "采用 Apple 风格信息卡片与版本变更日志时间轴，全界面动态同步打包版本号，支持一键复制系统诊断信息。"
+          ]
+        }
+      ],
+      "rawContent": "### 🌟 重大新增与核心改进\n- **官方模型定价中心全新上线**：新增各主流大模型厂商（阿里百炼、DeepSeek、OpenAI、Anthropic Claude、Google Gemini、智谱 GLM、月之暗面 Kimi、MiniMax 等）官方权威定价同步与展示；\n- **Google (Gemini) 全量 HTML DOM 动态解析引擎**：彻底重构 Gemini 定价解析器，全面收录 79 款官方规格模型，涵盖最新 Gemini 3.6 Flash、Gemini 3.5 Flash/Lite、Gemini 3 Pro、Imagen 4、Veo 3.1 等全系列，及 Standard、Batch 批处理、Flex 弹性、Priority 优先等完整计费模式；\n- **官方快照对账纵横双向高亮定位系统**：\n  - 支持直接在快照抽屉中查看官方原始网页 HTML 离线证据链；\n  - 引入金色呼吸发光框与智能平滑居中算法，瞬间秒级定位到目标模型与具体的输入/输出单价数值单元格；\n  - 支持 OpenAI / Gemini 等选项卡 (Content Switcher / devsite-selector) 模式自动切换与对应面板激活；\n  - 引入严格单词边界匹配（Word Boundary），彻底杜绝 `Fable 5` 误伤 `Fable 5.1` 或 `Claude` 厂商名前缀误伤问题；\n  - 支持独立 Batch 表格识别与路由，以及 `[0, 200k)`、`[200k+)` 上下文双阶梯精准定位；\n- **官方定价数据精细化治理**：\n  - 国内厂商（如阿里百炼）专注国内北京地域定价，自动过滤海外及特定代理数据；\n  - 智能拆分多阶梯输入/输出单价与上下文阶梯名；\n  - 计费模式统一规范化为 Standard、Batch 批处理、Flex 弹性、Priority 优先、限时半价等清晰分类；\n- **新增「关于程序」栏目与编译打包版本日志自动化注入**：\n  - 在左侧工作台导航「系统设置」正下方新增「关于程序」独立视图；\n  - 采用 Apple 风格信息卡片与版本变更日志时间轴，全界面动态同步打包版本号，支持一键复制系统诊断信息。\n\n---"
+    },
+    {
+      "version": "1.3.5",
+      "tag": "v1.3.5 CI/CD 跨平台构建与种子包打包加固版",
+      "fullTitle": "[v1.3.5 CI/CD 跨平台构建与种子包打包加固版] - 2026-08-25",
+      "date": "2026-08-25",
+      "sections": [
+        {
+          "title": "🛠️ 缺陷修复与体验优化",
+          "items": [
+            "**修复 GitHub Actions 跨平台 PyInstaller 构建失败**：解决 `.gitignore` 误忽略 `data/cache` 目录导致 CI 云端 Runner 在干净环境中无法找到预置种子文件而中断 PyInstaller 编译的问题；",
+            "**优化 pyinstaller.spec 资源收集与容错机制**：在打包规范中引入目录动态探测与自动创建，并深度内嵌 `certifi` 根证书链与 `cryptography` 加密库，确保 Windows/macOS 双端均能稳定编译为独立便携二进制；",
+            "**修复 GitHub Actions Artifacts 上传通配符兼容性**：按操作系统平台精准匹配 `.dmg`、`.exe`、`.zip` 及 `.blockmap` 安装制品，杜绝因跨平台文件名不存在触发的上传报错。"
+          ]
+        }
+      ],
+      "rawContent": "### 🛠️ 缺陷修复与体验优化\n- **修复 GitHub Actions 跨平台 PyInstaller 构建失败**：解决 `.gitignore` 误忽略 `data/cache` 目录导致 CI 云端 Runner 在干净环境中无法找到预置种子文件而中断 PyInstaller 编译的问题；\n- **优化 pyinstaller.spec 资源收集与容错机制**：在打包规范中引入目录动态探测与自动创建，并深度内嵌 `certifi` 根证书链与 `cryptography` 加密库，确保 Windows/macOS 双端均能稳定编译为独立便携二进制；\n- **修复 GitHub Actions Artifacts 上传通配符兼容性**：按操作系统平台精准匹配 `.dmg`、`.exe`、`.zip` 及 `.blockmap` 安装制品，杜绝因跨平台文件名不存在触发的上传报错。\n\n---"
+    },
+    {
+      "version": "1.3.4",
+      "tag": "v1.3.4 数据库外键级联容错加固版",
+      "fullTitle": "[v1.3.4 数据库外键级联容错加固版] - 2026-08-25",
+      "date": "2026-08-25",
+      "sections": [
+        {
+          "title": "🛠️ 缺陷修复与体验优化",
+          "items": [
+            "**彻底消除 SQLite 外键约束导入报错**：在合并 iCloud 数据包中的渠道映射 (`channel_model_mappings`) 与自定义别名 (`model_aliases`) 时，引入自动补全标准模型骨架机制。即便拉取的配置中包含未收录在 models.dev 官方库中的非标模型 ID（如 `claude-3-opus-custom-test`），也能自动创建元数据骨架并安全合并，100% 杜绝 `(sqlite3.IntegrityError) FOREIGN KEY constraint failed` 异常；",
+            "**优化智能双向合并健壮性**：提升对多端设备不同时间段自定义渠道、模型映射与定价倍率的容错合并能力。"
+          ]
+        }
+      ],
+      "rawContent": "### 🛠️ 缺陷修复与体验优化\n- **彻底消除 SQLite 外键约束导入报错**：在合并 iCloud 数据包中的渠道映射 (`channel_model_mappings`) 与自定义别名 (`model_aliases`) 时，引入自动补全标准模型骨架机制。即便拉取的配置中包含未收录在 models.dev 官方库中的非标模型 ID（如 `claude-3-opus-custom-test`），也能自动创建元数据骨架并安全合并，100% 杜绝 `(sqlite3.IntegrityError) FOREIGN KEY constraint failed` 异常；\n- **优化智能双向合并健壮性**：提升对多端设备不同时间段自定义渠道、模型映射与定价倍率的容错合并能力。\n\n---"
+    },
+    {
+      "version": "1.3.3",
+      "tag": "v1.3.3 多层级 iCloud 跨设备同步加固版",
+      "fullTitle": "[v1.3.3 多层级 iCloud 跨设备同步加固版] - 2026-08-25",
+      "date": "2026-08-25",
+      "sections": [
+        {
+          "title": "🛠️ 缺陷修复与体验优化",
+          "items": [
+            "**全方位多层级 iCloud 同步自适应发现**：在 `backend/app/services/icloud_sync_service.py` 中引入 5 级自适应检索算法（主路径、`.icloud` 占位符、iCloud 文稿同步目录、macOS Spotlight 元数据引擎全局定位以及递归遍历）；",
+            "**修复拉取时缺少 `import asyncio` 的运行时异常**：彻底修复跨设备 JXA 轮询等待时的异步调度异常；",
+            "**主动触发双端 iCloud 同步唤醒**：在推送到 iCloud 和拉取时，主动调用 macOS 原生 JXA (`NSFileManager.startDownloadingUbiquitousItem`) 唤醒苹果 `bird` 云端守护进程，极大缩短跨设备数据传输的等待延迟；",
+            "**双轨自动化打包与发布 SOP 固化**：提供一键执行本地与云端双轨打包脚本，确保本地 DMG 与 GitHub Actions Release 版本始终 100% 绝对一致。"
+          ]
+        }
+      ],
+      "rawContent": "### 🛠️ 缺陷修复与体验优化\n- **全方位多层级 iCloud 同步自适应发现**：在 `backend/app/services/icloud_sync_service.py` 中引入 5 级自适应检索算法（主路径、`.icloud` 占位符、iCloud 文稿同步目录、macOS Spotlight 元数据引擎全局定位以及递归遍历）；\n- **修复拉取时缺少 `import asyncio` 的运行时异常**：彻底修复跨设备 JXA 轮询等待时的异步调度异常；\n- **主动触发双端 iCloud 同步唤醒**：在推送到 iCloud 和拉取时，主动调用 macOS 原生 JXA (`NSFileManager.startDownloadingUbiquitousItem`) 唤醒苹果 `bird` 云端守护进程，极大缩短跨设备数据传输的等待延迟；\n- **双轨自动化打包与发布 SOP 固化**：提供一键执行本地与云端双轨打包脚本，确保本地 DMG 与 GitHub Actions Release 版本始终 100% 绝对一致。\n\n---"
+    },
+    {
+      "version": "1.3.2",
+      "tag": "v1.3.2 深度加固版本",
+      "fullTitle": "[v1.3.2 深度加固版本] - 2026-08-25",
+      "date": "2026-08-25",
+      "sections": [
+        {
+          "title": "🛠️ 缺陷修复与体验优化",
+          "items": [
+            "**修复打包环境持久化数据存储**：重构 `backend/app/config.py`，在生产独立运行环境自动定位到系统标准的 `~/Library/Application Support/WellTokenDashboard/data` 目录，彻底消除只读临时目录导致的数据与缓存丢失；",
+            "**解决打包后 Python HTTPS 请求 SSL 证书链验证问题**：在服务端启动时显式注入 `certifi.where()` 根证书链，确保 `models.dev` 及各大渠道在线抓取与同步正常；",
+            "**内嵌离线预置全量种子包 (Seed Cache)**：将 350+ 标准模型与 190+ 供应商完整缓存预置打包进应用分发包，即便在完全无网或严格防火墙环境下也能瞬间秒开全量模型；",
+            "**优化 iCloud 首次使用云端拉取指引文案**：当检测到云端尚无备份文件时给出清晰的引导说明。"
+          ]
+        }
+      ],
+      "rawContent": "### 🛠️ 缺陷修复与体验优化\n- **修复打包环境持久化数据存储**：重构 `backend/app/config.py`，在生产独立运行环境自动定位到系统标准的 `~/Library/Application Support/WellTokenDashboard/data` 目录，彻底消除只读临时目录导致的数据与缓存丢失；\n- **解决打包后 Python HTTPS 请求 SSL 证书链验证问题**：在服务端启动时显式注入 `certifi.where()` 根证书链，确保 `models.dev` 及各大渠道在线抓取与同步正常；\n- **内嵌离线预置全量种子包 (Seed Cache)**：将 350+ 标准模型与 190+ 供应商完整缓存预置打包进应用分发包，即便在完全无网或严格防火墙环境下也能瞬间秒开全量模型；\n- **优化 iCloud 首次使用云端拉取指引文案**：当检测到云端尚无备份文件时给出清晰的引导说明。\n\n---"
+    },
+    {
+      "version": "1.3.1",
+      "tag": "v1.3.1 补丁版本",
+      "fullTitle": "[v1.3.1 补丁版本] - 2026-08-25",
+      "date": "2026-08-25",
+      "sections": [
+        {
+          "title": "🛠️ 缺陷修复与体验优化",
+          "items": [
+            "**修复打包应用 Network Error 离线报错**：解决 PyInstaller 打包时由于动态字符串导入导致 `fastapi.middleware.cors` 及子模块缺失的崩溃问题，在 `pyinstaller.spec` 中全量自动收集 `backend.app`、`fastapi`、`starlette`、`uvicorn`、`sqlalchemy` 等所有依赖，并重构服务端为直接实例加载；",
+            "**修复 macOS 窗口无法拖动与红绿灯遮挡问题**：为顶部导航栏注入 `-webkit-app-region: drag` 拖拽支持，同时对所有按钮与输入控件应用 `no-drag` 保持交互灵敏，并为 macOS 原生红绿灯按钮配置 `trafficLightPosition` 避让间距与 `pl-20` 内边距；",
+            "**优化初次启动数据库冷启动健壮性**：在插入内置别名前预置标准模型元数据骨架，防止 SQLite 在空库初始化时触发外键检查失败。"
+          ]
+        }
+      ],
+      "rawContent": "### 🛠️ 缺陷修复与体验优化\n- **修复打包应用 Network Error 离线报错**：解决 PyInstaller 打包时由于动态字符串导入导致 `fastapi.middleware.cors` 及子模块缺失的崩溃问题，在 `pyinstaller.spec` 中全量自动收集 `backend.app`、`fastapi`、`starlette`、`uvicorn`、`sqlalchemy` 等所有依赖，并重构服务端为直接实例加载；\n- **修复 macOS 窗口无法拖动与红绿灯遮挡问题**：为顶部导航栏注入 `-webkit-app-region: drag` 拖拽支持，同时对所有按钮与输入控件应用 `no-drag` 保持交互灵敏，并为 macOS 原生红绿灯按钮配置 `trafficLightPosition` 避让间距与 `pl-20` 内边距；\n- **优化初次启动数据库冷启动健壮性**：在插入内置别名前预置标准模型元数据骨架，防止 SQLite 在空库初始化时触发外键检查失败。\n\n---"
+    },
+    {
+      "version": "1.3.0",
+      "tag": "v1.3.0 主版本发布",
+      "fullTitle": "[v1.3.0 主版本发布] - 2026-08-25",
+      "date": "2026-08-25",
+      "sections": [
+        {
+          "title": "🌟 重大新增与核心改进",
+          "items": [
+            "**iCloud Drive 原生对接**：专用目录 `~/Library/Mobile Documents/com~apple~CloudDocs/WellTokenDashboard/`，实现多台 Mac 设备间自建渠道、模型映射与用户配置无缝漫游；",
+            "**智能双向合并与防冲突算法**：自动以渠道名与端点对齐，两端独有渠道并集保留，同名冲突以更新时间戳为准（Last-Write-Wins），自动重算折算定价与折扣率；",
+            "**滚动版本快照与一键回退**：每次云端推送与合并前自动生成本地快照，在 `backups/` 目录下保留最近 20 份历史快照，支持在 UI 中一键精准版本回滚；",
+            "**端到端加密与安全隐私保护**：采用 PBKDF2-HMAC-SHA256 与 CTR/HMAC 认证流加密，提供可选主密码加密；支持「排除/包含 API Key」独立安全策略；",
+            "**系统设置与渠道管理深度集成**：在【系统设置】中上线完整的苹果风 iCloud 控制面板（状态指标卡、模块勾选、密码管理、Finder 快速跳转、备份快照还原）；在【渠道管理】顶部增加 iCloud 状态胶囊与快捷同步。"
+          ]
+        }
+      ],
+      "rawContent": "### 🌟 重大新增与核心改进\n\n#### 1. ☁️ macOS iCloud 原生云端双向同步（自定义渠道商与用户资产配置）\n- **iCloud Drive 原生对接**：专用目录 `~/Library/Mobile Documents/com~apple~CloudDocs/WellTokenDashboard/`，实现多台 Mac 设备间自建渠道、模型映射与用户配置无缝漫游；\n- **智能双向合并与防冲突算法**：自动以渠道名与端点对齐，两端独有渠道并集保留，同名冲突以更新时间戳为准（Last-Write-Wins），自动重算折算定价与折扣率；\n- **滚动版本快照与一键回退**：每次云端推送与合并前自动生成本地快照，在 `backups/` 目录下保留最近 20 份历史快照，支持在 UI 中一键精准版本回滚；\n- **端到端加密与安全隐私保护**：采用 PBKDF2-HMAC-SHA256 与 CTR/HMAC 认证流加密，提供可选主密码加密；支持「排除/包含 API Key」独立安全策略；\n- **系统设置与渠道管理深度集成**：在【系统设置】中上线完整的苹果风 iCloud 控制面板（状态指标卡、模块勾选、密码管理、Finder 快速跳转、备份快照还原）；在【渠道管理】顶部增加 iCloud 状态胶囊与快捷同步。\n\n---"
+    },
+    {
+      "version": "1.2.0",
+      "tag": "v1.2.0 主版本发布",
+      "fullTitle": "[v1.2.0 主版本发布] - 2026-08-23",
+      "date": "2026-08-23",
+      "sections": [
+        {
+          "title": "🌟 重大新增与核心改进",
+          "items": [
+            "**双维度自由切换**：支持在 **🏷️ 按模型标识 (By Model ID)** 与 **📦 按模型系列 (By Model Series)** 之间一键切换；",
+            "**跨渠道多别名聚合比价**：在「📦 按模型系列」模式下，自动收敛各渠道中转站不规范命名（如 `Qwen/Qwen3.8-Max`、`qwen3.8-max`、`alibaba/qwen3.8-max`），将同一系列下所有渠道的报价统一呈现于同一张散点图内进行性价比全景比对；",
+            "**增强型悬浮 Tooltip 与点选定位**：悬浮数据点时完整展示渠道名、所属系列、实际模型标识、输入单价与实测 TPS；点击散点图任意点，表格自动精准平滑滚动并高亮该条记录。",
+            "**📄 平铺清单模式**：经典轻量表格，支持快速列头排序、状态徽标与多字段检索；",
+            "**🎯 按价格分组聚合模式**：折叠卡片化展示各个价格分组（如 default、VIP、折扣组等）的模型款数、平均实测 TPS 与价格区间（最低 ~ 最高），展开即查组内明细；",
+            "**🤖 按模型对比跨组比价模式**：跨分组对比同款模型在不同价格分组中的定价差异，自动高亮 **🏆 最低价 (最优)**，并精准计算其余分组的溢价百分比（如高出 +28.6%）。",
+            "**新增第五维核心指标方块**：在供应商详情头部实时显示 **「数据最后更新时间」**；",
+            "**智能人性化时间感知**：突出加粗显示相对时间（如 `8小时前` / `1个月前`），并标注具体月日时分；",
+            "**官方与自定义渠道标记**：清晰区分官方 models.dev 数据源（`m` 标）与自定义自建中转同步（`c` 标）。",
+            "**紧凑多选浮层**：将分组过滤升级为 Apple 风格磨砂下拉弹层，支持快速搜索、全选/清空、模型款数统计与批量多选。",
+            "**日期范围预设**：新增更新时间筛选器，支持近 1 周、近 1 月、近 3 月、近半年与自定义起止日期筛选。"
+          ]
+        }
+      ],
+      "rawContent": "### 🌟 重大新增与核心改进\n\n#### 1. 📊 全网比价散点图模型标识与模型系列双维度切换\n- **双维度自由切换**：支持在 **🏷️ 按模型标识 (By Model ID)** 与 **📦 按模型系列 (By Model Series)** 之间一键切换；\n- **跨渠道多别名聚合比价**：在「📦 按模型系列」模式下，自动收敛各渠道中转站不规范命名（如 `Qwen/Qwen3.8-Max`、`qwen3.8-max`、`alibaba/qwen3.8-max`），将同一系列下所有渠道的报价统一呈现于同一张散点图内进行性价比全景比对；\n- **增强型悬浮 Tooltip 与点选定位**：悬浮数据点时完整展示渠道名、所属系列、实际模型标识、输入单价与实测 TPS；点击散点图任意点，表格自动精准平滑滚动并高亮该条记录。\n\n#### 2. 🗂️ 供应商详情三类视图切换展现\n- **📄 平铺清单模式**：经典轻量表格，支持快速列头排序、状态徽标与多字段检索；\n- **🎯 按价格分组聚合模式**：折叠卡片化展示各个价格分组（如 default、VIP、折扣组等）的模型款数、平均实测 TPS 与价格区间（最低 ~ 最高），展开即查组内明细；\n- **🤖 按模型对比跨组比价模式**：跨分组对比同款模型在不同价格分组中的定价差异，自动高亮 **🏆 最低价 (最优)**，并精准计算其余分组的溢价百分比（如高出 +28.6%）。\n\n#### 3. ⏱️ 供应商详情五维 Fact Grid 指标看板与数据最后更新时间\n- **新增第五维核心指标方块**：在供应商详情头部实时显示 **「数据最后更新时间」**；\n- **智能人性化时间感知**：突出加粗显示相对时间（如 `8小时前` / `1个月前`），并标注具体月日时分；\n- **官方与自定义渠道标记**：清晰区分官方 models.dev 数据源（`m` 标）与自定义自建中转同步（`c` 标）。\n\n#### 4. 🎯 供应商详情价格分组过滤 Popover 重构\n- **紧凑多选浮层**：将分组过滤升级为 Apple 风格磨砂下拉弹层，支持快速搜索、全选/清空、模型款数统计与批量多选。\n\n#### 5. 📅 全网比价更新时间范围多维筛选\n- **日期范围预设**：新增更新时间筛选器，支持近 1 周、近 1 月、近 3 月、近半年与自定义起止日期筛选。\n\n---"
+    },
+    {
+      "version": "1.1.0",
+      "tag": "v1.1.0 主版本发布",
+      "fullTitle": "[v1.1.0 主版本发布] - 2026-08-22",
+      "date": "2026-08-22",
+      "sections": [
+        {
+          "title": "🌟 重大新增与核心改进",
+          "items": [
+            "**右侧极简磨砂抽屉**：点击任意模型厂商或渠道名称，即时从右侧弹出信息抽屉（`VendorDetailDrawer.vue` / `ChannelDetailDrawer.vue`），无需跳转路由或刷新页面；",
+            "**智能筛选上下文关联**：抽屉自动携带全局比价筛选上下文，支持一键切换「查看符合当前筛选的模型」与「查看该厂商/渠道全量模型」；",
+            "**抽屉内一键反向快捷比价**：在抽屉中点击任一模型的「比价」按钮，即可快速聚焦该模型的全网渠道报价。",
+            "**全新统一矢量设计系统**：构建了统一的 `SystemIcon.vue` 单色高保真矢量图标组件（遵循 Apple SF Symbols / Lucide 规范），彻底淘汰杂乱混杂的彩色 Emoji；",
+            "**官方品牌矢量 Logo 保留**：完整保留 30+ 原创研发大厂与 190+ 全球中转渠道的官方品牌高保真 Logo（OpenAI, Anthropic, DeepSeek, Google, Alibaba, Meta 等）。",
+            "**表格架构彻底对齐**：全网比价表格与供应商渠道表 100% 对齐原生 `<table>` 架构，内边距统一优化为 `py-3 px-3`，通栏边框延伸，视觉呼吸感大幅提升；",
+            "**工作台导航模块重命名**：主导航标题精简规范为：`全网比价`、`供应商表`、`模型厂商`、`性能测试`、`系统设置`。",
+            "**全球外汇汇率实时同步**：支持从开放外汇 API 动态联网抓取最新 USD/CNY 汇率并持久化存储，彻底消除写死汇率；",
+            "**同步进度与计数动态化**：全面替换写死的固定统计数字，依据数据库实时抓取数量动态展示。",
+            "**macOS + Windows 全自动化打包**：支持通过 GitHub Actions 自动编译 Python 后端（PyInstaller）与 Electron 前端，自动生成 macOS（`.dmg`, `.zip`）与 Windows（NSIS `.exe`, 便携版 `.exe`）全量安装包；",
+            "**双触发机制**：支持推送 `v*` Git Tag 自动触发，以及在 Actions 面板通过 `workflow_dispatch` 手动一键发版。"
+          ]
+        }
+      ],
+      "rawContent": "### 🌟 重大新增与核心改进\n\n#### 1. 🪟 浮动悬挂抽屉与上下文关联比价（无跳转极速查验）\n- **右侧极简磨砂抽屉**：点击任意模型厂商或渠道名称，即时从右侧弹出信息抽屉（`VendorDetailDrawer.vue` / `ChannelDetailDrawer.vue`），无需跳转路由或刷新页面；\n- **智能筛选上下文关联**：抽屉自动携带全局比价筛选上下文，支持一键切换「查看符合当前筛选的模型」与「查看该厂商/渠道全量模型」；\n- **抽屉内一键反向快捷比价**：在抽屉中点击任一模型的「比价」按钮，即可快速聚焦该模型的全网渠道报价。\n\n#### 2. 🎨 全系统统一单色矢量图标体系 & 官方品牌 Logo 强化\n- **全新统一矢量设计系统**：构建了统一的 `SystemIcon.vue` 单色高保真矢量图标组件（遵循 Apple SF Symbols / Lucide 规范），彻底淘汰杂乱混杂的彩色 Emoji；\n- **官方品牌矢量 Logo 保留**：完整保留 30+ 原创研发大厂与 190+ 全球中转渠道的官方品牌高保真 Logo（OpenAI, Anthropic, DeepSeek, Google, Alibaba, Meta 等）。\n\n#### 3. 📊 全网聚合比价大表格呼吸感与行间距优化\n- **表格架构彻底对齐**：全网比价表格与供应商渠道表 100% 对齐原生 `<table>` 架构，内边距统一优化为 `py-3 px-3`，通栏边框延伸，视觉呼吸感大幅提升；\n- **工作台导航模块重命名**：主导航标题精简规范为：`全网比价`、`供应商表`、`模型厂商`、`性能测试`、`系统设置`。\n\n#### 4. 💱 汇率实时折算引擎与动态数据同步升级\n- **全球外汇汇率实时同步**：支持从开放外汇 API 动态联网抓取最新 USD/CNY 汇率并持久化存储，彻底消除写死汇率；\n- **同步进度与计数动态化**：全面替换写死的固定统计数字，依据数据库实时抓取数量动态展示。\n\n#### 5. 🤖 GitHub Actions 跨平台 CI/CD 自动化构建发版\n- **macOS + Windows 全自动化打包**：支持通过 GitHub Actions 自动编译 Python 后端（PyInstaller）与 Electron 前端，自动生成 macOS（`.dmg`, `.zip`）与 Windows（NSIS `.exe`, 便携版 `.exe`）全量安装包；\n- **双触发机制**：支持推送 `v*` Git Tag 自动触发，以及在 Actions 面板通过 `workflow_dispatch` 手动一键发版。\n\n---"
+    },
+    {
+      "version": "1.0.0",
+      "tag": "v1.0.0 主版本发布",
+      "fullTitle": "[v1.0.0 主版本发布] - 2026-08-21",
+      "date": "2026-08-21",
+      "sections": [
+        {
+          "title": "🌟 重大新增与核心改进",
+          "items": [
+            "**四级级联收敛**：实现了 **模型厂商 (Labs) $\\rightarrow$ 模型系列 (Series) $\\rightarrow$ 模型名称 (Models) $\\rightarrow$ 渠道中转站 (Sites)** 的四级严格联动收敛与安全清洗，彻底消除无效脏过滤；",
+            "**中英文别名模糊匹配**：厂商下拉框支持全面的中文别名模糊匹配（例如输入“深度探索”/“深度求索”即时匹配 DeepSeek，输入“通义千问”/“阿里”即时匹配 Alibaba，输入“月之暗面”/“Kimi”即时匹配 Moonshot AI 等）；",
+            "**全量候选项字母 A-Z 严格排序**：四大下拉框候选项全量按 A-Z 字母升序排列，并带有实时匹配报价条数 Badge 徽标；",
+            "**层级筛选状态保留**：在由浅入深逐级选择模型名称时，稳稳保留前面已勾选的厂商与系列，支持精准的多维组合过滤；",
+            "**散点图与数据表格实时联动**：底部的全网价格-TPS 性价比散点图与数据表格无缝联动，直观呈现各渠道的性价比分布。",
+            "**标准对齐 models.dev/labs/ 官方体系**：将全网大模型精准收敛至 30 家权威大模型研发机构/母厂（如 Alibaba、OpenAI、DeepSeek、Google、Anthropic、Zhipu AI、Moonshot AI、Meta、Mistral、Nvidia、ByteDance、xAI、MiniMax、Xiaomi 等）；",
+            "**层级强归属算法升级**：彻底解决云平台托管前缀（如 `alibaba/deepseek-v4`、`alibaba/glm-5`）导致的厂商与系列混淆问题，清洗全库 3,580 款模型，确保 Alibaba 下仅有纯粹的通义千问系列、DeepSeek 下仅有 DeepSeek-V3/V4/R1 系列；",
+            "**厂商专属详情空间**：点击任意厂商卡片下钻进入专属空间，以扁平规格大表格展示旗下全部模型的上下文窗口、最大输出、输入输出基准价格及支持渠道总数。",
+            "**公共列表排版精简**：移除了冗长的 API Base URL 与 Env Keys 等占位宽字段，将数据来源独立为「数据来源」列（`● MODELS.DEV` 官方库 / `○ 用户自建中转`），呈现极其宽裕舒缓的视觉呼吸感；",
+            "**供应商专属模型定价看板**：点击任意供应商可下钻进入其详情空间，展示四维 Fact Grid 指标看板及旗下可用模型的实时折算定价大表格；",
+            "**四分类体系与一键收藏**：支持「官方直连」、「中转站渠道」、「自添加网站」以及「⭐ 收藏夹」快速切换与一键置顶查看。",
+            "**统一视觉语言**：全面采用苹果官网级浅色高级灰白主题（`#F5F5F7` 背景、`#FFFFFF` 浮雕卡片、`#0071E3` 极光蓝交互点缀、`#34C759` 价格高亮）；",
+            "**流畅数据体验**：数据表格支持横向平滑滚动与动态分页，单页渲染 50 条报价，保持 60 FPS 极致丝滑性能。",
+            "**桌面端内核**：Electron 28 + Vite 5 + TypeScript",
+            "**前端框架**：Vue 3 Composition API + Pinia 状态管理 + TailwindCSS + ECharts 5.5",
+            "**后端引擎**：Python 3.10+ + FastAPI 高并发异步框架 + SQLAlchemy ORM + SQLite",
+            "**数据源对齐**：models.dev 官方 catalog.json / models.json / api.json 规范标准"
+          ]
+        }
+      ],
+      "rawContent": "### 🌟 重大新增与核心改进\n\n#### 1. 📊 全网聚合比价多维级联联动与中英文模糊多选\n- **四级级联收敛**：实现了 **模型厂商 (Labs) $\\rightarrow$ 模型系列 (Series) $\\rightarrow$ 模型名称 (Models) $\\rightarrow$ 渠道中转站 (Sites)** 的四级严格联动收敛与安全清洗，彻底消除无效脏过滤；\n- **中英文别名模糊匹配**：厂商下拉框支持全面的中文别名模糊匹配（例如输入“深度探索”/“深度求索”即时匹配 DeepSeek，输入“通义千问”/“阿里”即时匹配 Alibaba，输入“月之暗面”/“Kimi”即时匹配 Moonshot AI 等）；\n- **全量候选项字母 A-Z 严格排序**：四大下拉框候选项全量按 A-Z 字母升序排列，并带有实时匹配报价条数 Badge 徽标；\n- **层级筛选状态保留**：在由浅入深逐级选择模型名称时，稳稳保留前面已勾选的厂商与系列，支持精准的多维组合过滤；\n- **散点图与数据表格实时联动**：底部的全网价格-TPS 性价比散点图与数据表格无缝联动，直观呈现各渠道的性价比分布。\n\n#### 2. 🤖 厂商与模型系列权威体系重构\n- **标准对齐 models.dev/labs/ 官方体系**：将全网大模型精准收敛至 30 家权威大模型研发机构/母厂（如 Alibaba、OpenAI、DeepSeek、Google、Anthropic、Zhipu AI、Moonshot AI、Meta、Mistral、Nvidia、ByteDance、xAI、MiniMax、Xiaomi 等）；\n- **层级强归属算法升级**：彻底解决云平台托管前缀（如 `alibaba/deepseek-v4`、`alibaba/glm-5`）导致的厂商与系列混淆问题，清洗全库 3,580 款模型，确保 Alibaba 下仅有纯粹的通义千问系列、DeepSeek 下仅有 DeepSeek-V3/V4/R1 系列；\n- **厂商专属详情空间**：点击任意厂商卡片下钻进入专属空间，以扁平规格大表格展示旗下全部模型的上下文窗口、最大输出、输入输出基准价格及支持渠道总数。\n\n#### 3. 🌐 供应商与渠道架构精简与详情下钻\n- **公共列表排版精简**：移除了冗长的 API Base URL 与 Env Keys 等占位宽字段，将数据来源独立为「数据来源」列（`● MODELS.DEV` 官方库 / `○ 用户自建中转`），呈现极其宽裕舒缓的视觉呼吸感；\n- **供应商专属模型定价看板**：点击任意供应商可下钻进入其详情空间，展示四维 Fact Grid 指标看板及旗下可用模型的实时折算定价大表格；\n- **四分类体系与一键收藏**：支持「官方直连」、「中转站渠道」、「自添加网站」以及「⭐ 收藏夹」快速切换与一键置顶查看。\n\n#### 4. 🎨 苹果官网级高级灰白设计系统\n- **统一视觉语言**：全面采用苹果官网级浅色高级灰白主题（`#F5F5F7` 背景、`#FFFFFF` 浮雕卡片、`#0071E3` 极光蓝交互点缀、`#34C759` 价格高亮）；\n- **流畅数据体验**：数据表格支持横向平滑滚动与动态分页，单页渲染 50 条报价，保持 60 FPS 极致丝滑性能。\n\n---\n\n## 🛠️ 技术栈与依赖架构\n- **桌面端内核**：Electron 28 + Vite 5 + TypeScript\n- **前端框架**：Vue 3 Composition API + Pinia 状态管理 + TailwindCSS + ECharts 5.5\n- **后端引擎**：Python 3.10+ + FastAPI 高并发异步框架 + SQLAlchemy ORM + SQLite\n- **数据源对齐**：models.dev 官方 catalog.json / models.json / api.json 规范标准"
+    }
+  ],
+  "latestChangelog": {
+    "version": "1.4.0",
+    "tag": "v1.4.0 官方模型定价中心与全量快照对账升级版",
+    "fullTitle": "[v1.4.0 官方模型定价中心与全量快照对账升级版] - 2026-09-04",
+    "date": "2026-09-04",
+    "sections": [
+      {
+        "title": "🌟 重大新增与核心改进",
+        "items": [
+          "**官方模型定价中心全新上线**：新增各主流大模型厂商（阿里百炼、DeepSeek、OpenAI、Anthropic Claude、Google Gemini、智谱 GLM、月之暗面 Kimi、MiniMax 等）官方权威定价同步与展示；",
+          "**Google (Gemini) 全量 HTML DOM 动态解析引擎**：彻底重构 Gemini 定价解析器，全面收录 79 款官方规格模型，涵盖最新 Gemini 3.6 Flash、Gemini 3.5 Flash/Lite、Gemini 3 Pro、Imagen 4、Veo 3.1 等全系列，及 Standard、Batch 批处理、Flex 弹性、Priority 优先等完整计费模式；",
+          "**官方快照对账纵横双向高亮定位系统**：",
+          "支持直接在快照抽屉中查看官方原始网页 HTML 离线证据链；",
+          "引入金色呼吸发光框与智能平滑居中算法，瞬间秒级定位到目标模型与具体的输入/输出单价数值单元格；",
+          "支持 OpenAI / Gemini 等选项卡 (Content Switcher / devsite-selector) 模式自动切换与对应面板激活；",
+          "引入严格单词边界匹配（Word Boundary），彻底杜绝 `Fable 5` 误伤 `Fable 5.1` 或 `Claude` 厂商名前缀误伤问题；",
+          "支持独立 Batch 表格识别与路由，以及 `[0, 200k)`、`[200k+)` 上下文双阶梯精准定位；",
+          "**官方定价数据精细化治理**：",
+          "国内厂商（如阿里百炼）专注国内北京地域定价，自动过滤海外及特定代理数据；",
+          "智能拆分多阶梯输入/输出单价与上下文阶梯名；",
+          "计费模式统一规范化为 Standard、Batch 批处理、Flex 弹性、Priority 优先、限时半价等清晰分类；",
+          "**新增「关于程序」栏目与编译打包版本日志自动化注入**：",
+          "在左侧工作台导航「系统设置」正下方新增「关于程序」独立视图；",
+          "采用 Apple 风格信息卡片与版本变更日志时间轴，全界面动态同步打包版本号，支持一键复制系统诊断信息。"
+        ]
+      }
+    ],
+    "rawContent": "### 🌟 重大新增与核心改进\n- **官方模型定价中心全新上线**：新增各主流大模型厂商（阿里百炼、DeepSeek、OpenAI、Anthropic Claude、Google Gemini、智谱 GLM、月之暗面 Kimi、MiniMax 等）官方权威定价同步与展示；\n- **Google (Gemini) 全量 HTML DOM 动态解析引擎**：彻底重构 Gemini 定价解析器，全面收录 79 款官方规格模型，涵盖最新 Gemini 3.6 Flash、Gemini 3.5 Flash/Lite、Gemini 3 Pro、Imagen 4、Veo 3.1 等全系列，及 Standard、Batch 批处理、Flex 弹性、Priority 优先等完整计费模式；\n- **官方快照对账纵横双向高亮定位系统**：\n  - 支持直接在快照抽屉中查看官方原始网页 HTML 离线证据链；\n  - 引入金色呼吸发光框与智能平滑居中算法，瞬间秒级定位到目标模型与具体的输入/输出单价数值单元格；\n  - 支持 OpenAI / Gemini 等选项卡 (Content Switcher / devsite-selector) 模式自动切换与对应面板激活；\n  - 引入严格单词边界匹配（Word Boundary），彻底杜绝 `Fable 5` 误伤 `Fable 5.1` 或 `Claude` 厂商名前缀误伤问题；\n  - 支持独立 Batch 表格识别与路由，以及 `[0, 200k)`、`[200k+)` 上下文双阶梯精准定位；\n- **官方定价数据精细化治理**：\n  - 国内厂商（如阿里百炼）专注国内北京地域定价，自动过滤海外及特定代理数据；\n  - 智能拆分多阶梯输入/输出单价与上下文阶梯名；\n  - 计费模式统一规范化为 Standard、Batch 批处理、Flex 弹性、Priority 优先、限时半价等清晰分类；\n- **新增「关于程序」栏目与编译打包版本日志自动化注入**：\n  - 在左侧工作台导航「系统设置」正下方新增「关于程序」独立视图；\n  - 采用 Apple 风格信息卡片与版本变更日志时间轴，全界面动态同步打包版本号，支持一键复制系统诊断信息。\n\n---"
+  }
+}

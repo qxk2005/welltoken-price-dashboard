@@ -182,6 +182,7 @@
 import { computed } from 'vue'
 import { useDashboardStore } from '../stores/dashboardStore'
 import { useOfficialPricingStore } from '../stores/officialPricingStore'
+import { versionInfo } from '../generated/version_info'
 import SystemIcon from './SystemIcon.vue'
 
 const store = useDashboardStore()
@@ -193,7 +194,7 @@ function formatBadgeCount(count: number): string {
 }
 
 const navItems = computed<Array<{
-  id: 'official-pricing' | 'price-matrix' | 'channels' | 'models' | 'speed-tester' | 'settings'
+  id: 'official-pricing' | 'price-matrix' | 'channels' | 'models' | 'speed-tester' | 'settings' | 'about'
   label: string
   iconName: string
   badge?: string | number
@@ -203,6 +204,7 @@ const navItems = computed<Array<{
   { id: 'channels', label: '供应商表', iconName: 'channels', badge: formatBadgeCount(store.syncStatus?.total_active_sites || store.relaySites.length) },
   { id: 'models', label: '模型厂商', iconName: 'models', badge: formatBadgeCount(store.syncStatus?.models_dev_total_models || store.modelsCatalog.length) },
   { id: 'speed-tester', label: '性能测试', iconName: 'speed-tester', badge: store.isSpeedTesting ? '测速中' : '' },
-  { id: 'settings', label: '系统设置', iconName: 'settings' }
+  { id: 'settings', label: '系统设置', iconName: 'settings' },
+  { id: 'about', label: '关于程序', iconName: 'about', badge: versionInfo.fullVersion }
 ])
 </script>
