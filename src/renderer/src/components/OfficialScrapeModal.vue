@@ -96,7 +96,7 @@
             class="px-4 py-1.5 rounded-xl bg-[#0071E3] hover:bg-[#0077ED] text-white text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 flex items-center space-x-1.5"
           >
             <SystemIcon name="refresh" custom-class="w-3 h-3" :class="store.isScraping ? 'animate-spin' : ''" />
-            <span>{{ store.isScraping ? '正在全网抓取...' : '一键抓取全部 9 家' }}</span>
+            <span>{{ store.isScraping ? '正在全网抓取...' : '一键抓取全部 10 家' }}</span>
           </button>
         </div>
       </div>
@@ -117,6 +117,7 @@ const targets = [
   { key: 'minimax', name: 'MiniMax 稀宇' },
   { key: 'bailian', name: '阿里百炼千问' },
   { key: 'xiaomi', name: '小米 (MiMo)' },
+  { key: 'stepfun', name: '阶跃星辰 (StepFun)' },
   { key: 'openai', name: 'OpenAI' },
   { key: 'claude', name: 'Anthropic Claude' },
   { key: 'gemini', name: 'Google Gemini' }

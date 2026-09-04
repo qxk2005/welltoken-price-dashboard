@@ -1,24 +1,51 @@
 {
   "name": "welltoken-price-dashboard",
   "productName": "WellToken Price Dashboard",
-  "version": "1.4.3",
-  "fullVersion": "v1.4.3",
+  "version": "1.4.4",
+  "fullVersion": "v1.4.4",
   "description": "Cross-platform Token & Crypto Price Dashboard built with Electron, Vue 3, SQLite and Python FastAPI",
   "author": "qxk2005",
   "homepage": "https://github.com/qxk2005/welltoken-price-dashboard",
   "git": {
-    "commit": "0638b68",
+    "commit": "6c8c75c",
     "branch": "main",
-    "date": "2026-09-04 13:23:50 +0800"
+    "date": "2026-09-04 13:36:41 +0800"
   },
   "build": {
-    "time": "2026-09-04 13:36:18",
-    "iso": "2026-09-04T05:36:18.336Z",
+    "time": "2026-09-04 14:03:44",
+    "iso": "2026-09-04T06:03:44.983Z",
     "node": "v25.9.0",
     "platform": "darwin",
     "arch": "arm64"
   },
   "changelog": [
+    {
+      "version": "1.4.4",
+      "tag": "v1.4.4 阶跃星辰 (StepFun) 官方大模型定价与 10 家厂商全量抓取版",
+      "fullTitle": "[v1.4.4 阶跃星辰 (StepFun) 官方大模型定价与 10 家厂商全量抓取版] - 2026-09-04",
+      "date": "2026-09-04",
+      "sections": [
+        {
+          "title": "🌟 重大新增与核心改进",
+          "items": [
+            "**全面接入阶跃星辰 (StepFun) 官方大模型定价与快照存证**：",
+            "新增阶跃星辰官方计费文档 (`https://platform.stepfun.com/docs/zh/guides/pricing/details`) 自动抓取与解析引擎；",
+            "严格收录 Token 计费大模型：旗舰多模态推理 `step-3.7-flash`、推理 `step-3.5-flash` / `step-3.5-flash-2603`、视觉 `step-1o-turbo-vision` 以及 `stepaudio-2.5-realtime` / `stepaudio-2.5-chat` / `step-1o-audio` / `step-audio-2` / `step-audio-r1.5` 等全系列端到端语音大模型；",
+            "自动留存网页离线 HTML 快照至本地证据链 (`data/official_snapshots/sample_stepfun.html`)。",
+            "**固化官方定价 10 家大模型厂商全量抓取规则与开发规范**：",
+            "在 `AGENTS.md` 与 `.agents/rules/official_pricing_rules.md` 中长效固化 10 家官方厂商名单（境内：阿里百炼、智谱GLM、MiniMax、Moonshot Kimi、DeepSeek、小米 MiMo、阶跃星辰 StepFun；境外：OpenAI、Anthropic Claude、Google Gemini）；",
+            "将前端 `OfficialScrapeModal.vue` 一键全网抓取文案与调度同步升级为 10 家大模型厂商并发抓取。",
+            "**官方第一档去阶梯基准库与模型智能归一化扩展**：",
+            "将阶跃星辰模型正式纳入第一档去阶梯化官方基准模型池；",
+            "`official_benchmark_service.py` 与 `ModelSearchSelect.vue` 支持 `stepfun/`、`step-`、`stepaudio-` 前缀智能识别推断与模糊匹配；",
+            "渠道模型映射弹窗下拉框动态提供【阶跃星辰 (StepFun) 官方标准】分组。",
+            "**自动化测试套件全覆盖**：",
+            "编写并集成 `test_stepfun_official_pricing.py`，全覆盖配置校验、DOM解析精度、数据库持久化、快照证据链与基准折扣换算，通过率 100%。"
+          ]
+        }
+      ],
+      "rawContent": "### 🌟 重大新增与核心改进\n- **全面接入阶跃星辰 (StepFun) 官方大模型定价与快照存证**：\n  - 新增阶跃星辰官方计费文档 (`https://platform.stepfun.com/docs/zh/guides/pricing/details`) 自动抓取与解析引擎；\n  - 严格收录 Token 计费大模型：旗舰多模态推理 `step-3.7-flash`、推理 `step-3.5-flash` / `step-3.5-flash-2603`、视觉 `step-1o-turbo-vision` 以及 `stepaudio-2.5-realtime` / `stepaudio-2.5-chat` / `step-1o-audio` / `step-audio-2` / `step-audio-r1.5` 等全系列端到端语音大模型；\n  - 自动留存网页离线 HTML 快照至本地证据链 (`data/official_snapshots/sample_stepfun.html`)。\n- **固化官方定价 10 家大模型厂商全量抓取规则与开发规范**：\n  - 在 `AGENTS.md` 与 `.agents/rules/official_pricing_rules.md` 中长效固化 10 家官方厂商名单（境内：阿里百炼、智谱GLM、MiniMax、Moonshot Kimi、DeepSeek、小米 MiMo、阶跃星辰 StepFun；境外：OpenAI、Anthropic Claude、Google Gemini）；\n  - 将前端 `OfficialScrapeModal.vue` 一键全网抓取文案与调度同步升级为 10 家大模型厂商并发抓取。\n- **官方第一档去阶梯基准库与模型智能归一化扩展**：\n  - 将阶跃星辰模型正式纳入第一档去阶梯化官方基准模型池；\n  - `official_benchmark_service.py` 与 `ModelSearchSelect.vue` 支持 `stepfun/`、`step-`、`stepaudio-` 前缀智能识别推断与模糊匹配；\n  - 渠道模型映射弹窗下拉框动态提供【阶跃星辰 (StepFun) 官方标准】分组。\n- **自动化测试套件全覆盖**：\n  - 编写并集成 `test_stepfun_official_pricing.py`，全覆盖配置校验、DOM解析精度、数据库持久化、快照证据链与基准折扣换算，通过率 100%。\n\n---"
+    },
     {
       "version": "1.4.3",
       "tag": "v1.4.3 模型官网映射动态厂商支持与限免基准修复版",
@@ -308,27 +335,30 @@
     }
   ],
   "latestChangelog": {
-    "version": "1.4.3",
-    "tag": "v1.4.3 模型官网映射动态厂商支持与限免基准修复版",
-    "fullTitle": "[v1.4.3 模型官网映射动态厂商支持与限免基准修复版] - 2026-09-04",
+    "version": "1.4.4",
+    "tag": "v1.4.4 阶跃星辰 (StepFun) 官方大模型定价与 10 家厂商全量抓取版",
+    "fullTitle": "[v1.4.4 阶跃星辰 (StepFun) 官方大模型定价与 10 家厂商全量抓取版] - 2026-09-04",
     "date": "2026-09-04",
     "sections": [
       {
-        "title": "🛠️ 缺陷修复与体验优化",
+        "title": "🌟 重大新增与核心改进",
         "items": [
-          "**彻底消除官网模型映射弹窗中的厂商硬编码**：",
-          "重构 [`OfficialModelMappingModal.vue`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/renderer/src/components/OfficialModelMappingModal.vue)，移除原本硬编码的 8 家厂商列表；",
-          "引入响应式计算属性 `benchmarkProviders`，自动从基准库中提取并动态生成包含【小米 (MiMo) 官方标准】在内的全部厂商分组；",
-          "解决由于缺少 `xiaomi` 分组导致已匹配模型在下拉选择器中显示为空白、且无法手动选取小米模型的缺陷；",
-          "**支持「限时免费」规格纳入第一档官方基准模型**：",
-          "优化 [`official_benchmark_service.py`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/backend/app/services/official_benchmark_service.py) 中的 `is_tier_one` 规则，将包含“免费”的官方规格作为合法的有效基准；",
-          "小米 `MiMo-V2.5 TTS`、`TTS VoiceClone`、`TTS VoiceDesign` 正式进入第一档基准模型池；",
-          "避免 TTS 模型被错误模糊匹配为 ASR，渠道中的 TTS 模型现在 100% 精确关联官方 TTS（0折限时免费）；",
-          "**组件厂商配置补全**：",
-          "在 [`ModelSearchSelect.vue`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/renderer/src/components/ModelSearchSelect.vue) 中补齐 Xiaomi 厂商选项、名称智能推断与品牌橙视觉徽章。"
+          "**全面接入阶跃星辰 (StepFun) 官方大模型定价与快照存证**：",
+          "新增阶跃星辰官方计费文档 (`https://platform.stepfun.com/docs/zh/guides/pricing/details`) 自动抓取与解析引擎；",
+          "严格收录 Token 计费大模型：旗舰多模态推理 `step-3.7-flash`、推理 `step-3.5-flash` / `step-3.5-flash-2603`、视觉 `step-1o-turbo-vision` 以及 `stepaudio-2.5-realtime` / `stepaudio-2.5-chat` / `step-1o-audio` / `step-audio-2` / `step-audio-r1.5` 等全系列端到端语音大模型；",
+          "自动留存网页离线 HTML 快照至本地证据链 (`data/official_snapshots/sample_stepfun.html`)。",
+          "**固化官方定价 10 家大模型厂商全量抓取规则与开发规范**：",
+          "在 `AGENTS.md` 与 `.agents/rules/official_pricing_rules.md` 中长效固化 10 家官方厂商名单（境内：阿里百炼、智谱GLM、MiniMax、Moonshot Kimi、DeepSeek、小米 MiMo、阶跃星辰 StepFun；境外：OpenAI、Anthropic Claude、Google Gemini）；",
+          "将前端 `OfficialScrapeModal.vue` 一键全网抓取文案与调度同步升级为 10 家大模型厂商并发抓取。",
+          "**官方第一档去阶梯基准库与模型智能归一化扩展**：",
+          "将阶跃星辰模型正式纳入第一档去阶梯化官方基准模型池；",
+          "`official_benchmark_service.py` 与 `ModelSearchSelect.vue` 支持 `stepfun/`、`step-`、`stepaudio-` 前缀智能识别推断与模糊匹配；",
+          "渠道模型映射弹窗下拉框动态提供【阶跃星辰 (StepFun) 官方标准】分组。",
+          "**自动化测试套件全覆盖**：",
+          "编写并集成 `test_stepfun_official_pricing.py`，全覆盖配置校验、DOM解析精度、数据库持久化、快照证据链与基准折扣换算，通过率 100%。"
         ]
       }
     ],
-    "rawContent": "### 🛠️ 缺陷修复与体验优化\n- **彻底消除官网模型映射弹窗中的厂商硬编码**：\n  - 重构 [`OfficialModelMappingModal.vue`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/renderer/src/components/OfficialModelMappingModal.vue)，移除原本硬编码的 8 家厂商列表；\n  - 引入响应式计算属性 `benchmarkProviders`，自动从基准库中提取并动态生成包含【小米 (MiMo) 官方标准】在内的全部厂商分组；\n  - 解决由于缺少 `xiaomi` 分组导致已匹配模型在下拉选择器中显示为空白、且无法手动选取小米模型的缺陷；\n- **支持「限时免费」规格纳入第一档官方基准模型**：\n  - 优化 [`official_benchmark_service.py`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/backend/app/services/official_benchmark_service.py) 中的 `is_tier_one` 规则，将包含“免费”的官方规格作为合法的有效基准；\n  - 小米 `MiMo-V2.5 TTS`、`TTS VoiceClone`、`TTS VoiceDesign` 正式进入第一档基准模型池；\n  - 避免 TTS 模型被错误模糊匹配为 ASR，渠道中的 TTS 模型现在 100% 精确关联官方 TTS（0折限时免费）；\n- **组件厂商配置补全**：\n  - 在 [`ModelSearchSelect.vue`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/renderer/src/components/ModelSearchSelect.vue) 中补齐 Xiaomi 厂商选项、名称智能推断与品牌橙视觉徽章。\n\n---"
+    "rawContent": "### 🌟 重大新增与核心改进\n- **全面接入阶跃星辰 (StepFun) 官方大模型定价与快照存证**：\n  - 新增阶跃星辰官方计费文档 (`https://platform.stepfun.com/docs/zh/guides/pricing/details`) 自动抓取与解析引擎；\n  - 严格收录 Token 计费大模型：旗舰多模态推理 `step-3.7-flash`、推理 `step-3.5-flash` / `step-3.5-flash-2603`、视觉 `step-1o-turbo-vision` 以及 `stepaudio-2.5-realtime` / `stepaudio-2.5-chat` / `step-1o-audio` / `step-audio-2` / `step-audio-r1.5` 等全系列端到端语音大模型；\n  - 自动留存网页离线 HTML 快照至本地证据链 (`data/official_snapshots/sample_stepfun.html`)。\n- **固化官方定价 10 家大模型厂商全量抓取规则与开发规范**：\n  - 在 `AGENTS.md` 与 `.agents/rules/official_pricing_rules.md` 中长效固化 10 家官方厂商名单（境内：阿里百炼、智谱GLM、MiniMax、Moonshot Kimi、DeepSeek、小米 MiMo、阶跃星辰 StepFun；境外：OpenAI、Anthropic Claude、Google Gemini）；\n  - 将前端 `OfficialScrapeModal.vue` 一键全网抓取文案与调度同步升级为 10 家大模型厂商并发抓取。\n- **官方第一档去阶梯基准库与模型智能归一化扩展**：\n  - 将阶跃星辰模型正式纳入第一档去阶梯化官方基准模型池；\n  - `official_benchmark_service.py` 与 `ModelSearchSelect.vue` 支持 `stepfun/`、`step-`、`stepaudio-` 前缀智能识别推断与模糊匹配；\n  - 渠道模型映射弹窗下拉框动态提供【阶跃星辰 (StepFun) 官方标准】分组。\n- **自动化测试套件全覆盖**：\n  - 编写并集成 `test_stepfun_official_pricing.py`，全覆盖配置校验、DOM解析精度、数据库持久化、快照证据链与基准折扣换算，通过率 100%。\n\n---"
   }
 }

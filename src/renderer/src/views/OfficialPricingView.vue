@@ -812,6 +812,8 @@ function getProviderBadgeClass(provider: string): string {
       return 'bg-[#FF6A00]/10 text-[#FF6A00] border border-[#FF6A00]/20'
     case 'xiaomi':
       return 'bg-[#FF6900]/10 text-[#FF6900] border border-[#FF6900]/20'
+    case 'stepfun':
+      return 'bg-[#2563EB]/10 text-[#2563EB] border border-[#2563EB]/20'
     default:
       return 'bg-[#86868B]/10 text-[#86868B]'
   }

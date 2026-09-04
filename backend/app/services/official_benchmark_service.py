@@ -171,8 +171,8 @@ class OfficialBenchmarkService:
         """标准化名称以便于比较"""
         s = name.lower().strip()
         # 去除常见厂商前缀
-        s = re.sub(r"^(?:openai|anthropic|google|alibaba|deepseek|zhipu|kimi|minimax|siliconflow|aliyun)/", "", s)
-        s = re.sub(r"^(?:openai|anthropic|google|alibaba|deepseek|zhipu|kimi|minimax|siliconflow|aliyun)-", "", s)
+        s = re.sub(r"^(?:openai|anthropic|google|alibaba|deepseek|zhipu|kimi|minimax|siliconflow|aliyun|xiaomi|stepfun)/", "", s)
+        s = re.sub(r"^(?:openai|anthropic|google|alibaba|deepseek|zhipu|kimi|minimax|siliconflow|aliyun|xiaomi|stepfun)-", "", s)
         # 去除特殊后缀
         s = re.sub(r"-(?:vip|fast|latest|free|pro|chat)$", "", s)
         s = re.sub(r"[_\-:\.]", "", s)

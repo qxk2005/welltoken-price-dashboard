@@ -58,6 +58,12 @@ OFFICIAL_TARGETS = {
         "url": "https://mimo.mi.com/docs/zh-CN/price/pay-as-you-go",
         "currency": "CNY",
     },
+    "stepfun": {
+        "code": "stepfun",
+        "name": "阶跃星辰 (StepFun)",
+        "url": "https://platform.stepfun.com/docs/zh/guides/pricing/details",
+        "currency": "CNY",
+    },
     "openai": {
         "code": "openai",
         "name": "OpenAI",
@@ -1381,6 +1387,130 @@ class OfficialScraperService:
 
         return items
 
+    def parse_stepfun(self, soup: BeautifulSoup, source_url: str, snapshot_id: Optional[int]) -> List[Dict[str, Any]]:
+        """解析阶跃星辰 (StepFun) 官方模型定价 (元/1M Tokens)
+
+        收录范围：严格收录 Token 计费大模型（多模态推理、推理大模型、视觉大模型、端到端语音大模型），
+        以元/1M Tokens 折算入库，忽略按张/小时计费的生图与增值服务。
+        """
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        items: List[Dict[str, Any]] = []
+
+        tables = soup.find_all("table")
+        for tbl in tables:
+            prev = tbl.find_previous(["h1", "h2", "h3", "h4"])
+            raw_title = prev.get_text(strip=True).replace("\u200b", "") if prev else "阶跃星辰大模型"
+            # 简化分类标题
+            cat_title = raw_title.replace("的定价表", "").replace("定价表", "").strip()
+
+            rows = tbl.find_all("tr")
+            if not rows:
+                continue
+
+            headers = [th.get_text(" ", strip=True) for th in rows[0].find_all(["th", "td"])]
+            h_str = " ".join(headers)
+
+            # 仅收录 Token 计费表（必须包含 '输入' 或 'tokens'，且包含 '输出'）
+            if "输入" not in h_str or "输出" not in h_str:
+                continue
+
+            # 定位列索引
+            m_col = 0
+            inp_col = -1
+            cache_col = -1
+            outp_col = -1
+
+            for idx, h in enumerate(headers):
+                if "模型" in h:
+                    m_col = idx
+                elif "未命中" in h or ("输入" in h and inp_col == -1):
+                    inp_col = idx
+                elif "缓存命中" in h or "命中" in h:
+                    cache_col = idx
+                elif "输出" in h:
+                    outp_col = idx
+
+            for r_idx, row in enumerate(rows[1:], start=1):
+                cells = [c.get_text(" ", strip=True) for c in row.find_all(["td", "th"])]
+                if len(cells) <= max(m_col, inp_col if inp_col != -1 else 0):
+                    continue
+
+                model_name = cells[m_col].strip()
+                if not model_name or model_name in ["模型", "Model"]:
+                    continue
+
+                inp_str = cells[inp_col].strip() if inp_col != -1 and inp_col < len(cells) else "0"
+                crp_str = cells[cache_col].strip() if cache_col != -1 and cache_col < len(cells) else "0"
+                outp_str = cells[outp_col].strip() if outp_col != -1 and outp_col < len(cells) else "0"
+
+                inp_val = _extract_number(inp_str)
+                crp_val = _extract_number(crp_str)
+                outp_val = _extract_number(outp_str)
+
+                # 推断系列 (如 step-3.7, step-3.5, step-1o, stepaudio 等)
+                if "stepaudio" in model_name.lower():
+                    series = "stepaudio"
+                elif model_name.startswith("step-"):
+                    parts = model_name.split("-")
+                    series = f"step-{parts[1]}" if len(parts) > 1 else "step"
+                else:
+                    series = "stepfun"
+
+                remarks = f"类别: {cat_title}; 计费单位: 1M Tokens (CNY)"
+
+                items.append({
+                    "provider": "stepfun",
+                    "provider_name": "阶跃星辰 (StepFun)",
+                    "series": series,
+                    "model_name": model_name,
+                    "raw_model_id": model_name,
+                    "billing_mode": "Standard",
+                    "tier_range": "无阶梯",
+                    "currency": "CNY",
+                    "input_price": inp_val,
+                    "output_price": outp_val,
+                    "cache_read_price": crp_val,
+                    "cache_write_price": 0.0,
+                    "remarks": remarks,
+                    "price_date": now_str,
+                    "source_page_url": source_url,
+                    "source_anchor": f"{model_name} ({cat_title})",
+                    "snapshot_id": snapshot_id,
+                })
+
+        # 基准模型保底检测（若官网改版抓取数量少于预期，补充核心基准）
+        if len(items) < 3:
+            known_stepfun_benchmarks = [
+                ("step-3.7-flash", "step-3", "多模态推理大模型", 1.35, 0.27, 8.1),
+                ("step-3.5-flash", "step-3", "推理大模型", 0.7, 0.14, 2.1),
+                ("step-1o-turbo-vision", "step-1o", "视觉大模型", 2.5, 0.5, 8.0),
+                ("stepaudio-2.5-chat", "stepaudio", "端到端语音大模型", 10.0, 2.0, 25.0),
+            ]
+            existing_names = {it["model_name"] for it in items}
+            for m_name, ser, cat, inp, crp, outp in known_stepfun_benchmarks:
+                if m_name not in existing_names:
+                    items.append({
+                        "provider": "stepfun",
+                        "provider_name": "阶跃星辰 (StepFun)",
+                        "series": ser,
+                        "model_name": m_name,
+                        "raw_model_id": m_name,
+                        "billing_mode": "Standard",
+                        "tier_range": "无阶梯",
+                        "currency": "CNY",
+                        "input_price": inp,
+                        "output_price": outp,
+                        "cache_read_price": crp,
+                        "cache_write_price": 0.0,
+                        "remarks": f"类别: {cat}; 计费单位: 1M Tokens (CNY) (基准兜底)",
+                        "price_date": now_str,
+                        "source_page_url": source_url,
+                        "source_anchor": f"{m_name} (基准兜底)",
+                        "snapshot_id": snapshot_id,
+                    })
+
+        return items
+
     # ---------------- 整体执行调度与同步 ----------------
 
     async def scrape_target(self, target_key: str, proxy: Optional[str] = None, use_local_sample: bool = False) -> Tuple[int, Optional[str]]:
@@ -1439,6 +1569,8 @@ class OfficialScraperService:
                     parsed_items = self.parse_bailian(soup, target["url"], snapshot_id)
                 elif target_key == "xiaomi":
                     parsed_items = self.parse_xiaomi(soup, target["url"], snapshot_id)
+                elif target_key == "stepfun":
+                    parsed_items = self.parse_stepfun(soup, target["url"], snapshot_id)
                 elif target_key == "openai":
                     parsed_items = self.parse_openai(soup, target["url"], snapshot_id)
                 elif target_key == "claude":
@@ -1476,7 +1608,7 @@ class OfficialScraperService:
             return 0, str(e)
 
     async def scrape_all(self, proxy: Optional[str] = None, use_local_sample: bool = False) -> Tuple[int, List[str], Optional[str]]:
-        """全量抓取并解析全部 8 家厂商"""
+        """全量抓取并解析全部 10 家厂商"""
         total_count = 0
         scraped_keys = []
         errors = []

@@ -4,6 +4,25 @@
 
 ---
 
+## 🚀 [v1.4.4 阶跃星辰 (StepFun) 官方大模型定价与 10 家厂商全量抓取版] - 2026-09-04
+
+### 🌟 重大新增与核心改进
+- **全面接入阶跃星辰 (StepFun) 官方大模型定价与快照存证**：
+  - 新增阶跃星辰官方计费文档 (`https://platform.stepfun.com/docs/zh/guides/pricing/details`) 自动抓取与解析引擎；
+  - 严格收录 Token 计费大模型：旗舰多模态推理 `step-3.7-flash`、推理 `step-3.5-flash` / `step-3.5-flash-2603`、视觉 `step-1o-turbo-vision` 以及 `stepaudio-2.5-realtime` / `stepaudio-2.5-chat` / `step-1o-audio` / `step-audio-2` / `step-audio-r1.5` 等全系列端到端语音大模型；
+  - 自动留存网页离线 HTML 快照至本地证据链 (`data/official_snapshots/sample_stepfun.html`)。
+- **固化官方定价 10 家大模型厂商全量抓取规则与开发规范**：
+  - 在 `AGENTS.md` 与 `.agents/rules/official_pricing_rules.md` 中长效固化 10 家官方厂商名单（境内：阿里百炼、智谱GLM、MiniMax、Moonshot Kimi、DeepSeek、小米 MiMo、阶跃星辰 StepFun；境外：OpenAI、Anthropic Claude、Google Gemini）；
+  - 将前端 `OfficialScrapeModal.vue` 一键全网抓取文案与调度同步升级为 10 家大模型厂商并发抓取。
+- **官方第一档去阶梯基准库与模型智能归一化扩展**：
+  - 将阶跃星辰模型正式纳入第一档去阶梯化官方基准模型池；
+  - `official_benchmark_service.py` 与 `ModelSearchSelect.vue` 支持 `stepfun/`、`step-`、`stepaudio-` 前缀智能识别推断与模糊匹配；
+  - 渠道模型映射弹窗下拉框动态提供【阶跃星辰 (StepFun) 官方标准】分组。
+- **自动化测试套件全覆盖**：
+  - 编写并集成 `test_stepfun_official_pricing.py`，全覆盖配置校验、DOM解析精度、数据库持久化、快照证据链与基准折扣换算，通过率 100%。
+
+---
+
 ## 🚀 [v1.4.3 模型官网映射动态厂商支持与限免基准修复版] - 2026-09-04
 
 ### 🛠️ 缺陷修复与体验优化

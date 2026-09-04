@@ -19,8 +19,8 @@
 - 每次修改代码后必须进行完整测试（API测试、单元测试、Vue类型检查 `npm run typecheck`、前端构建 `npm run build`）。
 - 测试通过后方可向用户汇报或提交代码。
 
-## 4. 官方大模型定价抓取规范 (必须包含小米 MiMo 等全部 9 家厂商)
-- 当用户要求“重新获取大模型官网价格”或“同步官方定价”时，必须全自动抓取并解析全部 9 家官方厂商：
+## 4. 官方大模型定价抓取规范 (必须包含小米 MiMo、阶跃星辰 StepFun 等全部 10 家厂商)
+- 当用户要求“重新获取大模型官网价格”或“同步官方定价”时，必须全自动抓取并解析全部 10 家官方厂商：
   - 境外厂商: OpenAI, Anthropic (Claude), Google (Gemini)；
-  - 境内厂商: 阿里百炼, 智谱 (GLM), MiniMax, Moonshot (Kimi), DeepSeek, **小米 (MiMo)**；
+  - 境内厂商: 阿里百炼, 智谱 (GLM), MiniMax, Moonshot (Kimi), DeepSeek, **小米 (MiMo)**, **阶跃星辰 (StepFun)**；
 - 必须同时保存完整 HTML 快照文件至 `data/official_snapshots/` 留存对账证据链。
