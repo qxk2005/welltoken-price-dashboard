@@ -4,6 +4,17 @@
 
 ---
 
+## 🚀 [v1.4.7 macOS系统只读根目录报错修复与快照数据路径彻底加固版] - 2026-09-04
+
+### 🛠️ 关键缺陷修复与进程运行加固
+- **彻底根治打包后 Python 后端启动崩溃 `Read-only file system: '/data'` 缺陷**：
+  - 核心根因：在打包独立应用环境下，应用由系统 Finder 拉起时当前工作目录为根目录 `/`，原本使用 `os.path.join(os.getcwd(), "data", ...)` 会错误尝试在 macOS APFS 只读系统卷根目录创建 `/data` 目录，导致后端在模块导入期瞬间被 `OSError: [Errno 30]` 崩溃退出；
+  - 重构快照目录路径：在 [`official_scraper_service.py`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/backend/app/services/official_scraper_service.py) 中，全面统一改用标准合法可写数据目录 `SNAPSHOT_DIR = str(DATA_DIR / "official_snapshots")`（在 macOS 上严格指向 `~/Library/Application Support/WellTokenDashboard/data/official_snapshots`）；
+  - 快照查阅安全解析：在 [`official_pricing.py`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/backend/app/api/v1/official_pricing.py) 中，快照文件检索基于 `DATA_DIR` 进行安全解析，彻底杜绝相对根目录寻址；
+  - 子进程工作目录（CWD）强制保底：在 [`pyManager.ts`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/main/pyManager.ts) 中，将子进程工作目录 `cwd` 强制指定为应用数据目录 `~/Library/Application Support/WellTokenDashboard`，彻底消除由于工作目录不当引发的只读异常。
+
+---
+
 ## 🚀 [v1.4.6 macOS全新安装重连自愈与代理绕过加固版] - 2026-09-04
 
 ### 🛠️ 缺陷修复与稳定性加固

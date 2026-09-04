@@ -3,12 +3,14 @@
 提供官方价格查询、汇率动态折算、用户自定义备注/标签更新、触发实时抓取以及 HTML 快照对账查阅。
 """
 import os
+from pathlib import Path
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, update
 
+from backend.app.config import DATA_DIR
 from backend.app.database import get_db
 from backend.app.models.token_price import (
     OfficialModelPrice,
@@ -239,9 +241,20 @@ async def view_snapshot_html(
     if not snapshot:
         raise HTTPException(status_code=404, detail="未找到该快照")
 
-    abs_path = os.path.join(os.getcwd(), snapshot.local_file_path)
+    raw_p = Path(snapshot.local_file_path)
+    if raw_p.is_absolute() and raw_p.exists():
+        abs_path = str(raw_p)
+    elif (DATA_DIR / "official_snapshots" / raw_p.name).exists():
+        abs_path = str(DATA_DIR / "official_snapshots" / raw_p.name)
+    elif (DATA_DIR / raw_p).exists():
+        abs_path = str(DATA_DIR / raw_p)
+    elif (Path(os.getcwd()) / snapshot.local_file_path).exists():
+        abs_path = str(Path(os.getcwd()) / snapshot.local_file_path)
+    else:
+        abs_path = str(DATA_DIR / "official_snapshots" / raw_p.name)
+
     if not os.path.exists(abs_path):
-        raise HTTPException(status_code=404, detail="快照文件在本地磁盘不存在")
+        raise HTTPException(status_code=404, detail=f"快照文件在本地磁盘不存在: {abs_path}")
 
     with open(abs_path, "r", encoding="utf-8") as f:
         raw_html = f.read()

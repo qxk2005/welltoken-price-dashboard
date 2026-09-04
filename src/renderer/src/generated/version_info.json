@@ -1,24 +1,43 @@
 {
   "name": "welltoken-price-dashboard",
   "productName": "WellToken Price Dashboard",
-  "version": "1.4.6",
-  "fullVersion": "v1.4.6",
+  "version": "1.4.7",
+  "fullVersion": "v1.4.7",
   "description": "Cross-platform Token & Crypto Price Dashboard built with Electron, Vue 3, SQLite and Python FastAPI",
   "author": "qxk2005",
   "homepage": "https://github.com/qxk2005/welltoken-price-dashboard",
   "git": {
-    "commit": "ed8cbc9",
+    "commit": "345e41c",
     "branch": "main",
-    "date": "2026-09-04 17:25:32 +0800"
+    "date": "2026-09-04 17:39:18 +0800"
   },
   "build": {
-    "time": "2026-09-04 17:25:32",
-    "iso": "2026-09-04T09:25:32.323Z",
+    "time": "2026-09-04 17:39:18",
+    "iso": "2026-09-04T09:39:18.399Z",
     "node": "v25.9.0",
     "platform": "darwin",
     "arch": "arm64"
   },
   "changelog": [
+    {
+      "version": "1.4.7",
+      "tag": "v1.4.7 macOS系统只读根目录报错修复与快照数据路径彻底加固版",
+      "fullTitle": "[v1.4.7 macOS系统只读根目录报错修复与快照数据路径彻底加固版] - 2026-09-04",
+      "date": "2026-09-04",
+      "sections": [
+        {
+          "title": "🛠️ 关键缺陷修复与进程运行加固",
+          "items": [
+            "**彻底根治打包后 Python 后端启动崩溃 `Read-only file system: '/data'` 缺陷**：",
+            "核心根因：在打包独立应用环境下，应用由系统 Finder 拉起时当前工作目录为根目录 `/`，原本使用 `os.path.join(os.getcwd(), \"data\", ...)` 会错误尝试在 macOS APFS 只读系统卷根目录创建 `/data` 目录，导致后端在模块导入期瞬间被 `OSError: [Errno 30]` 崩溃退出；",
+            "重构快照目录路径：在 [`official_scraper_service.py`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/backend/app/services/official_scraper_service.py) 中，全面统一改用标准合法可写数据目录 `SNAPSHOT_DIR = str(DATA_DIR / \"official_snapshots\")`（在 macOS 上严格指向 `~/Library/Application Support/WellTokenDashboard/data/official_snapshots`）；",
+            "快照查阅安全解析：在 [`official_pricing.py`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/backend/app/api/v1/official_pricing.py) 中，快照文件检索基于 `DATA_DIR` 进行安全解析，彻底杜绝相对根目录寻址；",
+            "子进程工作目录（CWD）强制保底：在 [`pyManager.ts`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/main/pyManager.ts) 中，将子进程工作目录 `cwd` 强制指定为应用数据目录 `~/Library/Application Support/WellTokenDashboard`，彻底消除由于工作目录不当引发的只读异常。"
+          ]
+        }
+      ],
+      "rawContent": "### 🛠️ 关键缺陷修复与进程运行加固\n- **彻底根治打包后 Python 后端启动崩溃 `Read-only file system: '/data'` 缺陷**：\n  - 核心根因：在打包独立应用环境下，应用由系统 Finder 拉起时当前工作目录为根目录 `/`，原本使用 `os.path.join(os.getcwd(), \"data\", ...)` 会错误尝试在 macOS APFS 只读系统卷根目录创建 `/data` 目录，导致后端在模块导入期瞬间被 `OSError: [Errno 30]` 崩溃退出；\n  - 重构快照目录路径：在 [`official_scraper_service.py`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/backend/app/services/official_scraper_service.py) 中，全面统一改用标准合法可写数据目录 `SNAPSHOT_DIR = str(DATA_DIR / \"official_snapshots\")`（在 macOS 上严格指向 `~/Library/Application Support/WellTokenDashboard/data/official_snapshots`）；\n  - 快照查阅安全解析：在 [`official_pricing.py`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/backend/app/api/v1/official_pricing.py) 中，快照文件检索基于 `DATA_DIR` 进行安全解析，彻底杜绝相对根目录寻址；\n  - 子进程工作目录（CWD）强制保底：在 [`pyManager.ts`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/main/pyManager.ts) 中，将子进程工作目录 `cwd` 强制指定为应用数据目录 `~/Library/Application Support/WellTokenDashboard`，彻底消除由于工作目录不当引发的只读异常。\n\n---"
+    },
     {
       "version": "1.4.6",
       "tag": "v1.4.6 macOS全新安装重连自愈与代理绕过加固版",
@@ -381,22 +400,22 @@
     }
   ],
   "latestChangelog": {
-    "version": "1.4.6",
-    "tag": "v1.4.6 macOS全新安装重连自愈与代理绕过加固版",
-    "fullTitle": "[v1.4.6 macOS全新安装重连自愈与代理绕过加固版] - 2026-09-04",
+    "version": "1.4.7",
+    "tag": "v1.4.7 macOS系统只读根目录报错修复与快照数据路径彻底加固版",
+    "fullTitle": "[v1.4.7 macOS系统只读根目录报错修复与快照数据路径彻底加固版] - 2026-09-04",
     "date": "2026-09-04",
     "sections": [
       {
-        "title": "🛠️ 缺陷修复与稳定性加固",
+        "title": "🛠️ 关键缺陷修复与进程运行加固",
         "items": [
-          "**彻底解决全新 macOS 安装启动后右下角一直显示“重连中...”问题**：",
-          "**macOS Gatekeeper Quarantine 隔离属性自动脱敏**：在 [`pyManager.ts`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/main/pyManager.ts) 启动独立 Python 后端前，自动递归执行 `xattr -d -r com.apple.quarantine` 清除隔离属性并赋予 `chmod 755` 权限，彻底杜绝从 DMG 拖入安装后二进制被系统静默阻断；",
-          "**强制本地回环绕过系统代理（防劫持双保险）**：在 [`src/main/index.ts`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/main/index.ts) 中注入 Chromium 启动开关与 Session 策略 `proxyBypassRules: '<local>;127.0.0.1;localhost;::1'`，并为子进程环境变量注入 `NO_PROXY=127.0.0.1,localhost,::1`，彻底杜绝代理软件拦截本地高位端口 `127.0.0.1:8765` 导致前端与后端断连；",
-          "**全生命周期日志自动落盘**：后端启动、标准输出、标准错误与进程异常退出码统一实时追加写入日志文件（`~/Library/Application Support/WellTokenDashboard/logs/backend.log`），消灭盲区；",
-          "**状态栏一键诊断与日志直达**：在底部状态栏增加点击交互弹窗，未就绪时高亮展示具体错误原因，并提供【打开运行日志 (backend.log)】与【重启后端服务】快捷按钮；在【关于程序】视图同步增设服务诊断与日志专区。"
+          "**彻底根治打包后 Python 后端启动崩溃 `Read-only file system: '/data'` 缺陷**：",
+          "核心根因：在打包独立应用环境下，应用由系统 Finder 拉起时当前工作目录为根目录 `/`，原本使用 `os.path.join(os.getcwd(), \"data\", ...)` 会错误尝试在 macOS APFS 只读系统卷根目录创建 `/data` 目录，导致后端在模块导入期瞬间被 `OSError: [Errno 30]` 崩溃退出；",
+          "重构快照目录路径：在 [`official_scraper_service.py`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/backend/app/services/official_scraper_service.py) 中，全面统一改用标准合法可写数据目录 `SNAPSHOT_DIR = str(DATA_DIR / \"official_snapshots\")`（在 macOS 上严格指向 `~/Library/Application Support/WellTokenDashboard/data/official_snapshots`）；",
+          "快照查阅安全解析：在 [`official_pricing.py`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/backend/app/api/v1/official_pricing.py) 中，快照文件检索基于 `DATA_DIR` 进行安全解析，彻底杜绝相对根目录寻址；",
+          "子进程工作目录（CWD）强制保底：在 [`pyManager.ts`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/main/pyManager.ts) 中，将子进程工作目录 `cwd` 强制指定为应用数据目录 `~/Library/Application Support/WellTokenDashboard`，彻底消除由于工作目录不当引发的只读异常。"
         ]
       }
     ],
-    "rawContent": "### 🛠️ 缺陷修复与稳定性加固\n- **彻底解决全新 macOS 安装启动后右下角一直显示“重连中...”问题**：\n  - **macOS Gatekeeper Quarantine 隔离属性自动脱敏**：在 [`pyManager.ts`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/main/pyManager.ts) 启动独立 Python 后端前，自动递归执行 `xattr -d -r com.apple.quarantine` 清除隔离属性并赋予 `chmod 755` 权限，彻底杜绝从 DMG 拖入安装后二进制被系统静默阻断；\n  - **强制本地回环绕过系统代理（防劫持双保险）**：在 [`src/main/index.ts`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/main/index.ts) 中注入 Chromium 启动开关与 Session 策略 `proxyBypassRules: '<local>;127.0.0.1;localhost;::1'`，并为子进程环境变量注入 `NO_PROXY=127.0.0.1,localhost,::1`，彻底杜绝代理软件拦截本地高位端口 `127.0.0.1:8765` 导致前端与后端断连；\n  - **全生命周期日志自动落盘**：后端启动、标准输出、标准错误与进程异常退出码统一实时追加写入日志文件（`~/Library/Application Support/WellTokenDashboard/logs/backend.log`），消灭盲区；\n  - **状态栏一键诊断与日志直达**：在底部状态栏增加点击交互弹窗，未就绪时高亮展示具体错误原因，并提供【打开运行日志 (backend.log)】与【重启后端服务】快捷按钮；在【关于程序】视图同步增设服务诊断与日志专区。\n\n---"
+    "rawContent": "### 🛠️ 关键缺陷修复与进程运行加固\n- **彻底根治打包后 Python 后端启动崩溃 `Read-only file system: '/data'` 缺陷**：\n  - 核心根因：在打包独立应用环境下，应用由系统 Finder 拉起时当前工作目录为根目录 `/`，原本使用 `os.path.join(os.getcwd(), \"data\", ...)` 会错误尝试在 macOS APFS 只读系统卷根目录创建 `/data` 目录，导致后端在模块导入期瞬间被 `OSError: [Errno 30]` 崩溃退出；\n  - 重构快照目录路径：在 [`official_scraper_service.py`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/backend/app/services/official_scraper_service.py) 中，全面统一改用标准合法可写数据目录 `SNAPSHOT_DIR = str(DATA_DIR / \"official_snapshots\")`（在 macOS 上严格指向 `~/Library/Application Support/WellTokenDashboard/data/official_snapshots`）；\n  - 快照查阅安全解析：在 [`official_pricing.py`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/backend/app/api/v1/official_pricing.py) 中，快照文件检索基于 `DATA_DIR` 进行安全解析，彻底杜绝相对根目录寻址；\n  - 子进程工作目录（CWD）强制保底：在 [`pyManager.ts`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/main/pyManager.ts) 中，将子进程工作目录 `cwd` 强制指定为应用数据目录 `~/Library/Application Support/WellTokenDashboard`，彻底消除由于工作目录不当引发的只读异常。\n\n---"
   }
 }

@@ -181,9 +181,25 @@ export class PythonProcessManager {
         return
       }
 
-      this.log(`[PythonManager] Spawning bundled Python binary: ${binaryPath}`)
+      const home = os.homedir()
+      let workDir = join(home, 'Library', 'Application Support', 'WellTokenDashboard')
+      if (process.platform === 'win32') {
+        workDir = join(process.env.APPDATA || home, 'WellTokenDashboard')
+      } else if (process.platform !== 'darwin') {
+        workDir = join(home, '.welltoken_dashboard')
+      }
+      try {
+        if (!fs.existsSync(workDir)) {
+          fs.mkdirSync(workDir, { recursive: true })
+        }
+      } catch {
+        workDir = os.tmpdir()
+      }
+
+      this.log(`[PythonManager] Spawning bundled Python binary: ${binaryPath} (cwd: ${workDir})`)
       try {
         this.pyProcess = spawn(binaryPath, ['--host', this.host, '--port', this.port.toString()], {
+          cwd: workDir,
           detached: false,
           env: spawnEnv,
           stdio: 'pipe'

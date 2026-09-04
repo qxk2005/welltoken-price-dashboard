@@ -15,10 +15,11 @@ from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.database import AsyncSessionLocal
+from backend.app.config import DATA_DIR
 from backend.app.models.token_price import OfficialModelPrice, OfficialSnapshot, SystemSetting
 from backend.app.services.exchange_rate import exchange_rate_service
 
-SNAPSHOT_DIR = os.path.join(os.getcwd(), "data", "official_snapshots")
+SNAPSHOT_DIR = str(DATA_DIR / "official_snapshots")
 os.makedirs(SNAPSHOT_DIR, exist_ok=True)
 
 OFFICIAL_TARGETS = {
