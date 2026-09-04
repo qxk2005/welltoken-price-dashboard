@@ -148,6 +148,7 @@
                 <option value="zhipuai">Zhipu AI (GLM)</option>
                 <option value="moonshotai">Moonshot AI (Kimi)</option>
                 <option value="minimax">MiniMax</option>
+                <option value="xiaomi">Xiaomi (MiMo)</option>
                 <option value="xai">xAI (Grok)</option>
                 <option value="custom">Custom 自定义</option>
               </select>
@@ -311,6 +312,7 @@ function inferProvider(rawName: string): string {
   if (m.includes('glm') || m.includes('zhipu')) return 'zhipuai'
   if (m.includes('kimi') || m.includes('moonshot')) return 'moonshotai'
   if (m.includes('minimax') || m.includes('abab')) return 'minimax'
+  if (m.includes('mimo') || m.includes('xiaomi')) return 'xiaomi'
   if (m.includes('grok') || m.includes('xai')) return 'xai'
   return 'custom'
 }
@@ -439,6 +441,7 @@ function getProviderBadgeClass(provider: string = ''): string {
   if (p === 'alibaba') return 'bg-[#FFF7ED] text-[#EA580C]'
   if (p === 'bytedance') return 'bg-[#F0FDF4] text-[#16A34A]'
   if (p === 'zhipuai') return 'bg-[#F5F3FF] text-[#7C3AED]'
+  if (p === 'xiaomi') return 'bg-[#FFF7ED] text-[#FF6900]'
   return 'bg-[#F2F2F7] text-[#6E6E73]'
 }
 

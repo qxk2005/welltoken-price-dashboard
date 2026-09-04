@@ -1,24 +1,48 @@
 {
   "name": "welltoken-price-dashboard",
   "productName": "WellToken Price Dashboard",
-  "version": "1.4.2",
-  "fullVersion": "v1.4.2",
+  "version": "1.4.3",
+  "fullVersion": "v1.4.3",
   "description": "Cross-platform Token & Crypto Price Dashboard built with Electron, Vue 3, SQLite and Python FastAPI",
   "author": "qxk2005",
   "homepage": "https://github.com/qxk2005/welltoken-price-dashboard",
   "git": {
-    "commit": "cff553c",
+    "commit": "9ca5f3d",
     "branch": "main",
-    "date": "2026-09-04 11:59:32 +0800"
+    "date": "2026-09-04 12:04:47 +0800"
   },
   "build": {
-    "time": "2026-09-04 12:04:30",
-    "iso": "2026-09-04T04:04:30.719Z",
+    "time": "2026-09-04 13:23:35",
+    "iso": "2026-09-04T05:23:35.159Z",
     "node": "v25.9.0",
     "platform": "darwin",
     "arch": "arm64"
   },
   "changelog": [
+    {
+      "version": "1.4.3",
+      "tag": "v1.4.3 模型官网映射动态厂商支持与限免基准修复版",
+      "fullTitle": "[v1.4.3 模型官网映射动态厂商支持与限免基准修复版] - 2026-09-04",
+      "date": "2026-09-04",
+      "sections": [
+        {
+          "title": "🛠️ 缺陷修复与体验优化",
+          "items": [
+            "**彻底消除官网模型映射弹窗中的厂商硬编码**：",
+            "重构 [`OfficialModelMappingModal.vue`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/renderer/src/components/OfficialModelMappingModal.vue)，移除原本硬编码的 8 家厂商列表；",
+            "引入响应式计算属性 `benchmarkProviders`，自动从基准库中提取并动态生成包含【小米 (MiMo) 官方标准】在内的全部厂商分组；",
+            "解决由于缺少 `xiaomi` 分组导致已匹配模型在下拉选择器中显示为空白、且无法手动选取小米模型的缺陷；",
+            "**支持「限时免费」规格纳入第一档官方基准模型**：",
+            "优化 [`official_benchmark_service.py`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/backend/app/services/official_benchmark_service.py) 中的 `is_tier_one` 规则，将包含“免费”的官方规格作为合法的有效基准；",
+            "小米 `MiMo-V2.5 TTS`、`TTS VoiceClone`、`TTS VoiceDesign` 正式进入第一档基准模型池；",
+            "避免 TTS 模型被错误模糊匹配为 ASR，渠道中的 TTS 模型现在 100% 精确关联官方 TTS（0折限时免费）；",
+            "**组件厂商配置补全**：",
+            "在 [`ModelSearchSelect.vue`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/renderer/src/components/ModelSearchSelect.vue) 中补齐 Xiaomi 厂商选项、名称智能推断与品牌橙视觉徽章。"
+          ]
+        }
+      ],
+      "rawContent": "### 🛠️ 缺陷修复与体验优化\n- **彻底消除官网模型映射弹窗中的厂商硬编码**：\n  - 重构 [`OfficialModelMappingModal.vue`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/renderer/src/components/OfficialModelMappingModal.vue)，移除原本硬编码的 8 家厂商列表；\n  - 引入响应式计算属性 `benchmarkProviders`，自动从基准库中提取并动态生成包含【小米 (MiMo) 官方标准】在内的全部厂商分组；\n  - 解决由于缺少 `xiaomi` 分组导致已匹配模型在下拉选择器中显示为空白、且无法手动选取小米模型的缺陷；\n- **支持「限时免费」规格纳入第一档官方基准模型**：\n  - 优化 [`official_benchmark_service.py`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/backend/app/services/official_benchmark_service.py) 中的 `is_tier_one` 规则，将包含“免费”的官方规格作为合法的有效基准；\n  - 小米 `MiMo-V2.5 TTS`、`TTS VoiceClone`、`TTS VoiceDesign` 正式进入第一档基准模型池；\n  - 避免 TTS 模型被错误模糊匹配为 ASR，渠道中的 TTS 模型现在 100% 精确关联官方 TTS（0折限时免费）；\n- **组件厂商配置补全**：\n  - 在 [`ModelSearchSelect.vue`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/renderer/src/components/ModelSearchSelect.vue) 中补齐 Xiaomi 厂商选项、名称智能推断与品牌橙视觉徽章。\n\n---"
+    },
     {
       "version": "1.4.2",
       "tag": "v1.4.2 官方快照对账定位算法精准升级版",
@@ -284,24 +308,27 @@
     }
   ],
   "latestChangelog": {
-    "version": "1.4.2",
-    "tag": "v1.4.2 官方快照对账定位算法精准升级版",
-    "fullTitle": "[v1.4.2 官方快照对账定位算法精准升级版] - 2026-09-04",
+    "version": "1.4.3",
+    "tag": "v1.4.3 模型官网映射动态厂商支持与限免基准修复版",
+    "fullTitle": "[v1.4.3 模型官网映射动态厂商支持与限免基准修复版] - 2026-09-04",
     "date": "2026-09-04",
     "sections": [
       {
         "title": "🛠️ 缺陷修复与体验优化",
         "items": [
-          "**彻底解决模型对账误命中系列标题的问题**：",
-          "重构快照行匹配算法，严格区分 `<tbody>` 真实数据行与 `<thead>` / `<th>` 表头及无单价的“系列/规格”概括标题；",
-          "引入多维度加权打分排序机制（包含 `<td>` 元素、真实货币价格、单元格精准相等优先），确保不论系列标题与模型名如何重叠（如 `MiMo-V2.5 系列` vs `mimo-v2.5` 数据行），均 100% 精准定位并高亮实际价格数据行及对应的各档价格单元格；",
-          "**新增非表格正文段落回退定位能力**：",
-          "当模型未以常规表格呈现时（如小米 `MiMo-V2.5 TTS` 全系列限时免费说明文本段落），自动向下兼容检索正文 `<p>` / `<li>` 并精准进行发光框与内嵌价格标签高亮；",
-          "**补充端到端真实 DOM 渲染自动化测试**：",
-          "编写 `test_xiaomi_v25_highlight.py`，完整覆盖 `MiMo-V2.5` 真实价格行防误伤测试、`MiMo-V2.5 Pro` 标准行测试及 `TTS` 段落回退定位测试，通过率 100%。"
+          "**彻底消除官网模型映射弹窗中的厂商硬编码**：",
+          "重构 [`OfficialModelMappingModal.vue`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/renderer/src/components/OfficialModelMappingModal.vue)，移除原本硬编码的 8 家厂商列表；",
+          "引入响应式计算属性 `benchmarkProviders`，自动从基准库中提取并动态生成包含【小米 (MiMo) 官方标准】在内的全部厂商分组；",
+          "解决由于缺少 `xiaomi` 分组导致已匹配模型在下拉选择器中显示为空白、且无法手动选取小米模型的缺陷；",
+          "**支持「限时免费」规格纳入第一档官方基准模型**：",
+          "优化 [`official_benchmark_service.py`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/backend/app/services/official_benchmark_service.py) 中的 `is_tier_one` 规则，将包含“免费”的官方规格作为合法的有效基准；",
+          "小米 `MiMo-V2.5 TTS`、`TTS VoiceClone`、`TTS VoiceDesign` 正式进入第一档基准模型池；",
+          "避免 TTS 模型被错误模糊匹配为 ASR，渠道中的 TTS 模型现在 100% 精确关联官方 TTS（0折限时免费）；",
+          "**组件厂商配置补全**：",
+          "在 [`ModelSearchSelect.vue`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/renderer/src/components/ModelSearchSelect.vue) 中补齐 Xiaomi 厂商选项、名称智能推断与品牌橙视觉徽章。"
         ]
       }
     ],
-    "rawContent": "### 🛠️ 缺陷修复与体验优化\n- **彻底解决模型对账误命中系列标题的问题**：\n  - 重构快照行匹配算法，严格区分 `<tbody>` 真实数据行与 `<thead>` / `<th>` 表头及无单价的“系列/规格”概括标题；\n  - 引入多维度加权打分排序机制（包含 `<td>` 元素、真实货币价格、单元格精准相等优先），确保不论系列标题与模型名如何重叠（如 `MiMo-V2.5 系列` vs `mimo-v2.5` 数据行），均 100% 精准定位并高亮实际价格数据行及对应的各档价格单元格；\n- **新增非表格正文段落回退定位能力**：\n  - 当模型未以常规表格呈现时（如小米 `MiMo-V2.5 TTS` 全系列限时免费说明文本段落），自动向下兼容检索正文 `<p>` / `<li>` 并精准进行发光框与内嵌价格标签高亮；\n- **补充端到端真实 DOM 渲染自动化测试**：\n  - 编写 `test_xiaomi_v25_highlight.py`，完整覆盖 `MiMo-V2.5` 真实价格行防误伤测试、`MiMo-V2.5 Pro` 标准行测试及 `TTS` 段落回退定位测试，通过率 100%。\n\n---"
+    "rawContent": "### 🛠️ 缺陷修复与体验优化\n- **彻底消除官网模型映射弹窗中的厂商硬编码**：\n  - 重构 [`OfficialModelMappingModal.vue`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/renderer/src/components/OfficialModelMappingModal.vue)，移除原本硬编码的 8 家厂商列表；\n  - 引入响应式计算属性 `benchmarkProviders`，自动从基准库中提取并动态生成包含【小米 (MiMo) 官方标准】在内的全部厂商分组；\n  - 解决由于缺少 `xiaomi` 分组导致已匹配模型在下拉选择器中显示为空白、且无法手动选取小米模型的缺陷；\n- **支持「限时免费」规格纳入第一档官方基准模型**：\n  - 优化 [`official_benchmark_service.py`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/backend/app/services/official_benchmark_service.py) 中的 `is_tier_one` 规则，将包含“免费”的官方规格作为合法的有效基准；\n  - 小米 `MiMo-V2.5 TTS`、`TTS VoiceClone`、`TTS VoiceDesign` 正式进入第一档基准模型池；\n  - 避免 TTS 模型被错误模糊匹配为 ASR，渠道中的 TTS 模型现在 100% 精确关联官方 TTS（0折限时免费）；\n- **组件厂商配置补全**：\n  - 在 [`ModelSearchSelect.vue`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/renderer/src/components/ModelSearchSelect.vue) 中补齐 Xiaomi 厂商选项、名称智能推断与品牌橙视觉徽章。\n\n---"
   }
 }

@@ -90,6 +90,20 @@ const benchMap = computed(() => {
   return map
 })
 
+// 动态提取基准模型中的所有厂商并分组排序，彻底杜绝硬编码遗漏 (支持小米 MiMo 等全部官方厂商)
+const benchmarkProviders = computed(() => {
+  const map = new Map<string, { code: string; name: string; items: OfficialBenchmarkModel[] }>()
+  benchmarks.value.forEach(b => {
+    const pCode = (b.provider || 'other').toLowerCase()
+    const pName = b.provider_name || pCode.toUpperCase()
+    if (!map.has(pCode)) {
+      map.set(pCode, { code: pCode, name: pName, items: [] })
+    }
+    map.get(pCode)!.items.push(b)
+  })
+  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+})
+
 // 统计数据
 const totalCount = computed(() => mappingList.value.length)
 const matchedCount = computed(() => mappingList.value.filter(m => m.is_matched && m.official_model_id).length)
@@ -487,12 +501,12 @@ const saveMappings = async () => {
                   >
                     <option value="">-- [未映射: 保持渠道原生] --</option>
                     <optgroup
-                      v-for="prov in ['alibaba', 'anthropic', 'deepseek', 'google', 'minimax', 'moonshotai', 'openai', 'zhipuai']"
-                      :key="prov"
-                      :label="`【${prov.toUpperCase()} 官方标准】`"
+                      v-for="provGroup in benchmarkProviders"
+                      :key="provGroup.code"
+                      :label="`【${provGroup.name} 官方标准】`"
                     >
                       <option
-                        v-for="b in benchmarks.filter(b => b.provider === prov)"
+                        v-for="b in provGroup.items"
                         :key="b.id"
                         :value="b.id"
                       >

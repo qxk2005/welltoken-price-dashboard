@@ -42,7 +42,7 @@ class OfficialBenchmarkService:
             return False
         
         t_range = (tier_range or "").strip()
-        if not t_range or t_range == "无阶梯":
+        if not t_range or t_range == "无阶梯" or "免费" in t_range or "第一档" in t_range:
             return True
         
         # 匹配区间起始为 0 的阶梯，例如 [0, 272k), [0, 100k)
