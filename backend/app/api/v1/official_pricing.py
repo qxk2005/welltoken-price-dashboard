@@ -618,44 +618,106 @@ async def view_snapshot_html(
           return false;
         }
 
-        var matchedRow = null;
+        var candidateRows = [];
 
         for (var sr = 0; sr < searchRoots.length; sr++) {
           var rows = searchRoots[sr].querySelectorAll('tr');
 
           for (var i = 0; i < rows.length; i++) {
-            var rText = norm(rows[i].innerText);
+            var row = rows[i];
+            var rText = norm(row.innerText);
 
             // 严格单词边界匹配完整候选模型名 (防止 'fable 5' 误匹配 'fable 5.1' 或 'gpt-4' 误匹配 'gpt-4.5')
             var isModelMatch = modelCandidates.some(function(cand) {
               if (!cand || cand.length < 2) return false;
               return isWordMatch(rText, cand);
             });
+            if (!isModelMatch) continue;
 
-            if (isModelMatch) {
-              // 排除表头行 (仅当包含 'model' 且不包含具体价格数字时视为表头)
-              var isHeaderRow = rText.indexOf('model') !== -1 && !/\\d+(?:\\.\\d+)?/.test(rText);
-              if (!isHeaderRow) {
-                // 若有阶梯参数，结合阶梯判定
-                if (kw.indexOf('[') !== -1) {
-                  var tierPart = kw.split('[')[1].split(')')[0].toLowerCase();
-                  var tierNums = tierPart.match(/\\d+[kkmg]?/g) || [];
-                  var hasTier = tierNums.length === 0 || tierNums.some(function(n) { return rText.indexOf(n) !== -1; });
-                  if (hasTier) {
-                    matchedRow = rows[i];
-                    break;
-                  }
-                } else {
-                  matchedRow = rows[i];
+            // 区分表头/系列标题与实际价格数据行
+            var inThead = !!row.closest('thead');
+            var tdList = row.querySelectorAll('td');
+            var hasOnlyTh = tdList.length === 0;
+            var hasPrices = /¥|\\$|元|￥|\\/小时|免费/.test(rText) || /\\d+(?:\\.\\d+)?\\s*(?:元|￥|¥|\\$|\\/)/.test(rText) || /\\$\\s*\\d+/.test(rText);
+            var isHeaderKeywords = (rText.indexOf('系列') !== -1 || rText.indexOf('model') !== -1 || rText.indexOf('模型') !== -1 || rText.indexOf('规格') !== -1) && !hasPrices;
+            var isHeaderRow = inThead || hasOnlyTh || isHeaderKeywords;
+
+            // 若有阶梯参数，结合阶梯判定
+            var tierMatched = true;
+            if (kw.indexOf('[') !== -1) {
+              var tierPart = kw.split('[')[1].split(')')[0].toLowerCase();
+              var tierNums = tierPart.match(/\\d+[kkmg]?/g) || [];
+              tierMatched = tierNums.length === 0 || tierNums.some(function(n) { return rText.indexOf(n) !== -1; });
+            }
+            if (!tierMatched) continue;
+
+            var score = 0;
+            if (!isHeaderRow && tdList.length > 0) {
+              score += 200; // 基础数据行
+              if (hasPrices) score += 100; // 包含真实价格数据
+              // 检查是否有某个具体单元格直接完全匹配或作为词首匹配候选词 (例如 <td><code>mimo-v2.5</code></td>)
+              for (var d = 0; d < tdList.length; d++) {
+                var tdT = norm(tdList[d].innerText);
+                if (modelCandidates.some(function(c) { return tdT === c; })) {
+                  score += 150; // 单元格完全精准相等
+                  break;
+                } else if (modelCandidates.some(function(c) { return isWordMatch(tdT, c); })) {
+                  score += 80;
                   break;
                 }
               }
+            } else {
+              // 表头或系列标题行：仅得 10 分最低兜底分，绝不抢占真实数据行
+              score = 10;
             }
+
+            candidateRows.push({ row: row, score: score });
           }
-          if (matchedRow) break;
         }
 
-        if (matchedRow) {
+        // 按打分从高到低排序，优先选取真实价格数据行
+        candidateRows.sort(function(a, b) { return b.score - a.score; });
+        var matchedRow = candidateRows.length > 0 ? candidateRows[0].row : null;
+
+        // 如果表格中没有高分数据行 (得分 > 10)，尝试在正文段落 (<p> / <li>) 中寻找 (例如小米 TTS 限免说明)
+        if (!matchedRow || (candidateRows.length > 0 && candidateRows[0].score <= 10)) {
+          var textNodes = document.querySelectorAll('p, li, blockquote, div.mdx-p');
+          var bestTextEl = null;
+          var bestTextScore = 0;
+
+          for (var p = 0; p < textNodes.length; p++) {
+            var pEl = textNodes[p];
+            if (pEl.querySelector('table')) continue;
+            var pText = norm(pEl.innerText);
+            if (!pText || pText.length > 300) continue;
+
+            var pMatch = modelCandidates.some(function(cand) {
+              return isWordMatch(pText, cand);
+            });
+            if (pMatch) {
+              var pScore = 80;
+              if (/免费|¥|\\$|元|￥|\\/小时/.test(pText)) pScore += 100;
+              if (pScore > bestTextScore) {
+                bestTextScore = pScore;
+                bestTextEl = pEl;
+              }
+            }
+          }
+
+          if (bestTextEl && bestTextScore > (candidateRows.length > 0 ? candidateRows[0].score : 0)) {
+            bestTextEl.classList.add('wpd-highlight-row');
+            var codeEls = bestTextEl.querySelectorAll('code, strong, span');
+            for (var ce = 0; ce < codeEls.length; ce++) {
+              var cText = norm(codeEls[ce].innerText);
+              if (modelCandidates.some(function(cand) { return isWordMatch(cText, cand); }) || /免费|¥|\\$/.test(cText)) {
+                codeEls[ce].classList.add('wpd-highlight-cell');
+              }
+            }
+            targetScrollEl = bestTextEl;
+          }
+        }
+
+        if (matchedRow && !targetScrollEl) {
           matchedRow.classList.add('wpd-highlight-row');
           var cells = matchedRow.querySelectorAll('td');
 
