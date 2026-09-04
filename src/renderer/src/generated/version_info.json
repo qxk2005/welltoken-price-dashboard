@@ -7,13 +7,13 @@
   "author": "qxk2005",
   "homepage": "https://github.com/qxk2005/welltoken-price-dashboard",
   "git": {
-    "commit": "0f4e8ae",
+    "commit": "550eeb6",
     "branch": "main",
-    "date": "2026-09-04 09:07:47 +0800"
+    "date": "2026-09-04 09:27:16 +0800"
   },
   "build": {
-    "time": "2026-09-04 09:24:09",
-    "iso": "2026-09-04T01:24:09.999Z",
+    "time": "2026-09-04 09:52:08",
+    "iso": "2026-09-04T01:52:08.838Z",
     "node": "v25.9.0",
     "platform": "darwin",
     "arch": "arm64"

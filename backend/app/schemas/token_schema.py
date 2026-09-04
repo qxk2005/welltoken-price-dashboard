@@ -127,6 +127,11 @@ class ComparisonItemSchema(BaseModel):
     calculated_input_cny: float
     calculated_output_cny: float
     discount_percent: float
+    official_model_id: Optional[int] = None
+    official_model_name: Optional[str] = ""
+    official_input_discount: Optional[float] = None
+    official_output_discount: Optional[float] = None
+    official_composite_discount: Optional[float] = None
     last_tested_tps: float
     site_score: float
     site_status: str
@@ -593,5 +598,32 @@ class OfficialScrapeResponse(BaseModel):
     providers_scraped: List[str] = []
     duration_ms: float = 0.0
     error_message: str = ""
+
+
+# --- 官网基准第一档模型与渠道映射 ---
+class ChannelMatchOfficialItem(BaseModel):
+    id: Optional[int] = None
+    site_model_name: Optional[str] = ""
+    model_id: Optional[str] = ""
+    group_name: Optional[str] = ""
+    calculated_input_usd: float = 0.0
+    calculated_output_usd: float = 0.0
+
+
+class ChannelMatchOfficialRequest(BaseModel):
+    models: Optional[List[ChannelMatchOfficialItem]] = None
+
+
+class SaveOfficialMappingItem(BaseModel):
+    channel_model_id: Optional[int] = None
+    channel_model_name: str
+    official_model_id: Optional[int] = None
+    official_model_name: Optional[str] = ""
+    group_name: Optional[str] = ""
+
+
+class SaveOfficialMappingsRequest(BaseModel):
+    mappings: List[SaveOfficialMappingItem]
+
 
 

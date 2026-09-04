@@ -79,6 +79,11 @@ class SiteModelPricing(Base):
     calculated_output_usd = Column(Float, default=0.0) # 折算后输出单价 ($/1M)
     calculated_cache_usd = Column(Float, default=0.0)  # 折算后缓存单价 ($/1M)
     discount_percent = Column(Float, default=0.0)      # 相对官方基准价折扣百分比 (如 -50.0%)
+    official_model_id = Column(Integer, nullable=True)         # 绑定的官网基准模型 ID (对应 OfficialModelPrice.id)
+    official_model_name = Column(String(150), default="")      # 绑定的官网基准模型名称 (去阶梯纯净名)
+    official_input_discount = Column(Float, nullable=True)     # 相对官网第一档输入单价真实折扣 (如 0.35 表示 3.5折)
+    official_output_discount = Column(Float, nullable=True)    # 相对官网第一档输出单价真实折扣
+    official_composite_discount = Column(Float, nullable=True) # 相对官网第一档综合真实折扣
     is_available = Column(Boolean, default=True)
     last_tested_tps = Column(Float, default=0.0)
     source_updated_at = Column(String(40), default="") # models.dev 原生更新时间或手工渠道更新时间
@@ -145,6 +150,8 @@ class ChannelModelMapping(Base):
     site_id = Column(Integer, ForeignKey("relay_sites.id"), index=True, nullable=False)
     channel_model_name = Column(String(150), index=True, nullable=False) # 渠道内原始名称 (如 deepseek-chat 或自定义别名)
     standard_model_id = Column(String(150), ForeignKey("model_metadata.model_id"), index=True, nullable=False) # 绑定的 models.dev 标准模型 ID
+    official_model_id = Column(Integer, nullable=True)         # 关联的官网模型 ID
+    official_model_name = Column(String(150), default="")      # 关联的官网模型名称
     custom_ratio = Column(Float, nullable=True) # 针对该模型的专属倍率 (为空则继承渠道全局 recharge_rate/default_ratio)
     is_enabled = Column(Boolean, default=True) # 是否启用该映射
     created_at = Column(DateTime, default=datetime.utcnow)

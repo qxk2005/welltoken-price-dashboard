@@ -10,6 +10,10 @@ const execFileAsync = promisify(execFile);
  */
 function findBrowserExecutable() {
   const possiblePaths = [
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium-browser',
     'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
     'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
     path.join(process.env.LOCALAPPDATA || '', 'Google\\Chrome\\Application\\chrome.exe'),
@@ -87,7 +91,8 @@ export async function captureScreenshot(options = {}) {
 }
 
 // 允许直接通过命令行执行: node scripts/screenshot_tester.mjs [url] [outputPath]
-if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`) {
+import { pathToFileURL } from 'url';
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const targetUrl = process.argv[2] || 'http://localhost:5173/';
   const targetOutput = process.argv[3];
 

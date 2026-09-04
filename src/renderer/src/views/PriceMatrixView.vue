@@ -569,6 +569,21 @@
                   ></div>
                 </th>
 
+                <!-- 官网真实折扣 -->
+                <th
+                  v-else-if="col.key === 'official_discount'"
+                  class="py-3 px-2 text-center relative group/th"
+                  :style="{ width: getMatrixColWidth('official_discount'), minWidth: getMatrixColWidth('official_discount') }"
+                >
+                  <div class="truncate pr-1">官网真实折扣</div>
+                  <div
+                    class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                    @mousedown.stop="startMatrixResize('official_discount', $event)"
+                    @dblclick.stop="resetMatrixColWidth('official_discount')"
+                    title="按住拖拽调整列宽，双击恢复默认"
+                  ></div>
+                </th>
+
                 <th
                   v-else-if="col.key === 'tps'"
                   @click="toggleSort('last_tested_tps')"
@@ -760,6 +775,25 @@
                 <!-- 倍率 -->
                 <td v-else-if="col.key === 'model_ratio'" class="py-2 px-1.5 text-center font-mono text-[#6E6E73] font-semibold text-xs" :style="{ width: getMatrixColWidth('model_ratio'), minWidth: getMatrixColWidth('model_ratio') }">
                   {{ row.model_ratio }}x
+                </td>
+
+                <!-- 官网真实折扣 -->
+                <td v-else-if="col.key === 'official_discount'" class="py-2 px-2 text-center" :style="{ width: getMatrixColWidth('official_discount'), minWidth: getMatrixColWidth('official_discount') }">
+                  <span
+                    v-if="row.official_composite_discount !== null && row.official_composite_discount !== undefined"
+                    class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border shadow-2xs cursor-help"
+                    :class="row.official_composite_discount === 0
+                      ? 'bg-[#E8F8EE] text-[#248A3D] border-[#B7EBD0]'
+                      : row.official_composite_discount < 1.0
+                        ? 'bg-[#E8F8EE] text-[#248A3D] border-[#B7EBD0]'
+                        : row.official_composite_discount === 1.0
+                          ? 'bg-[#E8F2FD] text-[#0071E3] border-[#CCE4FB]'
+                          : 'bg-[#FFF3E0] text-[#E65100] border-[#FFE0B2]'"
+                    :title="`官网标准: ${row.official_model_name || '已映射'}\n输入真实折扣: ${row.official_input_discount ? (row.official_input_discount * 10).toFixed(1) : '-'}折\n输出真实折扣: ${row.official_output_discount ? (row.official_output_discount * 10).toFixed(1) : '-'}折`"
+                  >
+                    {{ row.official_composite_discount === 0 ? '0折' : row.official_composite_discount < 1.0 ? `${(row.official_composite_discount * 10).toFixed(1)}折` : row.official_composite_discount === 1.0 ? '原价' : `+${Math.round((row.official_composite_discount - 1) * 100)}%` }}
+                  </span>
+                  <span v-else class="text-[#AEAEB2] text-[10px]">-</span>
                 </td>
 
                 <!-- 实测 TPS -->
@@ -1051,6 +1085,7 @@ const DEFAULT_MATRIX_COL_WIDTHS = {
   output_price: 100,
   cache_price: 105,
   model_ratio: 65,
+  official_discount: 110,
   tps: 85,
   updated_at: 135
 }
@@ -1078,6 +1113,7 @@ const DEFAULT_MATRIX_COLUMNS: TableColumnDef[] = [
   { key: 'output_price', label: '输出单价', visible: true },
   { key: 'cache_price', label: '命中缓存单价', visible: true },
   { key: 'model_ratio', label: '倍率', visible: true },
+  { key: 'official_discount', label: '官网真实折扣', visible: true },
   { key: 'tps', label: '实测 TPS', visible: true },
   { key: 'updated_at', label: '更新时间', visible: true },
 ]

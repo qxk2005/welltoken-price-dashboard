@@ -495,6 +495,16 @@
 
           <!-- 右侧操作 -->
           <div class="flex items-center space-x-2">
+            <!-- 官网模型映射与真实折扣对账按钮 -->
+            <button
+              @click="openOfficialMappingModal"
+              class="px-3.5 py-1.5 rounded-xl bg-[#E8F2FD] hover:bg-[#D0E6FC] text-[#0071E3] border border-[#CCE4FB] text-xs font-bold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-2xs"
+              title="智能匹配当前供应商的所有模型与官网标准库（第一档基准价），查看真实折扣"
+            >
+              <span>🎯</span>
+              <span>模型官网映射</span>
+            </button>
+
             <button
               v-if="selectedProvider.site_type === 'aliyun_bailian' || selectedProvider.site_type === 'siliconflow'"
               @click="openSnapshotModal()"
@@ -951,6 +961,23 @@
                       title="按住拖拽调整列宽，双击恢复默认"
                     ></div>
                   </th>
+                  <!-- 官网基准 / 真实折扣 -->
+                  <th
+                    v-else-if="col.key === 'official_discount'"
+                    @click="toggleDetailSort('official_composite_discount')"
+                    class="py-2.5 px-3 text-center cursor-pointer hover:text-[#0071E3] transition-colors relative group/th"
+                    :style="{ width: getChannelColWidth('official_discount'), minWidth: getChannelColWidth('official_discount') }"
+                  >
+                    <div class="truncate pr-2">
+                      官网基准 / 真实折扣 <span class="text-[10px] font-mono" :class="detailSortField === 'official_composite_discount' ? 'text-[#0071E3] font-bold' : 'text-[#AEAEB2]'">{{ getDetailSortIndicator('official_composite_discount') }}</span>
+                    </div>
+                    <div
+                      class="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-[#0071E3]/40 active:bg-[#0071E3] transition-colors z-20"
+                      @mousedown.stop="startChannelResize('official_discount', $event)"
+                      @dblclick.stop="resetChannelColWidth('official_discount')"
+                      title="按住拖拽调整列宽，双击恢复默认"
+                    ></div>
+                  </th>
                   <!-- 深度推理 -->
                   <th
                     v-else-if="col.key === 'reasoning'"
@@ -1056,6 +1083,40 @@
                       {{ store.formatCurrency(item.calculated_cache_usd) }}
                     </span>
                     <span v-else class="text-[#AEAEB2] font-normal">-</span>
+                  </td>
+                  <!-- 官网基准与真实折扣 -->
+                  <td
+                    v-else-if="col.key === 'official_discount'"
+                    class="py-2.5 px-3 text-center"
+                    :style="{ width: getChannelColWidth('official_discount'), minWidth: getChannelColWidth('official_discount') }"
+                  >
+                    <div v-if="item.official_model_id && item.official_composite_discount !== null" class="flex flex-col items-center">
+                      <span
+                        class="px-2 py-0.5 rounded-full text-[11px] font-mono font-bold border shadow-2xs cursor-help"
+                        :class="item.official_composite_discount === 0
+                          ? 'bg-[#E8F8EE] text-[#248A3D] border-[#B7EBD0]'
+                          : item.official_composite_discount < 1.0
+                            ? 'bg-[#E8F8EE] text-[#248A3D] border-[#B7EBD0]'
+                            : item.official_composite_discount === 1.0
+                              ? 'bg-[#E8F2FD] text-[#0071E3] border-[#CCE4FB]'
+                              : 'bg-[#FFF3E0] text-[#E65100] border-[#FFE0B2]'"
+                        :title="`官网第一档标准: ${item.official_model_name}\n输入真实折扣: ${(item.official_input_discount * 10).toFixed(1)}折\n输出真实折扣: ${(item.official_output_discount * 10).toFixed(1)}折`"
+                      >
+                        {{ item.official_composite_discount === 0 ? '0折免费' : item.official_composite_discount < 1.0 ? `${(item.official_composite_discount * 10).toFixed(1)}折` : item.official_composite_discount === 1.0 ? '原价1.0' : `溢价+${Math.round((item.official_composite_discount - 1) * 100)}%` }}
+                      </span>
+                      <span class="text-[10px] text-[#86868B] font-mono mt-0.5 truncate max-w-[120px]" :title="item.official_model_name">
+                        {{ item.official_model_name }}
+                      </span>
+                    </div>
+                    <div v-else>
+                      <button
+                        @click.stop="openOfficialMappingModal"
+                        class="text-[10px] text-[#86868B] hover:text-[#0071E3] px-1.5 py-0.5 rounded bg-[#F2F2F7] hover:bg-[#E8F2FD] transition-colors cursor-pointer"
+                        title="点击进行官网模型匹配"
+                      >
+                        未匹配
+                      </button>
+                    </div>
                   </td>
                   <!-- 深度推理 -->
                   <td v-else-if="col.key === 'reasoning'" class="py-2.5 px-3 text-center font-mono">
@@ -1452,6 +1513,7 @@
                             <th v-else-if="col.key === 'input_price'" class="py-2 px-2.5 text-right">输入单价 ({{ store.currency }})</th>
                             <th v-else-if="col.key === 'output_price'" class="py-2 px-2.5 text-right">输出单价 ({{ store.currency }})</th>
                             <th v-else-if="col.key === 'cache_price'" class="py-2 px-2.5 text-right text-[#8E24AA]">命中缓存</th>
+                            <th v-else-if="col.key === 'official_discount'" class="py-2 px-2.5 text-center text-[#0071E3]">官网基准 / 真实折扣</th>
                             <th v-else-if="col.key === 'reasoning'" class="py-2 px-2.5 text-center">深度推理</th>
                             <th v-else-if="col.key === 'tools'" class="py-2 px-2.5 text-center">工具调用</th>
                             <th v-else-if="col.key === 'tps'" class="py-2 px-2.5 text-center">实测 TPS</th>
@@ -1499,6 +1561,36 @@
                                 {{ store.formatCurrency(item.calculated_cache_usd) }}
                               </span>
                               <span v-else class="text-[#AEAEB2] font-normal">-</span>
+                            </td>
+                            <!-- 官网基准与真实折扣 -->
+                            <td v-else-if="col.key === 'official_discount'" class="py-2 px-2.5 text-center">
+                              <div v-if="item.official_model_id && item.official_composite_discount !== null" class="flex flex-col items-center">
+                                <span
+                                  class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border shadow-2xs cursor-help"
+                                  :class="item.official_composite_discount === 0
+                                    ? 'bg-[#E8F8EE] text-[#248A3D] border-[#B7EBD0]'
+                                    : item.official_composite_discount < 1.0
+                                      ? 'bg-[#E8F8EE] text-[#248A3D] border-[#B7EBD0]'
+                                      : item.official_composite_discount === 1.0
+                                        ? 'bg-[#E8F2FD] text-[#0071E3] border-[#CCE4FB]'
+                                        : 'bg-[#FFF3E0] text-[#E65100] border-[#FFE0B2]'"
+                                  :title="`官网第一档标准: ${item.official_model_name}\n输入真实折扣: ${(item.official_input_discount * 10).toFixed(1)}折\n输出真实折扣: ${(item.official_output_discount * 10).toFixed(1)}折`"
+                                >
+                                  {{ item.official_composite_discount === 0 ? '0折免费' : item.official_composite_discount < 1.0 ? `${(item.official_composite_discount * 10).toFixed(1)}折` : item.official_composite_discount === 1.0 ? '原价1.0' : `溢价+${Math.round((item.official_composite_discount - 1) * 100)}%` }}
+                                </span>
+                                <span class="text-[9px] text-[#86868B] font-mono mt-0.5 truncate max-w-[100px]" :title="item.official_model_name">
+                                  {{ item.official_model_name }}
+                                </span>
+                              </div>
+                              <div v-else>
+                                <button
+                                  @click.stop="openOfficialMappingModal"
+                                  class="text-[10px] text-[#86868B] hover:text-[#0071E3] px-1.5 py-0.5 rounded bg-[#F2F2F7] hover:bg-[#E8F2FD] transition-colors cursor-pointer"
+                                  title="点击进行官网模型匹配"
+                                >
+                                  未匹配
+                                </button>
+                              </div>
                             </td>
                             <td v-else-if="col.key === 'reasoning'" class="py-2 px-2.5 text-center font-mono">
                               <span v-if="isReasoningModel(item.model_id)" class="text-[#34C759] font-bold">是</span>
@@ -1585,6 +1677,16 @@
       :site-name="snapshotSiteName"
       :target-model="snapshotTargetModel"
       @close="showSnapshotModal = false"
+    />
+
+    <!-- 官网第一档基准模型映射与真实折扣对账 Modal -->
+    <OfficialModelMappingModal
+      :show="showOfficialMappingModal"
+      :channel-id="selectedProvider?.id || 0"
+      :channel-name="selectedProvider?.name || ''"
+      :channel-models="providerModelsList"
+      @close="showOfficialMappingModal = false"
+      @saved="handleOfficialMappingSaved"
     />
 
     <!-- 自定义表格显示列与排序配置 Modal -->
@@ -1768,6 +1870,7 @@ import ProviderLogo from '../components/ProviderLogo.vue'
 import LabLogo from '../components/LabLogo.vue'
 import AddChannelWizardModal from '../components/AddChannelWizardModal.vue'
 import SnapshotViewerModal from '../components/SnapshotViewerModal.vue'
+import OfficialModelMappingModal from '../components/OfficialModelMappingModal.vue'
 import ScoreBreakdownTooltip from '../components/ScoreBreakdownTooltip.vue'
 import TableColumnConfigModal, { type TableColumnDef } from '../components/TableColumnConfigModal.vue'
 import { useTableResizable } from '../composables/useTableResizable'
@@ -1785,6 +1888,22 @@ const excludeZeroPrice = ref(true)
 const providerModelsList = ref<any[]>([])
 const isDetailLoading = ref(false)
 
+// 官网模型映射模态框
+const showOfficialMappingModal = ref(false)
+const openOfficialMappingModal = () => {
+  showOfficialMappingModal.value = true
+}
+const handleOfficialMappingSaved = async () => {
+  if (selectedProvider.value) {
+    try {
+      const res = await axios.get(`${store.apiUrl}/api/v1/channels/${selectedProvider.value.id}/models`)
+      providerModelsList.value = res.data || []
+    } catch (e) {
+      console.error('Refresh provider models failed:', e)
+    }
+  }
+}
+
 // 列宽调整 (可拖拽 resize 与持久化)
 const DEFAULT_CHANNEL_DETAIL_COL_WIDTHS = {
   model_name: 300,
@@ -1793,6 +1912,7 @@ const DEFAULT_CHANNEL_DETAIL_COL_WIDTHS = {
   input_price: 110,
   output_price: 110,
   cache_price: 110,
+  official_discount: 140,
   reasoning: 80,
   tools: 80,
   tps: 90,
@@ -1820,6 +1940,7 @@ const DEFAULT_CHANNEL_COLUMNS: TableColumnDef[] = [
   { key: 'input_price', label: '输入单价', visible: true },
   { key: 'output_price', label: '输出单价', visible: true },
   { key: 'cache_price', label: '命中缓存单价', visible: true },
+  { key: 'official_discount', label: '官网基准 / 真实折扣', visible: true },
   { key: 'reasoning', label: '深度推理', visible: true },
   { key: 'tools', label: '工具调用', visible: true },
   { key: 'tps', label: '实测 TPS', visible: true },

@@ -35,6 +35,13 @@ async def init_db():
             "ALTER TABLE relay_sites ADD COLUMN currency VARCHAR(10) DEFAULT 'CNY';",
             "ALTER TABLE site_model_pricings ADD COLUMN group_name VARCHAR(100) DEFAULT '';",
             "ALTER TABLE site_model_pricings ADD COLUMN source_updated_at VARCHAR(40) DEFAULT '';",
+            "ALTER TABLE site_model_pricings ADD COLUMN official_model_id INTEGER;",
+            "ALTER TABLE site_model_pricings ADD COLUMN official_model_name VARCHAR(150) DEFAULT '';",
+            "ALTER TABLE site_model_pricings ADD COLUMN official_input_discount FLOAT;",
+            "ALTER TABLE site_model_pricings ADD COLUMN official_output_discount FLOAT;",
+            "ALTER TABLE site_model_pricings ADD COLUMN official_composite_discount FLOAT;",
+            "ALTER TABLE channel_model_mappings ADD COLUMN official_model_id INTEGER;",
+            "ALTER TABLE channel_model_mappings ADD COLUMN official_model_name VARCHAR(150) DEFAULT '';",
             "ALTER TABLE model_metadata ADD COLUMN last_updated VARCHAR(30) DEFAULT '';",
             "ALTER TABLE model_metadata ADD COLUMN family VARCHAR(80) DEFAULT '';",
         ]

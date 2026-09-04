@@ -18,6 +18,11 @@ export interface ComparisonItem {
   calculated_input_cny: number
   calculated_output_cny: number
   discount_percent: number
+  official_model_id?: number | null
+  official_model_name?: string
+  official_input_discount?: number | null
+  official_output_discount?: number | null
+  official_composite_discount?: number | null
   last_tested_tps: number
   site_score: number
   site_status: string
@@ -225,5 +230,44 @@ export interface ICloudSyncConfig {
     speed_tests: boolean
   }
 }
+
+export interface OfficialBenchmarkModel {
+  id: number
+  provider: string
+  provider_name: string
+  series: string
+  clean_name: string
+  raw_model_id: string
+  currency: string
+  official_input_price: number
+  official_output_price: number
+  official_cache_price: number
+  converted_input_usd: number
+  converted_output_usd: number
+  converted_cache_usd: number
+  converted_input_cny: number
+  converted_output_cny: number
+  converted_cache_cny: number
+  snapshot_id?: number | null
+  tier_range: string
+}
+
+export interface ChannelOfficialMatchItem {
+  channel_model_id?: number
+  channel_model_name: string
+  group_name?: string
+  calculated_input_usd: number
+  calculated_output_usd: number
+  is_matched: boolean
+  is_auto_matched: boolean
+  match_score: number
+  official_benchmark?: OfficialBenchmarkModel | null
+  official_model_id?: number | null
+  official_model_name?: string
+  input_discount?: number | null
+  output_discount?: number | null
+  composite_discount?: number | null
+}
+
 
 

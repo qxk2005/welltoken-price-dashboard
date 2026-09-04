@@ -10,16 +10,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, update
 
 from backend.app.database import get_db
-from backend.app.models.token_price import OfficialModelPrice, OfficialSnapshot, SystemSetting
+from backend.app.models.token_price import (
+    OfficialModelPrice,
+    OfficialSnapshot,
+    SystemSetting,
+    SiteModelPricing,
+    ChannelModelMapping,
+)
 from backend.app.schemas.token_schema import (
     OfficialModelPriceSchema,
     OfficialModelPriceUpdateNotes,
     OfficialSnapshotSchema,
     OfficialScrapeRequest,
     OfficialScrapeResponse,
+    ChannelMatchOfficialRequest,
+    SaveOfficialMappingsRequest,
 )
 from backend.app.services.official_scraper_service import official_scraper_service, OFFICIAL_TARGETS
 from backend.app.services.exchange_rate import exchange_rate_service
+from backend.app.services.official_benchmark_service import official_benchmark_service
 
 router = APIRouter(prefix="/official-pricing", tags=["Official Pricing"])
 
@@ -680,4 +689,159 @@ async def view_snapshot_html(
         soup.body.append(BeautifulSoup(highlight_code, "html.parser"))
 
     return HTMLResponse(content=str(soup))
+
+
+@router.get("/benchmarks", response_model=Dict[str, Any])
+async def get_benchmark_models(db: AsyncSession = Depends(get_db)):
+    """获取所有官网第一档去阶梯化标准基准模型列表"""
+    benchmarks = await official_benchmark_service.get_benchmark_models(db)
+    # 按厂商统计
+    providers_set = set()
+    for b in benchmarks:
+        providers_set.add((b["provider"], b["provider_name"]))
+    providers_list = [{"code": p[0], "name": p[1]} for p in sorted(list(providers_set), key=lambda x: x[0])]
+
+    return {
+        "status": "success",
+        "total": len(benchmarks),
+        "benchmarks": benchmarks,
+        "providers": providers_list,
+        "usd_to_cny_rate": exchange_rate_service.current_rate,
+    }
+
+
+@router.post("/match-channel-models/{channel_id}", response_model=Dict[str, Any])
+async def match_channel_models(
+    channel_id: int,
+    payload: Optional[ChannelMatchOfficialRequest] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    对指定渠道模型执行自动模糊匹配官网第一档基准模型
+    如果请求体传递了 models 数组则使用，否则自动查询 site_model_pricings 表中的渠道模型
+    """
+    channel_models = []
+    if payload and payload.models:
+        channel_models = [m.model_dump() for m in payload.models]
+    else:
+        # 查询该渠道已存在的模型价格记录
+        stmt = select(SiteModelPricing).where(SiteModelPricing.site_id == channel_id)
+        res = await db.execute(stmt)
+        pricings = res.scalars().all()
+        for p in pricings:
+            channel_models.append({
+                "id": p.id,
+                "site_model_name": p.site_model_name or p.model_id,
+                "model_id": p.model_id,
+                "group_name": p.group_name or "",
+                "calculated_input_usd": p.calculated_input_usd,
+                "calculated_output_usd": p.calculated_output_usd,
+            })
+
+    matches = await official_benchmark_service.match_channel_models(channel_id, channel_models, db)
+
+    matched_count = sum(1 for m in matches if m.get("is_matched"))
+    unmatched_count = len(matches) - matched_count
+    
+    # 计算有效折扣平均值
+    discounts = [m["composite_discount"] for m in matches if m.get("composite_discount") is not None]
+    avg_discount = round(sum(discounts) / len(discounts), 3) if discounts else None
+
+    return {
+        "status": "success",
+        "channel_id": channel_id,
+        "total_models": len(matches),
+        "matched_count": matched_count,
+        "unmatched_count": unmatched_count,
+        "avg_discount": avg_discount,
+        "items": matches,
+    }
+
+
+@router.post("/save-channel-mappings/{channel_id}", response_model=Dict[str, Any])
+async def save_channel_official_mappings(
+    channel_id: int,
+    payload: SaveOfficialMappingsRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    保存用户确认的渠道模型与官网标准模型映射关系，并更新数据库中的价格真实折扣
+    """
+    benchmarks = await official_benchmark_service.get_benchmark_models(db)
+    bench_map = {b["id"]: b for b in benchmarks}
+
+    # 查询该渠道已有的模型价格记录
+    pricings_stmt = select(SiteModelPricing).where(SiteModelPricing.site_id == channel_id)
+    p_res = await db.execute(pricings_stmt)
+    existing_pricings = p_res.scalars().all()
+    pricings_map = {
+        p.site_model_name or p.model_id: p for p in existing_pricings
+    }
+
+    # 查询已有的渠道映射记录
+    maps_stmt = select(ChannelModelMapping).where(ChannelModelMapping.site_id == channel_id)
+    m_res = await db.execute(maps_stmt)
+    existing_maps = {m.channel_model_name: m for m in m_res.scalars().all()}
+
+    saved_count = 0
+    updated_pricing_count = 0
+
+    for item in payload.mappings:
+        c_name = item.channel_model_name.strip()
+        if not c_name:
+            continue
+
+        off_id = item.official_model_id
+        off_bench = bench_map.get(off_id) if off_id else None
+        off_name = off_bench["clean_name"] if off_bench else (item.official_model_name or "")
+
+        # 1. 更新或创建 ChannelModelMapping
+        if c_name in existing_maps:
+            cm = existing_maps[c_name]
+            cm.official_model_id = off_id
+            cm.official_model_name = off_name
+        else:
+            new_cm = ChannelModelMapping(
+                site_id=channel_id,
+                channel_model_name=c_name,
+                standard_model_id=off_bench["raw_model_id"] if off_bench else c_name,
+                official_model_id=off_id,
+                official_model_name=off_name,
+            )
+            db.add(new_cm)
+            existing_maps[c_name] = new_cm
+        saved_count += 1
+
+        # 2. 同步更新 SiteModelPricing 中的官网字段与真实折扣
+        if c_name in pricings_map:
+            p_obj = pricings_map[c_name]
+            p_obj.official_model_id = off_id
+            p_obj.official_model_name = off_name
+
+            if off_bench:
+                disc = official_benchmark_service.calculate_discount(
+                    p_obj.calculated_input_usd,
+                    p_obj.calculated_output_usd,
+                    off_bench["converted_input_usd"],
+                    off_bench["converted_output_usd"]
+                )
+                p_obj.official_input_discount = disc["input_discount"]
+                p_obj.official_output_discount = disc["output_discount"]
+                p_obj.official_composite_discount = disc["composite_discount"]
+            else:
+                p_obj.official_input_discount = None
+                p_obj.official_output_discount = None
+                p_obj.official_composite_discount = None
+            updated_pricing_count += 1
+
+    await db.commit()
+
+    return {
+        "status": "success",
+        "channel_id": channel_id,
+        "saved_mappings_count": saved_count,
+        "updated_pricings_count": updated_pricing_count,
+        "message": f"成功保存 {saved_count} 条模型官网映射并更新真实折扣",
+    }
+
 
