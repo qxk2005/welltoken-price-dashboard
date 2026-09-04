@@ -23,12 +23,15 @@ class OfficialBenchmarkService:
         如: "Qwen3 Max [0, 280k)" -> "Qwen3 Max"
             "Claude 3.5 Sonnet (Batch 模式)" -> "Claude 3.5 Sonnet"
             "DeepSeek-V3 [0, 64k)" -> "DeepSeek-V3"
+            "GLM-5 输入长度 [0, 32)" -> "GLM-5"
         """
         if not raw_name:
             return ""
         name = raw_name.strip()
         # 去除方括号阶梯区间与时段标注，如 [0, 272k), [272k+), [高峰时段], [闲时优惠]
         name = re.sub(r"\s*\[\s*[^\]]+[\]\)]", "", name)
+        # 去除“输入长度”、“输出长度”、“上下文长度”等阶梯前置引导词
+        name = re.sub(r"\s*(?:输入长度|输出长度|上下文长度|长度|输入|输出)\s*$", "", name)
         # 去除圆括号模式标注如 (Batch 模式), (Flex 模式), (批处理)
         name = re.sub(r"\s*\((?:Batch|Flex|批处理|弹性|标准|Standard)[^)]*\)", "", name, flags=re.IGNORECASE)
         # 清理多余空格
@@ -45,8 +48,8 @@ class OfficialBenchmarkService:
         if not t_range or t_range == "无阶梯" or "免费" in t_range or "第一档" in t_range:
             return True
         
-        # 匹配区间起始为 0 的阶梯，例如 [0, 272k), [0, 100k)
-        if re.match(r"^\[\s*0\b", t_range):
+        # 匹配区间起始为 0 的阶梯，例如 [0, 272k), [0, 100k), 输入长度 [0, 32)
+        if re.search(r"\[\s*0\b", t_range):
             return True
         return False
 
@@ -106,6 +109,8 @@ class OfficialBenchmarkService:
 
             benchmarks[bench_key] = {
                 "id": p.id,
+                "model_id": raw_id,
+                "name": pure_name,
                 "provider": p.provider,
                 "provider_name": p.provider_name,
                 "series": p.series or "other",
@@ -168,14 +173,32 @@ class OfficialBenchmarkService:
         }
 
     def _normalize_name(self, name: str) -> str:
-        """标准化名称以便于比较"""
+        """标准化名称以便于比较 (深度纯化中文修饰词并兼容 Kimi 等代号)"""
+        if not name:
+            return ""
         s = name.lower().strip()
-        # 去除常见厂商前缀
-        s = re.sub(r"^(?:openai|anthropic|google|alibaba|deepseek|zhipu|kimi|minimax|siliconflow|aliyun|xiaomi|stepfun)/", "", s)
-        s = re.sub(r"^(?:openai|anthropic|google|alibaba|deepseek|zhipu|kimi|minimax|siliconflow|aliyun|xiaomi|stepfun)-", "", s)
-        # 去除特殊后缀
+        is_kimi = bool(re.match(r"^(?:kimi|moonshotai|moonshot)[/\-_:]", s))
+
+        # 1. 去除常见厂商前缀 (斜杠、破折号、下划线、冒号)
+        s = re.sub(r"^(?:openai|anthropic|google|alibaba|deepseek|zhipu|kimi|moonshotai|moonshot|minimax|siliconflow|aliyun|xiaomi|stepfun)[/\-_:]", "", s)
+
+        # 2. 剥离常见中文通用修饰词
+        noise_cn = r"(?:通用模型|旗舰模型|大模型|模型|旗舰|通用|全血版|标准版|专业版|高性价比|长文本|文本转语音|语音识别)"
+        s = re.sub(noise_cn, "", s)
+
+        # 3. 剥离常见英文修饰词
+        s = re.sub(r"\b(?:code\s*coding|code|coding|model|chat|instruct|preview|latest|version)\b", "", s)
+
+        # 4. 去除特殊模式后缀 (如 -vip, -fast, -free)
         s = re.sub(r"-(?:vip|fast|latest|free|pro|chat)$", "", s)
-        s = re.sub(r"[_\-:\.]", "", s)
+
+        # 5. Kimi 代号特别折叠兼容: 若以纯数字开头(如 '2.6' 或 '3')，统一补齐 'k' 与官方 (k2.6/k3) 绝对对齐
+        s = s.strip()
+        if is_kimi and re.match(r"^\d+(\.\d+)?", s):
+            s = "k" + s
+
+        # 6. 去除分隔符与空白
+        s = re.sub(r"[_\-:\.\s]", "", s)
         return s
 
     def fuzzy_match_one(

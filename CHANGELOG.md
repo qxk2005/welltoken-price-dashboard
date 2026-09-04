@@ -4,6 +4,25 @@
 
 ---
 
+## 🚀 [v1.4.5 智能映射模型选择器展示加固与智谱/Kimi模糊匹配升级版] - 2026-09-04
+
+### 🛠️ 缺陷修复与体验优化
+- **彻底修复模型智能映射选择框仅显示品牌 Badge 的缺陷**：
+  - 重构 [`ModelSearchSelect.vue`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/renderer/src/components/ModelSearchSelect.vue) 顶部触发器按钮取值逻辑，将写死读取 `selectedModel.model_id` 升级为统一安全解析函数 `getModelId(selectedModel)` 与 `getModelName(selectedModel)`；
+  - 彻底解决官方基准模型对象中键名为 `raw_model_id` / `clean_name` 导致 `selectedModel.model_id` 为空文本的根因；
+  - 优化视觉样式为 **`[品牌彩色徽章] 具体标准模型名`**（如 `[MOONSHOT (KIMI)] K2.6通用模型`、`[MINIMAX] MiniMax-M3`），完美呈现品牌与模型的双重层级；
+- **智谱 GLM-5 系列第一档基准模型全量收录修复**：
+  - 优化 [`official_benchmark_service.py`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/backend/app/services/official_benchmark_service.py) 中 `is_tier_one` 阶梯识别算法，改用 `re.search` 支持包含 `"输入长度 [0, 32)"` 等中文前置说明的第一档区间；
+  - 增强 `clean_benchmark_model_name` 清洗逻辑，安全过滤 `"输入长度"` 等前置引导词，纯化生成标准基准名 `GLM-5`；
+  - 渠道模型 `GLM-5` 现已实现 **1.0 满分精确匹配** 官方 `GLM-5`，同步收录 `GLM-5.1`、`GLM-5-Turbo`、`GLM-5V-Turbo` 等第一档标准模型；
+- **Moonshot Kimi 全系列模型智能模糊匹配深度纯化**：
+  - 算法自动过滤 `通用模型`、`旗舰模型`、`大模型` 等中文修饰词，并针对 Kimi 增加 `k` 代号前缀自动折叠兼容机制；
+  - `kimi-k2.6` / `kimi-2.6` 匹配 `K2.6通用模型` 置信度得分从原本的 0.35 跃升至 **0.95 分**，`kimi-k3` / `kimi-3` 亦 100% 自动匹配 `K3旗舰模型`；
+- **新增综合智能模糊匹配自动化测试**：
+  - 编写并集成 `test_model_fuzzy_matching.py`，完整覆盖 Kimi、GLM-5、MiniMax、StepFun 等主流厂商模型的清洗、匹配得分与基准联动，测试通过率 100%。
+
+---
+
 ## 🚀 [v1.4.4 阶跃星辰 (StepFun) 官方大模型定价与 10 家厂商全量抓取版] - 2026-09-04
 
 ### 🌟 重大新增与核心改进

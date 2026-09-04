@@ -7,14 +7,14 @@
       :class="modelValue ? 'border-[#E5E5EA] text-[#1D1D1F]' : 'border-[#FF9500] text-[#FF9500] bg-[#FFFBF5]'"
     >
       <div class="flex items-center space-x-1.5 truncate flex-1 mr-1">
-        <span v-if="selectedModel" class="px-1.5 py-0.2 rounded text-[10px] font-bold uppercase font-mono" :class="getProviderBadgeClass(selectedModel.provider)">
-          {{ selectedModel.provider }}
+        <span v-if="selectedModel" class="px-1.5 py-0.2 rounded text-[10px] font-bold uppercase font-mono shrink-0" :class="getProviderBadgeClass(selectedModel.provider)">
+          {{ selectedModel.provider_name || selectedModel.provider }}
         </span>
         <span v-if="selectedModel" class="font-mono text-[11px] font-semibold text-[#1D1D1F] truncate">
-          {{ selectedModel.model_id }}
+          {{ getModelId(selectedModel) }}
         </span>
-        <span v-if="selectedModel && selectedModel.name && selectedModel.name !== selectedModel.model_id" class="text-[10px] text-[#86868B] truncate">
-          ({{ selectedModel.name }})
+        <span v-if="selectedModel && getModelName(selectedModel) && getModelName(selectedModel) !== getModelId(selectedModel)" class="text-[10px] text-[#86868B] truncate">
+          ({{ getModelName(selectedModel) }})
         </span>
         <span v-else-if="!modelValue" class="text-[#FF9500] flex items-center space-x-1 text-[11px]">
           <span>🔍</span>
@@ -257,7 +257,7 @@ function getModelId(item: any): string {
 
 function getModelName(item: any): string {
   if (!item) return ''
-  return item.clean_name || item.name || item.model_name || getModelId(item)
+  return item.name || item.clean_name || item.model_name || getModelId(item)
 }
 
 const newModelForm = reactive({
@@ -276,11 +276,13 @@ const selectedModel = computed(() => {
   return (
     props.modelsCatalog.find((m: any) =>
       getModelId(m).toLowerCase() === target ||
-      (m.clean_name && m.clean_name.toLowerCase() === target)
+      (m.clean_name && m.clean_name.toLowerCase() === target) ||
+      (m.raw_model_id && m.raw_model_id.toLowerCase() === target) ||
+      (m.model_id && m.model_id.toLowerCase() === target)
     ) || {
       model_id: props.modelValue,
       name: props.modelValue,
-      provider: 'custom',
+      provider: inferProvider(props.modelValue),
       official_input_price: 2.0
     }
   )
