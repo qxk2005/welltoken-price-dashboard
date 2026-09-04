@@ -8,6 +8,7 @@ const props = defineProps<{
   show: boolean
   channelId: number
   channelName: string
+  channelCurrency?: string
   channelModels: any[]
 }>()
 
@@ -26,6 +27,9 @@ const mappingList = ref<ChannelOfficialMatchItem[]>([])
 const searchQuery = ref('')
 const activeFilter = ref<'all' | 'unmatched' | 'matched' | 'discount' | 'premium'>('all')
 const selectedProviderFilter = ref<string>('all')
+
+// 计价货币切换 ('CNY' 或 'USD')，默认自适应渠道计价货币
+const currentDisplayCurrency = ref<'CNY' | 'USD'>('CNY')
 
 // 汇率
 const usdToCnyRate = ref<number>(7.3)
@@ -71,12 +75,15 @@ const loadData = async () => {
 }
 
 watch(
-  () => props.show,
-  (val) => {
-    if (val) {
+  () => [props.show, props.channelCurrency],
+  ([showVal]) => {
+    if (showVal) {
       searchQuery.value = ''
       activeFilter.value = 'all'
       selectedProviderFilter.value = 'all'
+      // 默认优先采用当前渠道的计价货币，若未传则跟随全局 store.currency
+      const initialCurr = (props.channelCurrency || store.currency || 'CNY').toUpperCase()
+      currentDisplayCurrency.value = initialCurr === 'USD' ? 'USD' : 'CNY'
       loadData()
     }
   },
@@ -298,12 +305,36 @@ const saveMappings = async () => {
           </div>
         </div>
 
-        <button
-          @click="emit('close')"
-          class="w-8 h-8 rounded-full bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#86868B] hover:text-[#1D1D1F] flex items-center justify-center text-sm font-bold transition-colors cursor-pointer"
-        >
-          ✕
-        </button>
+        <div class="flex items-center space-x-3">
+          <!-- 计价货币切换胶囊按钮 (独立切换 CNY/USD) -->
+          <div class="inline-flex p-0.5 rounded-xl bg-[#E5E5EA]/70 border border-[#D1D1D6]/60 text-xs">
+            <button
+              @click="currentDisplayCurrency = 'CNY'"
+              class="px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer flex items-center space-x-1"
+              :class="currentDisplayCurrency === 'CNY' ? 'bg-white text-[#1D1D1F] shadow-2xs font-bold' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+              title="切换为人民币 (¥ CNY) 计价基准展示"
+            >
+              <span>¥</span>
+              <span>人民币 (CNY)</span>
+            </button>
+            <button
+              @click="currentDisplayCurrency = 'USD'"
+              class="px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer flex items-center space-x-1"
+              :class="currentDisplayCurrency === 'USD' ? 'bg-white text-[#1D1D1F] shadow-2xs font-bold' : 'text-[#6E6E73] hover:text-[#1D1D1F]'"
+              title="切换为美元 ($ USD) 计价基准展示"
+            >
+              <span>$</span>
+              <span>美元 (USD)</span>
+            </button>
+          </div>
+
+          <button
+            @click="emit('close')"
+            class="w-8 h-8 rounded-full bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#86868B] hover:text-[#1D1D1F] flex items-center justify-center text-sm font-bold transition-colors cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       <!-- 2. 四维统计看板与操作栏 -->
@@ -427,9 +458,9 @@ const saveMappings = async () => {
             <tr>
               <th class="py-2.5 px-4 w-12 text-center">状态</th>
               <th class="py-2.5 px-4 w-64">渠道原生模型 / 分组</th>
-              <th class="py-2.5 px-3 w-40 text-right">渠道实际折算价</th>
+              <th class="py-2.5 px-3 w-40 text-right">渠道实际折算价 ({{ currentDisplayCurrency === 'CNY' ? '¥' : '$' }})</th>
               <th class="py-2.5 px-4 w-72">映射的官网标准模型 (第一档)</th>
-              <th class="py-2.5 px-3 w-40 text-right">官网第一档基准价</th>
+              <th class="py-2.5 px-3 w-40 text-right">官网第一档基准价 ({{ currentDisplayCurrency === 'CNY' ? '¥' : '$' }})</th>
               <th class="py-2.5 px-4 w-44 text-center">真实折扣 / 溢价率</th>
             </tr>
           </thead>
@@ -477,15 +508,26 @@ const saveMappings = async () => {
                 </div>
               </td>
 
-              <!-- 3. 渠道实际折算价 (USD 与 CNY) -->
+              <!-- 3. 渠道实际折算价 (根据当前切换货币主显) -->
               <td class="py-3 px-3 text-right font-mono">
-                <div class="text-[#1D1D1F] font-bold">
-                  ${{ item.calculated_input_usd.toFixed(4) }}
-                  <span class="text-[10px] text-[#86868B] font-normal">/ ${{ item.calculated_output_usd.toFixed(4) }}</span>
-                </div>
-                <div class="text-[10px] text-[#86868B]">
-                  ¥{{ (item.calculated_input_usd * usdToCnyRate).toFixed(3) }} / ¥{{ (item.calculated_output_usd * usdToCnyRate).toFixed(3) }}
-                </div>
+                <template v-if="currentDisplayCurrency === 'CNY'">
+                  <div class="text-[#1D1D1F] font-bold">
+                    ¥{{ (item.calculated_input_usd * usdToCnyRate).toFixed(3) }}
+                    <span class="text-[10px] text-[#86868B] font-normal">/ ¥{{ (item.calculated_output_usd * usdToCnyRate).toFixed(3) }}</span>
+                  </div>
+                  <div class="text-[10px] text-[#86868B]">
+                    ${{ item.calculated_input_usd.toFixed(4) }} / ${{ item.calculated_output_usd.toFixed(4) }}
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="text-[#1D1D1F] font-bold">
+                    ${{ item.calculated_input_usd.toFixed(4) }}
+                    <span class="text-[10px] text-[#86868B] font-normal">/ ${{ item.calculated_output_usd.toFixed(4) }}</span>
+                  </div>
+                  <div class="text-[10px] text-[#86868B]">
+                    ¥{{ (item.calculated_input_usd * usdToCnyRate).toFixed(3) }} / ¥{{ (item.calculated_output_usd * usdToCnyRate).toFixed(3) }}
+                  </div>
+                </template>
               </td>
 
               <!-- 4. 映射的官网标准模型 (下拉选择器) -->
@@ -510,23 +552,35 @@ const saveMappings = async () => {
                         :key="b.id"
                         :value="b.id"
                       >
-                        {{ b.clean_name }} (基准: ${{ b.converted_input_usd }}/${{ b.converted_output_usd }})
+                        {{ b.clean_name }} (基准: {{ currentDisplayCurrency === 'CNY' ? `¥${b.converted_input_cny}/¥${b.converted_output_cny}` : `$${b.converted_input_usd}/$${b.converted_output_usd}` }})
                       </option>
                     </optgroup>
                   </select>
                 </div>
               </td>
 
-              <!-- 5. 官网第一档基准价 -->
+              <!-- 5. 官网第一档基准价 (根据当前切换货币主显) -->
               <td class="py-3 px-3 text-right font-mono">
                 <template v-if="item.official_benchmark">
-                  <div class="text-[#0071E3] font-bold">
-                    ${{ item.official_benchmark.converted_input_usd }}
-                    <span class="text-[10px] text-[#86868B] font-normal">/ ${{ item.official_benchmark.converted_output_usd }}</span>
-                  </div>
-                  <div class="text-[10px] text-[#86868B]">
-                    {{ item.official_benchmark.currency === 'CNY' ? `原厂: ¥${item.official_benchmark.official_input_price}/¥${item.official_benchmark.official_output_price}` : `¥${item.official_benchmark.converted_input_cny}/¥${item.official_benchmark.converted_output_cny}` }}
-                  </div>
+                  <template v-if="currentDisplayCurrency === 'CNY'">
+                    <div class="text-[#0071E3] font-bold">
+                      ¥{{ item.official_benchmark.converted_input_cny }}
+                      <span class="text-[10px] text-[#86868B] font-normal">/ ¥{{ item.official_benchmark.converted_output_cny }}</span>
+                    </div>
+                    <div class="text-[10px] text-[#86868B]">
+                      ${{ item.official_benchmark.converted_input_usd }} / ${{ item.official_benchmark.converted_output_usd }}
+                      <span v-if="item.official_benchmark.currency === 'USD'" class="opacity-70">(原厂: ${{ item.official_benchmark.official_input_price }})</span>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div class="text-[#0071E3] font-bold">
+                      ${{ item.official_benchmark.converted_input_usd }}
+                      <span class="text-[10px] text-[#86868B] font-normal">/ ${{ item.official_benchmark.converted_output_usd }}</span>
+                    </div>
+                    <div class="text-[10px] text-[#86868B]">
+                      {{ item.official_benchmark.currency === 'CNY' ? `原厂: ¥${item.official_benchmark.official_input_price}/¥${item.official_benchmark.official_output_price}` : `¥${item.official_benchmark.converted_input_cny}/¥${item.official_benchmark.converted_output_cny}` }}
+                    </div>
+                  </template>
                 </template>
                 <template v-else>
                   <span class="text-[#AEAEB2] text-[11px]">- 未关联官网 -</span>

@@ -1684,6 +1684,7 @@
       :show="showOfficialMappingModal"
       :channel-id="selectedProvider?.id || 0"
       :channel-name="selectedProvider?.name || ''"
+      :channel-currency="selectedProvider?.currency || store.currency || 'CNY'"
       :channel-models="providerModelsList"
       @close="showOfficialMappingModal = false"
       @saved="handleOfficialMappingSaved"
