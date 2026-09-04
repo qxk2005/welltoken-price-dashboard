@@ -97,6 +97,7 @@ data/*
 !data/cache/
 !data/cache/*.json
 !data/cache/.gitkeep
+!data/official_prices_seed.json
 logs/
 *.log
 
