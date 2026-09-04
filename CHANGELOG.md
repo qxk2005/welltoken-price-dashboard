@@ -4,6 +4,17 @@
 
 ---
 
+## 🚀 [v1.4.6 macOS全新安装重连自愈与代理绕过加固版] - 2026-09-04
+
+### 🛠️ 缺陷修复与稳定性加固
+- **彻底解决全新 macOS 安装启动后右下角一直显示“重连中...”问题**：
+  - **macOS Gatekeeper Quarantine 隔离属性自动脱敏**：在 [`pyManager.ts`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/main/pyManager.ts) 启动独立 Python 后端前，自动递归执行 `xattr -d -r com.apple.quarantine` 清除隔离属性并赋予 `chmod 755` 权限，彻底杜绝从 DMG 拖入安装后二进制被系统静默阻断；
+  - **强制本地回环绕过系统代理（防劫持双保险）**：在 [`src/main/index.ts`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/main/index.ts) 中注入 Chromium 启动开关与 Session 策略 `proxyBypassRules: '<local>;127.0.0.1;localhost;::1'`，并为子进程环境变量注入 `NO_PROXY=127.0.0.1,localhost,::1`，彻底杜绝代理软件拦截本地高位端口 `127.0.0.1:8765` 导致前端与后端断连；
+  - **全生命周期日志自动落盘**：后端启动、标准输出、标准错误与进程异常退出码统一实时追加写入日志文件（`~/Library/Application Support/WellTokenDashboard/logs/backend.log`），消灭盲区；
+  - **状态栏一键诊断与日志直达**：在底部状态栏增加点击交互弹窗，未就绪时高亮展示具体错误原因，并提供【打开运行日志 (backend.log)】与【重启后端服务】快捷按钮；在【关于程序】视图同步增设服务诊断与日志专区。
+
+---
+
 ## 🚀 [v1.4.5 智能映射模型选择器展示加固与智谱/Kimi模糊匹配升级版] - 2026-09-04
 
 ### 🛠️ 缺陷修复与体验优化

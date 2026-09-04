@@ -16,7 +16,13 @@ const api = {
   openPath: (targetPath: string): Promise<boolean> =>
     ipcRenderer.invoke('open-path', targetPath),
   getPlatform: (): Promise<string> =>
-    ipcRenderer.invoke('get-platform')
+    ipcRenderer.invoke('get-platform'),
+  getBackendStatus: (): Promise<any> =>
+    ipcRenderer.invoke('get-backend-status'),
+  openBackendLog: (): Promise<boolean> =>
+    ipcRenderer.invoke('open-backend-log'),
+  restartBackend: (): Promise<boolean> =>
+    ipcRenderer.invoke('restart-backend')
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

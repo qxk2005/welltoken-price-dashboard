@@ -144,6 +144,53 @@
           </div>
         </section>
 
+        <!-- 1.1 本地 Python 后端服务诊断与日志专区 -->
+        <section class="bg-white border border-[#E5E5EA] rounded-2xl p-4 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-xl flex items-center justify-center" :class="store.isConnected ? 'bg-[#34C759]/10 text-[#34C759]' : 'bg-[#FF3B30]/10 text-[#FF3B30]'">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                <line x1="6" y1="18" x2="6.01" y2="18"></line>
+              </svg>
+            </div>
+            <div>
+              <div class="flex items-center space-x-2">
+                <h3 class="text-xs font-bold text-[#1D1D1F]">本地独立 Python 后端服务</h3>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold font-mono" :class="store.isConnected ? 'bg-[#EBF9EE] text-[#34C759]' : 'bg-[#FEECEB] text-[#FF3B30]'">
+                  {{ store.isConnected ? '● 运行中 (HTTP 200)' : '○ 未就绪 / 重连中' }}
+                </span>
+              </div>
+              <p class="text-[11px] text-[#86868B] mt-0.5 font-mono">
+                监听地址: http://127.0.0.1:8765 • 内置系统代理自动绕过与 Gatekeeper 脱敏机制
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+            <button
+              @click="handleOpenBackendLog"
+              class="px-3 py-1.5 rounded-xl border border-[#E5E5EA] text-[#1D1D1F] font-bold text-xs hover:bg-[#F5F5F7] active:bg-[#E5E5EA] transition-all flex items-center space-x-1.5 cursor-pointer"
+            >
+              <svg class="w-3.5 h-3.5 text-[#86868B]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+              <span>查看后端日志 (backend.log)</span>
+            </button>
+            <button
+              @click="handleRestartBackend"
+              :disabled="restarting"
+              class="px-3 py-1.5 rounded-xl bg-[#0071E3] text-white font-bold text-xs hover:bg-[#0077ED] active:bg-[#0062C4] disabled:opacity-50 transition-all flex items-center space-x-1 cursor-pointer"
+            >
+              <span>{{ restarting ? '重启中...' : '重启服务' }}</span>
+            </button>
+          </div>
+        </section>
+
         <!-- 2. 版本变化日志时间轴标题与过滤栏 -->
         <section class="bg-white border border-[#E5E5EA] rounded-2xl p-5 shadow-2xs space-y-4">
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-[#E5E5EA]">
@@ -336,9 +383,31 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { versionInfo } from '../generated/version_info'
+import { useDashboardStore } from '../stores/dashboardStore'
 
+const store = useDashboardStore()
 const searchQuery = ref('')
 const copySuccess = ref(false)
+const restarting = ref(false)
+
+async function handleOpenBackendLog() {
+  if (window.api?.openBackendLog) {
+    await window.api.openBackendLog()
+  }
+}
+
+async function handleRestartBackend() {
+  if (window.api?.restartBackend) {
+    restarting.value = true
+    try {
+      await window.api.restartBackend()
+      await new Promise((r) => setTimeout(r, 1500))
+      await store.init()
+    } finally {
+      restarting.value = false
+    }
+  }
+}
 
 // 默认展开最新版本
 const expandedVersions = ref<Record<string, boolean>>({

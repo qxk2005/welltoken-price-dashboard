@@ -1,7 +1,10 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, session } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { pyManager } from './pyManager'
+
+// 关键加固 1: 早期强制 Chromium 将本地回环地址加入代理绕过名单，防止系统代理劫持本地端口
+app.commandLine.appendSwitch('proxy-bypass-list', '<local>;127.0.0.1;localhost;::1')
 
 let mainWindow: BrowserWindow | null = null
 
@@ -51,6 +54,36 @@ function setupIpc(): void {
     }
   })
 
+  ipcMain.handle('get-backend-status', () => {
+    return pyManager.getStatus()
+  })
+
+  ipcMain.handle('open-backend-log', async () => {
+    try {
+      const logPath = pyManager.getLogFilePath()
+      if (logPath) {
+        await shell.openPath(logPath)
+        return true
+      }
+      return false
+    } catch (e) {
+      console.error('Failed to open backend log:', e)
+      return false
+    }
+  })
+
+  ipcMain.handle('restart-backend', async () => {
+    try {
+      pyManager.stop()
+      await new Promise((r) => setTimeout(r, 1000))
+      await pyManager.start()
+      return await pyManager.isBackendHealthy()
+    } catch (e) {
+      console.error('Failed to restart backend:', e)
+      return false
+    }
+  })
+
   ipcMain.handle('check-backend-health', async () => {
     return await pyManager.isBackendHealthy()
   })
@@ -94,6 +127,16 @@ function setupIpc(): void {
 app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.welltoken.pricedashboard')
+
+  // 关键加固 2: 确保当前 Session 强制将本地回环排除在代理外
+  try {
+    await session.defaultSession.setProxy({
+      mode: 'system',
+      proxyBypassRules: '<local>;127.0.0.1;localhost;::1'
+    })
+  } catch (err) {
+    console.warn('[ProxyBypass] Warning configuring session proxy bypass:', err)
+  }
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

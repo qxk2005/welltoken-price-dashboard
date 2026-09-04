@@ -8,6 +8,9 @@ interface CustomAPI {
   closeWindow: () => Promise<void>
   openPath: (targetPath: string) => Promise<boolean>
   getPlatform: () => Promise<string>
+  getBackendStatus: () => Promise<any>
+  openBackendLog: () => Promise<boolean>
+  restartBackend: () => Promise<boolean>
 }
 
 declare global {

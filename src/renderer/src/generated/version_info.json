@@ -1,24 +1,43 @@
 {
   "name": "welltoken-price-dashboard",
   "productName": "WellToken Price Dashboard",
-  "version": "1.4.5",
-  "fullVersion": "v1.4.5",
+  "version": "1.4.6",
+  "fullVersion": "v1.4.6",
   "description": "Cross-platform Token & Crypto Price Dashboard built with Electron, Vue 3, SQLite and Python FastAPI",
   "author": "qxk2005",
   "homepage": "https://github.com/qxk2005/welltoken-price-dashboard",
   "git": {
-    "commit": "f004b55",
+    "commit": "ed8cbc9",
     "branch": "main",
-    "date": "2026-09-04 15:35:17 +0800"
+    "date": "2026-09-04 17:25:32 +0800"
   },
   "build": {
-    "time": "2026-09-04 15:36:44",
-    "iso": "2026-09-04T07:36:44.488Z",
+    "time": "2026-09-04 17:25:32",
+    "iso": "2026-09-04T09:25:32.323Z",
     "node": "v25.9.0",
     "platform": "darwin",
     "arch": "arm64"
   },
   "changelog": [
+    {
+      "version": "1.4.6",
+      "tag": "v1.4.6 macOS全新安装重连自愈与代理绕过加固版",
+      "fullTitle": "[v1.4.6 macOS全新安装重连自愈与代理绕过加固版] - 2026-09-04",
+      "date": "2026-09-04",
+      "sections": [
+        {
+          "title": "🛠️ 缺陷修复与稳定性加固",
+          "items": [
+            "**彻底解决全新 macOS 安装启动后右下角一直显示“重连中...”问题**：",
+            "**macOS Gatekeeper Quarantine 隔离属性自动脱敏**：在 [`pyManager.ts`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/main/pyManager.ts) 启动独立 Python 后端前，自动递归执行 `xattr -d -r com.apple.quarantine` 清除隔离属性并赋予 `chmod 755` 权限，彻底杜绝从 DMG 拖入安装后二进制被系统静默阻断；",
+            "**强制本地回环绕过系统代理（防劫持双保险）**：在 [`src/main/index.ts`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/main/index.ts) 中注入 Chromium 启动开关与 Session 策略 `proxyBypassRules: '<local>;127.0.0.1;localhost;::1'`，并为子进程环境变量注入 `NO_PROXY=127.0.0.1,localhost,::1`，彻底杜绝代理软件拦截本地高位端口 `127.0.0.1:8765` 导致前端与后端断连；",
+            "**全生命周期日志自动落盘**：后端启动、标准输出、标准错误与进程异常退出码统一实时追加写入日志文件（`~/Library/Application Support/WellTokenDashboard/logs/backend.log`），消灭盲区；",
+            "**状态栏一键诊断与日志直达**：在底部状态栏增加点击交互弹窗，未就绪时高亮展示具体错误原因，并提供【打开运行日志 (backend.log)】与【重启后端服务】快捷按钮；在【关于程序】视图同步增设服务诊断与日志专区。"
+          ]
+        }
+      ],
+      "rawContent": "### 🛠️ 缺陷修复与稳定性加固\n- **彻底解决全新 macOS 安装启动后右下角一直显示“重连中...”问题**：\n  - **macOS Gatekeeper Quarantine 隔离属性自动脱敏**：在 [`pyManager.ts`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/main/pyManager.ts) 启动独立 Python 后端前，自动递归执行 `xattr -d -r com.apple.quarantine` 清除隔离属性并赋予 `chmod 755` 权限，彻底杜绝从 DMG 拖入安装后二进制被系统静默阻断；\n  - **强制本地回环绕过系统代理（防劫持双保险）**：在 [`src/main/index.ts`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/main/index.ts) 中注入 Chromium 启动开关与 Session 策略 `proxyBypassRules: '<local>;127.0.0.1;localhost;::1'`，并为子进程环境变量注入 `NO_PROXY=127.0.0.1,localhost,::1`，彻底杜绝代理软件拦截本地高位端口 `127.0.0.1:8765` 导致前端与后端断连；\n  - **全生命周期日志自动落盘**：后端启动、标准输出、标准错误与进程异常退出码统一实时追加写入日志文件（`~/Library/Application Support/WellTokenDashboard/logs/backend.log`），消灭盲区；\n  - **状态栏一键诊断与日志直达**：在底部状态栏增加点击交互弹窗，未就绪时高亮展示具体错误原因，并提供【打开运行日志 (backend.log)】与【重启后端服务】快捷按钮；在【关于程序】视图同步增设服务诊断与日志专区。\n\n---"
+    },
     {
       "version": "1.4.5",
       "tag": "v1.4.5 智能映射模型选择器展示加固与智谱/Kimi模糊匹配升级版",
@@ -362,30 +381,22 @@
     }
   ],
   "latestChangelog": {
-    "version": "1.4.5",
-    "tag": "v1.4.5 智能映射模型选择器展示加固与智谱/Kimi模糊匹配升级版",
-    "fullTitle": "[v1.4.5 智能映射模型选择器展示加固与智谱/Kimi模糊匹配升级版] - 2026-09-04",
+    "version": "1.4.6",
+    "tag": "v1.4.6 macOS全新安装重连自愈与代理绕过加固版",
+    "fullTitle": "[v1.4.6 macOS全新安装重连自愈与代理绕过加固版] - 2026-09-04",
     "date": "2026-09-04",
     "sections": [
       {
-        "title": "🛠️ 缺陷修复与体验优化",
+        "title": "🛠️ 缺陷修复与稳定性加固",
         "items": [
-          "**彻底修复模型智能映射选择框仅显示品牌 Badge 的缺陷**：",
-          "重构 [`ModelSearchSelect.vue`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/renderer/src/components/ModelSearchSelect.vue) 顶部触发器按钮取值逻辑，将写死读取 `selectedModel.model_id` 升级为统一安全解析函数 `getModelId(selectedModel)` 与 `getModelName(selectedModel)`；",
-          "彻底解决官方基准模型对象中键名为 `raw_model_id` / `clean_name` 导致 `selectedModel.model_id` 为空文本的根因；",
-          "优化视觉样式为 **`[品牌彩色徽章] 具体标准模型名`**（如 `[MOONSHOT (KIMI)] K2.6通用模型`、`[MINIMAX] MiniMax-M3`），完美呈现品牌与模型的双重层级；",
-          "**智谱 GLM-5 系列第一档基准模型全量收录修复**：",
-          "优化 [`official_benchmark_service.py`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/backend/app/services/official_benchmark_service.py) 中 `is_tier_one` 阶梯识别算法，改用 `re.search` 支持包含 `\"输入长度 [0, 32)\"` 等中文前置说明的第一档区间；",
-          "增强 `clean_benchmark_model_name` 清洗逻辑，安全过滤 `\"输入长度\"` 等前置引导词，纯化生成标准基准名 `GLM-5`；",
-          "渠道模型 `GLM-5` 现已实现 **1.0 满分精确匹配** 官方 `GLM-5`，同步收录 `GLM-5.1`、`GLM-5-Turbo`、`GLM-5V-Turbo` 等第一档标准模型；",
-          "**Moonshot Kimi 全系列模型智能模糊匹配深度纯化**：",
-          "算法自动过滤 `通用模型`、`旗舰模型`、`大模型` 等中文修饰词，并针对 Kimi 增加 `k` 代号前缀自动折叠兼容机制；",
-          "`kimi-k2.6` / `kimi-2.6` 匹配 `K2.6通用模型` 置信度得分从原本的 0.35 跃升至 **0.95 分**，`kimi-k3` / `kimi-3` 亦 100% 自动匹配 `K3旗舰模型`；",
-          "**新增综合智能模糊匹配自动化测试**：",
-          "编写并集成 `test_model_fuzzy_matching.py`，完整覆盖 Kimi、GLM-5、MiniMax、StepFun 等主流厂商模型的清洗、匹配得分与基准联动，测试通过率 100%。"
+          "**彻底解决全新 macOS 安装启动后右下角一直显示“重连中...”问题**：",
+          "**macOS Gatekeeper Quarantine 隔离属性自动脱敏**：在 [`pyManager.ts`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/main/pyManager.ts) 启动独立 Python 后端前，自动递归执行 `xattr -d -r com.apple.quarantine` 清除隔离属性并赋予 `chmod 755` 权限，彻底杜绝从 DMG 拖入安装后二进制被系统静默阻断；",
+          "**强制本地回环绕过系统代理（防劫持双保险）**：在 [`src/main/index.ts`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/main/index.ts) 中注入 Chromium 启动开关与 Session 策略 `proxyBypassRules: '<local>;127.0.0.1;localhost;::1'`，并为子进程环境变量注入 `NO_PROXY=127.0.0.1,localhost,::1`，彻底杜绝代理软件拦截本地高位端口 `127.0.0.1:8765` 导致前端与后端断连；",
+          "**全生命周期日志自动落盘**：后端启动、标准输出、标准错误与进程异常退出码统一实时追加写入日志文件（`~/Library/Application Support/WellTokenDashboard/logs/backend.log`），消灭盲区；",
+          "**状态栏一键诊断与日志直达**：在底部状态栏增加点击交互弹窗，未就绪时高亮展示具体错误原因，并提供【打开运行日志 (backend.log)】与【重启后端服务】快捷按钮；在【关于程序】视图同步增设服务诊断与日志专区。"
         ]
       }
     ],
-    "rawContent": "### 🛠️ 缺陷修复与体验优化\n- **彻底修复模型智能映射选择框仅显示品牌 Badge 的缺陷**：\n  - 重构 [`ModelSearchSelect.vue`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/renderer/src/components/ModelSearchSelect.vue) 顶部触发器按钮取值逻辑，将写死读取 `selectedModel.model_id` 升级为统一安全解析函数 `getModelId(selectedModel)` 与 `getModelName(selectedModel)`；\n  - 彻底解决官方基准模型对象中键名为 `raw_model_id` / `clean_name` 导致 `selectedModel.model_id` 为空文本的根因；\n  - 优化视觉样式为 **`[品牌彩色徽章] 具体标准模型名`**（如 `[MOONSHOT (KIMI)] K2.6通用模型`、`[MINIMAX] MiniMax-M3`），完美呈现品牌与模型的双重层级；\n- **智谱 GLM-5 系列第一档基准模型全量收录修复**：\n  - 优化 [`official_benchmark_service.py`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/backend/app/services/official_benchmark_service.py) 中 `is_tier_one` 阶梯识别算法，改用 `re.search` 支持包含 `\"输入长度 [0, 32)\"` 等中文前置说明的第一档区间；\n  - 增强 `clean_benchmark_model_name` 清洗逻辑，安全过滤 `\"输入长度\"` 等前置引导词，纯化生成标准基准名 `GLM-5`；\n  - 渠道模型 `GLM-5` 现已实现 **1.0 满分精确匹配** 官方 `GLM-5`，同步收录 `GLM-5.1`、`GLM-5-Turbo`、`GLM-5V-Turbo` 等第一档标准模型；\n- **Moonshot Kimi 全系列模型智能模糊匹配深度纯化**：\n  - 算法自动过滤 `通用模型`、`旗舰模型`、`大模型` 等中文修饰词，并针对 Kimi 增加 `k` 代号前缀自动折叠兼容机制；\n  - `kimi-k2.6` / `kimi-2.6` 匹配 `K2.6通用模型` 置信度得分从原本的 0.35 跃升至 **0.95 分**，`kimi-k3` / `kimi-3` 亦 100% 自动匹配 `K3旗舰模型`；\n- **新增综合智能模糊匹配自动化测试**：\n  - 编写并集成 `test_model_fuzzy_matching.py`，完整覆盖 Kimi、GLM-5、MiniMax、StepFun 等主流厂商模型的清洗、匹配得分与基准联动，测试通过率 100%。\n\n---"
+    "rawContent": "### 🛠️ 缺陷修复与稳定性加固\n- **彻底解决全新 macOS 安装启动后右下角一直显示“重连中...”问题**：\n  - **macOS Gatekeeper Quarantine 隔离属性自动脱敏**：在 [`pyManager.ts`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/main/pyManager.ts) 启动独立 Python 后端前，自动递归执行 `xattr -d -r com.apple.quarantine` 清除隔离属性并赋予 `chmod 755` 权限，彻底杜绝从 DMG 拖入安装后二进制被系统静默阻断；\n  - **强制本地回环绕过系统代理（防劫持双保险）**：在 [`src/main/index.ts`](file:///Users/niuzhidao/Documents/Program/welltoken-price-dashboard/src/main/index.ts) 中注入 Chromium 启动开关与 Session 策略 `proxyBypassRules: '<local>;127.0.0.1;localhost;::1'`，并为子进程环境变量注入 `NO_PROXY=127.0.0.1,localhost,::1`，彻底杜绝代理软件拦截本地高位端口 `127.0.0.1:8765` 导致前端与后端断连；\n  - **全生命周期日志自动落盘**：后端启动、标准输出、标准错误与进程异常退出码统一实时追加写入日志文件（`~/Library/Application Support/WellTokenDashboard/logs/backend.log`），消灭盲区；\n  - **状态栏一键诊断与日志直达**：在底部状态栏增加点击交互弹窗，未就绪时高亮展示具体错误原因，并提供【打开运行日志 (backend.log)】与【重启后端服务】快捷按钮；在【关于程序】视图同步增设服务诊断与日志专区。\n\n---"
   }
 }
