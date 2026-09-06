@@ -10,7 +10,11 @@ import time
 import asyncio
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
-from bs4 import BeautifulSoup
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    BeautifulSoup = None  # type: ignore
+
 from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 

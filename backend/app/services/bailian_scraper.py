@@ -14,7 +14,11 @@ import time
 import httpx
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
-from bs4 import BeautifulSoup
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    BeautifulSoup = None  # type: ignore
+
 from sqlalchemy import select, delete
 
 from backend.app.database import AsyncSessionLocal
@@ -208,6 +212,8 @@ class BailianScraper:
 
     def parse_pricing_html(self, html_content: str) -> List[BailianModelItem]:
         """从 HTML / SSR JSON 中解析出全部模型定价清单 (使用 2D 矩阵填充还原多维跨行表格)"""
+        if BeautifulSoup is None:
+            raise RuntimeError("beautifulsoup4 模块未安装，无法解析阿里百炼网页 HTML。请先安装 bs4 (pip install beautifulsoup4)。")
         # 尝试提取 window.__ICE_PAGE_PROPS__
         m = re.search(r"window\.__ICE_PAGE_PROPS__\s*=\s*(\{.*?\});", html_content, re.DOTALL)
         if m:

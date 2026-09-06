@@ -16,7 +16,11 @@ import httpx
 import asyncio
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
-from bs4 import BeautifulSoup
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    BeautifulSoup = None  # type: ignore
+
 from sqlalchemy import select, delete
 
 from backend.app.database import AsyncSessionLocal
@@ -112,6 +116,8 @@ class SiliconFlowScraperService:
 
     def parse_pricing_html(self, raw_html: str) -> List[SiliconFlowModelItem]:
         """精细解析 DOM 表格三列价格 (输入/输出/缓存) 与 SSR 数据流"""
+        if BeautifulSoup is None:
+            raise RuntimeError("beautifulsoup4 模块未安装，无法解析网页 HTML。请先安装 bs4 (pip install beautifulsoup4)。")
         soup = BeautifulSoup(raw_html, "html.parser")
         models: List[SiliconFlowModelItem] = []
         seen = set()

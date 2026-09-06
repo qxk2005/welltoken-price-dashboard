@@ -4,6 +4,18 @@
 
 ---
 
+## 🚀 [v1.4.8 Windows打包客户端启动闪退与bs4依赖缺失修复加固版] - 2026-09-06
+
+### 🛠️ 缺陷修复与稳定性加固
+- **彻底根治 Windows 打包客户端启动报错 `ModuleNotFoundError: No module named 'bs4'` 闪退缺陷**：
+  - **核心根因定位**：应用冷启动在初始化 FastAPI 路由加载 `channels` 模块时，顶层直接同步引用了包含 `BeautifulSoup` 的爬虫模块，而项目根目录 `requirements.txt` 与 `pyinstaller.spec` 均未声明 `beautifulsoup4`，导致打包产物中缺失 bs4 模块，后端服务在启动首秒即被 `Exit code 1` 异常中断，触发 Electron 25 秒超时告警；
+  - **依赖管理与打包规范闭环**：在 [requirements.txt](file:///d:/AI/WPD/requirements.txt) 中补齐 `beautifulsoup4>=4.12.3`，并在 [pyinstaller.spec](file:///d:/AI/WPD/pyinstaller.spec) 中加入 `*collect_submodules('bs4')` 与 `*collect_submodules('soupsieve')`，保证所有 HTML 解析器子模块被 100% 完整打包打包；
+  - **爬虫服务防护性与安全导入强化**：全面改造 [siliconflow_scraper.py](file:///d:/AI/WPD/backend/app/services/siliconflow_scraper.py)、[bailian_scraper.py](file:///d:/AI/WPD/backend/app/services/bailian_scraper.py) 和 [official_scraper_service.py](file:///d:/AI/WPD/backend/app/services/official_scraper_service.py)，将 `BeautifulSoup` 调整为安全保护性导入并在解析入口做延迟安全检查，杜绝子爬虫依赖异常导致整个后端主服务无法启动；
+  - **消除 Python 3.12+ 语法警告**：修复 [official_pricing.py](file:///d:/AI/WPD/backend/app/api/v1/official_pricing.py) 中对 `\s` 正则表达式的 SyntaxWarning 警告；
+  - **二进制编译与冒烟验证通过**：本地环境完成全量单元测试与类型检查，重新编译生成 Windows 独立二进制 [backend-server.exe](file:///d:/AI/WPD/resources/bin/backend-server.exe) 并完成端口冒烟探针测试，启动即刻就绪，彻底消除闪退。
+
+---
+
 ## 🚀 [v1.4.7 macOS系统只读根目录报错修复与快照数据路径彻底加固版] - 2026-09-04
 
 ### 🛠️ 关键缺陷修复与进程运行加固

@@ -19,6 +19,8 @@ all_hiddenimports = [
     *collect_submodules('pydantic'),
     *collect_submodules('pydantic_settings'),
     *collect_submodules('httpx'),
+    *collect_submodules('bs4'),
+    *collect_submodules('soupsieve'),
     'socksio',
     'dotenv',
     'websockets',

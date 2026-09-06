@@ -572,7 +572,7 @@ async def view_snapshot_html(
           var n = norm(term);
           if (n && modelCandidates.indexOf(n) === -1) modelCandidates.push(n);
           // 空格转连字符 (如 mimo-v2.5 pro -> mimo-v2.5-pro)
-          var hyp = n.replace(/\s+/g, '-');
+          var hyp = n.replace(/\\s+/g, '-');
           if (hyp && modelCandidates.indexOf(hyp) === -1) modelCandidates.push(hyp);
           // 连字符转空格 (如 mimo-v2.5-pro -> mimo v2.5 pro)
           var spc = n.replace(/[-_]+/g, ' ');
