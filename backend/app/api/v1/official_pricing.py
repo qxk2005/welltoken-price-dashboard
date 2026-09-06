@@ -241,6 +241,7 @@ async def view_snapshot_html(
     if not snapshot:
         raise HTTPException(status_code=404, detail="未找到该快照")
 
+    import sys
     raw_p = Path(snapshot.local_file_path)
     if raw_p.is_absolute() and raw_p.exists():
         abs_path = str(raw_p)
@@ -248,6 +249,10 @@ async def view_snapshot_html(
         abs_path = str(DATA_DIR / "official_snapshots" / raw_p.name)
     elif (DATA_DIR / raw_p).exists():
         abs_path = str(DATA_DIR / raw_p)
+    elif getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS') and (Path(sys._MEIPASS) / "data" / "official_snapshots" / raw_p.name).exists():
+        abs_path = str(Path(sys._MEIPASS) / "data" / "official_snapshots" / raw_p.name)
+    elif getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS') and (Path(sys._MEIPASS) / snapshot.local_file_path).exists():
+        abs_path = str(Path(sys._MEIPASS) / snapshot.local_file_path)
     elif (Path(os.getcwd()) / snapshot.local_file_path).exists():
         abs_path = str(Path(os.getcwd()) / snapshot.local_file_path)
     else:
@@ -622,7 +627,7 @@ async def view_snapshot_html(
             var leftOk = (idx === 0) || !/[a-zA-Z0-9]/.test(t[idx - 1]);
             var endIdx = idx + q.length;
             var rightChar = endIdx < t.length ? t[endIdx] : '';
-            var rightOk = (endIdx >= t.length) || !/[a-zA-Z0-9._\-]/.test(rightChar);
+            var rightOk = (endIdx >= t.length) || !/[a-zA-Z0-9._\\-]/.test(rightChar);
             if (leftOk && rightOk) {
               return true;
             }

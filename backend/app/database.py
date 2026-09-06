@@ -66,7 +66,7 @@ async def init_db():
         import json
         from pathlib import Path
         from datetime import datetime
-        from sqlalchemy import select, func
+        from sqlalchemy import select, func, update
         from backend.app.config import BASE_DIR, DATA_DIR
         from backend.app.models.token_price import OfficialModelPrice, OfficialSnapshot
 
@@ -93,19 +93,18 @@ async def init_db():
         if bundled_snapshots_dir and bundled_snapshots_dir.exists():
             for src_file in bundled_snapshots_dir.glob("*.html"):
                 dst_file = user_snapshots_dir / src_file.name
-                if not dst_file.exists():
+                if not dst_file.exists() or dst_file.stat().st_size == 0:
                     try:
                         shutil.copy2(str(src_file), str(dst_file))
                     except Exception:
                         pass
 
-        # 3. 数据库快照表 (official_pricing_snapshots) 同步与 ID 映射建立
+        # 3. 数据库快照表 (official_snapshots) 同步与 ID 映射建立
         async with AsyncSessionLocal() as session:
             existing_snaps_res = await session.execute(select(OfficialSnapshot))
             existing_snaps = existing_snaps_res.scalars().all()
             snap_map = {s.provider: s.id for s in existing_snaps}
 
-            # 若缺少某些厂商快照记录，扫描本地快照文件并补齐
             target_snapshot_files = {
                 "deepseek": "sample_deepseek.html",
                 "zhipuai": "sample_glm.html",
@@ -117,6 +116,18 @@ async def init_db():
                 "openai": "sample_openai.html",
                 "anthropic": "sample_claude.html",
                 "google": "sample_gemini.html",
+            }
+            target_snapshot_urls = {
+                "deepseek": "https://api-docs.deepseek.com/zh-cn/quick_start/pricing/",
+                "zhipuai": "https://bigmodel.cn/pricing",
+                "moonshotai": "https://www.kimi.com/membership/pricing?from=header_nav&tab=api",
+                "minimax": "https://platform.minimaxi.com/docs/guides/pricing-paygo",
+                "alibaba": "https://help.aliyun.com/zh/model-studio/model-pricing",
+                "xiaomi": "https://mimo.mi.com/docs/zh-CN/price/pay-as-you-go",
+                "stepfun": "https://platform.stepfun.com/docs/zh/guides/pricing/details",
+                "openai": "https://platform.openai.com/docs/pricing",
+                "anthropic": "https://platform.claude.com/docs/en/about-claude/pricing",
+                "google": "https://ai.google.dev/gemini-api/docs/pricing?hl=zh-cn",
             }
             provider_names = {
                 "deepseek": "DeepSeek 官方定价",
@@ -130,16 +141,23 @@ async def init_db():
                 "anthropic": "Anthropic Claude 官方定价",
                 "google": "Google Gemini 官方定价",
             }
-            now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
             for prov, fname in target_snapshot_files.items():
-                if prov not in snap_map:
-                    local_f = user_snapshots_dir / fname
-                    if local_f.exists():
+                local_f = user_snapshots_dir / fname
+                if not local_f.exists() and bundled_snapshots_dir:
+                    src_f = bundled_snapshots_dir / fname
+                    if src_f.exists():
+                        try:
+                            shutil.copy2(str(src_f), str(local_f))
+                        except Exception:
+                            pass
+
+                if local_f.exists() and local_f.stat().st_size > 0:
+                    if prov not in snap_map:
                         new_snap = OfficialSnapshot(
                             provider=prov,
                             page_title=f"{provider_names.get(prov, prov)} 官方快照",
-                            source_url="",
+                            source_url=target_snapshot_urls.get(prov, ""),
                             local_file_path=str(local_f),
                             captured_at=datetime.utcnow(),
                             file_size_bytes=local_f.stat().st_size,
@@ -148,10 +166,18 @@ async def init_db():
                         session.add(new_snap)
                         await session.flush()
                         snap_map[prov] = new_snap.id
+                    else:
+                        # 确保已有快照记录关联真实文件路径与 URL
+                        snap_obj = next((s for s in existing_snaps if s.provider == prov), None)
+                        if snap_obj and (not snap_obj.local_file_path or not os.path.exists(snap_obj.local_file_path)):
+                            snap_obj.local_file_path = str(local_f)
+                            snap_obj.file_size_bytes = local_f.stat().st_size
+                            if not snap_obj.source_url:
+                                snap_obj.source_url = target_snapshot_urls.get(prov, "")
 
             await session.commit()
 
-            # 4. 官方定价数据 (official_models_pricing) 智能全量灌入或增量对齐
+            # 4. 官方定价数据 (official_model_prices) 智能全量灌入或增量对齐
             if bundled_seed_path and bundled_seed_path.exists():
                 with open(bundled_seed_path, "r", encoding="utf-8") as f:
                     seed_items = json.load(f)
@@ -175,7 +201,6 @@ async def init_db():
                         for r in existing_rows
                     }
 
-                    added_count = 0
                     for item in seed_items:
                         key = (
                             item.get("provider"),
@@ -187,16 +212,23 @@ async def init_db():
                             prov = item.get("provider")
                             item["snapshot_id"] = snap_map.get(prov, None)
                             session.add(OfficialModelPrice(**item))
-                            added_count += 1
                         else:
-                            # 补全缺失的 snapshot_id
                             existing_obj = existing_keys[key]
                             prov = item.get("provider")
                             if not existing_obj.snapshot_id and prov in snap_map:
                                 existing_obj.snapshot_id = snap_map[prov]
 
-                    if added_count > 0:
-                        await session.commit()
+                    # 强制批量对齐所有 snapshot_id 为空的历史数据并持久化
+                    for prov, s_id in snap_map.items():
+                        if s_id:
+                            await session.execute(
+                                update(OfficialModelPrice)
+                                .where(OfficialModelPrice.provider == prov)
+                                .where(OfficialModelPrice.snapshot_id.is_(None))
+                                .values(snapshot_id=s_id)
+                            )
+
+                    await session.commit()
     except Exception as e:
         import traceback
         traceback.print_exc()

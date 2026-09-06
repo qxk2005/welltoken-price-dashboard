@@ -4,6 +4,20 @@
 
 ---
 
+## 🚀 [v1.4.9 全量10家官方大模型HTML静态快照固化与离线对账彻底加固版] - 2026-09-06
+
+### 🛠️ 关键缺陷修复与体验优化
+- **彻底根治 Windows/macOS 安装后抽屉显示“当前模型暂无关联的离线快照文件”缺陷**：
+  - **核心根因定位**：`.gitignore` 误将 `data/*` 全量忽略而未对 `data/official_snapshots/` 配置白名单，导致 Git 仓库中无任何预置 HTML 静态快照，打包生成的安装包内快照目录为空；同时 `backend/app/database.py` 中对已有模型补充 `snapshot_id` 时漏掉了 `session.commit()` 导致更新未存盘；
+  - **全量 10 家官方厂商静态 HTML 快照固化入库**：全自动通过无头浏览器深度抓取并留存 10 家官方大厂（阿里百炼、智谱 GLM、MiniMax、月之暗面 Kimi、DeepSeek、小米 MiMo、阶跃星辰 StepFun、OpenAI、Anthropic Claude、Google Gemini）最新完整 DOM 结构，固化至 `data/official_snapshots/sample_*.html`，随版本库分发并内嵌至 PyInstaller 二进制；
+  - **.gitignore 白名单解禁与离线种子库同步**：放行 `!data/official_snapshots/`、`!data/official_snapshots/*.html`、`!data/official_snapshots/.gitkeep`，同步刷新 [data/official_prices_seed.json](file:///d:/AI/WPD/data/official_prices_seed.json) 全量 595 款官方规格；
+  - **数据库启动初始化与批量强制对齐**：在 [backend/app/database.py](file:///d:/AI/WPD/backend/app/database.py) 中引入预置快照缺损智能修补机制与 SQL 批量强制对齐，确保已有数据库模型 100% 绑定合法 `snapshot_id`，并增加 `session.commit()` 强持久化保证；
+  - **快照查阅 PyInstaller 打包目录寻址保底**：在 [official_pricing.py](file:///d:/AI/WPD/backend/app/api/v1/official_pricing.py) `view_snapshot_html` 中加入 `sys._MEIPASS` 临时打包目录直接寻址保底，无论开发环境还是生产安装包均能秒级直出带 `<base href>` 样式的快照；
+  - **前端抽屉智能回退增强**：在 [officialPricingStore.ts](file:///d:/AI/WPD/src/renderer/src/stores/officialPricingStore.ts) 的 `openSnapshotDrawer` 中增加厂商级快照回退查找，单条模型关联丢失时自动匹配厂商快照并执行高亮；
+  - **全链路测试套件通过**：小米官方定价与快照测试、阶跃星辰快照测试、MiMo-V2.5 Pro / TTS 高亮测试全部 100% 通过。
+
+---
+
 ## 🚀 [v1.4.8 Windows打包客户端启动闪退与bs4依赖缺失修复加固版] - 2026-09-06
 
 ### 🛠️ 缺陷修复与稳定性加固

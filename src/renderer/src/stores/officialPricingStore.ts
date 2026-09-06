@@ -430,9 +430,18 @@ export const useOfficialPricingStore = defineStore('officialPricing', {
 
     // 打开快照预览抽屉
     openSnapshotDrawer(item: OfficialModelPrice) {
+      let snapshotId = item.snapshot_id
+      // 容错降级：若单条模型记录未关联 snapshot_id，从已拉取的 snapshots 列表中依据 provider 智能回退匹配
+      if (!snapshotId && this.snapshots && this.snapshots.length > 0) {
+        const matched = this.snapshots.find((s) => s.provider === item.provider)
+        if (matched) {
+          snapshotId = matched.id
+        }
+      }
+
       this.snapshotDrawer = {
         visible: true,
-        snapshotId: item.snapshot_id,
+        snapshotId: snapshotId,
         sourceUrl: item.source_page_url,
         modelName: item.model_name,
         pageTitle: `${item.provider_name} 官方定价快照对账`,
