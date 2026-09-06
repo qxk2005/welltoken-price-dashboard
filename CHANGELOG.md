@@ -4,6 +4,21 @@
 
 ---
 
+## 🚀 [v1.5.0 小米等官方快照营销公告弹窗与全屏遮罩彻底净化加固版] - 2026-09-06
+
+### 🛠️ 关键缺陷修复与核验体验优化
+- **彻底根治小米（Xiaomi MiMo）等官方快照在内置抽屉对账时弹出营销公告窗口及全屏遮罩挡住定价内容缺陷**：
+  - **根本原因定位**：小米官网页面在加载时会触发 Ant Design 营销弹窗及全屏灰色遮罩蒙层（`.ant-modal-root`, `.ant-modal-mask`, `Announcement_announcementModal__AHN0r`）；快照展示端点为了防止本地白屏，安全剔除了原页面的所有 `<script>`，导致该弹窗失去了原本的点击 `[X]` 关闭逻辑，变成静态挡在页面中央；全屏遮罩蒙层同时阻断了用户对后方价格表格的点击与滚动；
+  - **快照渲染端点 DOM 级彻底剔除与 CSS 强力屏蔽**：在 [backend/app/api/v1/official_pricing.py](file:///d:/AI/WPD/backend/app/api/v1/official_pricing.py) 的 `view_snapshot_html` 中：
+    - 遍历并彻底删除 `.ant-modal-root`, `.ant-modal-mask`, `.ant-modal-wrap`, `.ant-modal`, `.el-overlay`, `.modal-backdrop`, `[class*="announcementModal"]`, `[class*="NoticeModal"]` 以及无表格数据的纯提示框 `[role="dialog"]:not(:has(table))`；
+    - 在注入的 `<style>` 标签中加入强力屏蔽样式（`display: none !important; opacity: 0 !important; pointer-events: none !important; z-index: -9999 !important;`），实现双重防护，杜绝任何残余遮罩阻断用户操作；
+  - **抓取阶段防范与存盘清洗**：在 [backend/app/services/official_scraper_service.py](file:///d:/AI/WPD/backend/app/services/official_scraper_service.py) 中，Playwright 访问时自动探测并点击关闭常见弹窗（`.ant-modal-close`, `button[aria-label="Close"]`, `button:has-text("我知道了")` 等），并在快照文件存盘前再次清洗 DOM，确保新抓取的离线快照文件本身干干净净；
+  - **存量快照全面净化**：对 `data/official_snapshots/` 以及本地 AppData 目录下的所有受遮挡快照（`sample_xiaomi.html`, `sample_glm.html`, `sample_openai.html` 等）进行了静态 DOM 净化；
+  - **自动化测试套件构建**：新增 [backend/tests/test_snapshot_cleaning.py](file:///d:/AI/WPD/backend/tests/test_snapshot_cleaning.py)，覆盖 DOM 节点剔除验证、逻辑保留正常表格 dialog 测试、以及 FastAPI API 路由真实净化验证；
+  - **测试全套通过**：小米官方定价与快照测试、阶跃星辰快照测试、Vue 类型检查 `npm run typecheck` 与前端构建 `npm run build` 全部顺利通过。
+
+---
+
 ## 🚀 [v1.4.9 全量10家官方大模型HTML静态快照固化与离线对账彻底加固版] - 2026-09-06
 
 ### 🛠️ 关键缺陷修复与体验优化

@@ -270,6 +270,39 @@ async def view_snapshot_html(
     for s in soup.find_all("script"):
         s.decompose()
 
+    # 1.1 彻底移除所有遮挡页面内容的营销弹窗、公告模态框及全屏遮罩蒙层 (如 Ant Design、Element UI 等)
+    modal_selectors = [
+        ".ant-modal-root",
+        ".ant-modal-mask",
+        ".ant-modal-wrap",
+        ".ant-modal",
+        ".el-overlay",
+        ".el-overlay-dialog",
+        ".el-dialog__wrapper",
+        ".v-modal",
+        ".modal-backdrop",
+        "[class*='Announcement_announcementModal']",
+        "[class*='announcementModal']",
+        "[class*='announcement-modal']",
+        "[class*='NoticeModal']",
+        "[class*='notice-modal']",
+        "[class*='promotion-modal']",
+        "[class*='marketing-modal']",
+        "[id*='announcement-modal']",
+        "[id*='notice-modal']",
+    ]
+    for sel in modal_selectors:
+        for el in soup.select(sel):
+            el.decompose()
+
+    # 兜底清理无任何表格或价格数据的纯弹窗 dialog (防止误删有表格的模型对比弹出窗)
+    for dialog in soup.find_all(attrs={"role": "dialog"}):
+        if not dialog.find("table") and not dialog.find("tbody"):
+            dialog.decompose()
+    for modal in soup.find_all(attrs={"aria-modal": "true"}):
+        if not modal.find("table") and not modal.find("tbody"):
+            modal.decompose()
+
     # 2. 注入 <base href="{snapshot.source_url}"> 使得远程 CSS/图片/字体正常加载
     if soup.head:
         base_tag = soup.new_tag("base", href=snapshot.source_url)
@@ -354,6 +387,30 @@ async def view_snapshot_html(
   .wpd-top-indicator:hover {
     transform: translateX(-50%) scale(1.04);
     background: #0071E3;
+  }
+  /* 强力屏蔽可能遮挡定价核验的营销弹窗、公告模态框及背景遮罩蒙层 */
+  .ant-modal-root,
+  .ant-modal-mask,
+  .ant-modal-wrap,
+  .ant-modal,
+  .el-overlay,
+  .el-overlay-dialog,
+  .el-dialog__wrapper,
+  .v-modal,
+  .modal-backdrop,
+  [class*="announcementModal"],
+  [class*="Announcement_announcementModal"],
+  [class*="NoticeModal"],
+  [class*="notice-modal"],
+  [class*="promotion-modal"],
+  [class*="marketing-modal"],
+  div[role="dialog"]:not(:has(table)),
+  div[aria-modal="true"]:not(:has(table)) {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    z-index: -9999 !important;
   }
 </style>
 <script>

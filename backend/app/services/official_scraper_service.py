@@ -293,6 +293,27 @@ class OfficialScraperService:
             await page.goto(url, wait_until="domcontentloaded", timeout=40000)
             await page.wait_for_timeout(2000)
 
+            # 针对营销公告、弹窗进行自动关闭探测
+            close_modal_selectors = [
+                'button.ant-modal-close',
+                '.ant-modal-close',
+                'button[aria-label="Close"]',
+                'button[aria-label="关闭"]',
+                '.el-dialog__headerbtn',
+                'button:has-text("我知道了")',
+                'button:has-text("稍后再说")',
+                'button:has-text("关闭")',
+            ]
+            for c_sel in close_modal_selectors:
+                try:
+                    c_btns = await page.query_selector_all(c_sel)
+                    for cb in c_btns:
+                        if await cb.is_visible():
+                            await cb.click()
+                            await page.wait_for_timeout(300)
+                except Exception:
+                    pass
+
             # 针对不同站点的特殊展开交互
             expand_selectors = [
                 'button:has-text("更多")',
@@ -317,6 +338,20 @@ class OfficialScraperService:
             page_title = await page.title()
             html = await page.content()
             await browser.close()
+
+            # 清洗快照中的营销遮罩/弹窗 DOM，保持留存快照干净整洁
+            try:
+                clean_soup = BeautifulSoup(html, "html.parser")
+                for m_sel in [
+                    ".ant-modal-root", ".ant-modal-mask", ".ant-modal-wrap", ".ant-modal",
+                    ".el-overlay", ".el-dialog__wrapper", ".modal-backdrop",
+                    "[class*='Announcement_announcementModal']", "[class*='announcementModal']"
+                ]:
+                    for m_el in clean_soup.select(m_sel):
+                        m_el.decompose()
+                html = str(clean_soup)
+            except Exception:
+                pass
 
             # 保存快照文件
             timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
