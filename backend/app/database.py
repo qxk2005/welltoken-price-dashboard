@@ -77,17 +77,21 @@ async def init_db():
             bundle_roots.append(Path(sys._MEIPASS))
         bundle_roots.extend([BASE_DIR, Path(os.getcwd())])
 
-        bundled_seed_path = None
+        bundled_prices_seed = None
+        bundled_snaps_seed = None
         bundled_snapshots_dir = None
         for root in bundle_roots:
-            cand_seed = root / "data" / "official_prices_seed.json"
-            if cand_seed.exists() and not bundled_seed_path:
-                bundled_seed_path = cand_seed
-            cand_snap = root / "data" / "official_snapshots"
-            if cand_snap.exists() and not bundled_snapshots_dir:
-                bundled_snapshots_dir = cand_snap
+            cand_p_seed = root / "data" / "official_prices_seed.json"
+            if cand_p_seed.exists() and not bundled_prices_seed:
+                bundled_prices_seed = cand_p_seed
+            cand_s_seed = root / "data" / "official_snapshots_seed.json"
+            if cand_s_seed.exists() and not bundled_snaps_seed:
+                bundled_snaps_seed = cand_s_seed
+            cand_snap_dir = root / "data" / "official_snapshots"
+            if cand_snap_dir.exists() and not bundled_snapshots_dir:
+                bundled_snapshots_dir = cand_snap_dir
 
-        # 2. 补齐用户的离线官方 HTML 快照证据链
+        # 2. 补齐用户的离线官方 HTML 快照证据链文件
         user_snapshots_dir = DATA_DIR / "official_snapshots"
         user_snapshots_dir.mkdir(parents=True, exist_ok=True)
 
@@ -100,127 +104,150 @@ async def init_db():
                     except Exception:
                         pass
 
-        # 3. 数据库快照表 (official_snapshots) 同步与 ID 映射建立
+        # 3. 官方快照元数据表 (official_snapshots) 导入与增量同步
         async with AsyncSessionLocal() as session:
             existing_snaps_res = await session.execute(select(OfficialSnapshot))
             existing_snaps = existing_snaps_res.scalars().all()
-            snap_map = {s.provider: s.id for s in existing_snaps}
 
-            target_snapshot_files = {
-                "deepseek": "sample_deepseek.html",
-                "zhipuai": "sample_glm.html",
-                "moonshotai": "sample_kimi.html",
-                "minimax": "sample_minimax.html",
-                "alibaba": "sample_bailian.html",
-                "xiaomi": "sample_xiaomi.html",
-                "stepfun": "sample_stepfun.html",
-                "openai": "sample_openai.html",
-                "anthropic": "sample_claude.html",
-                "google": "sample_gemini.html",
-            }
-            target_snapshot_urls = {
-                "deepseek": "https://api-docs.deepseek.com/zh-cn/quick_start/pricing/",
-                "zhipuai": "https://bigmodel.cn/pricing",
-                "moonshotai": "https://www.kimi.com/membership/pricing?from=header_nav&tab=api",
-                "minimax": "https://platform.minimaxi.com/docs/guides/pricing-paygo",
-                "alibaba": "https://help.aliyun.com/zh/model-studio/model-pricing",
-                "xiaomi": "https://mimo.mi.com/docs/zh-CN/price/pay-as-you-go",
-                "stepfun": "https://platform.stepfun.com/docs/zh/guides/pricing/details",
-                "openai": "https://platform.openai.com/docs/pricing",
-                "anthropic": "https://platform.claude.com/docs/en/about-claude/pricing",
-                "google": "https://ai.google.dev/gemini-api/docs/pricing?hl=zh-cn",
-            }
-            provider_names = {
-                "deepseek": "DeepSeek 官方定价",
-                "zhipuai": "智谱 GLM 开放平台",
-                "moonshotai": "Moonshot Kimi 定价",
-                "minimax": "MiniMax 开放平台",
-                "alibaba": "阿里百炼官方定价",
-                "xiaomi": "小米 MiMo 官方定价",
-                "stepfun": "阶跃星辰 StepFun 官方定价",
-                "openai": "OpenAI 官方定价",
-                "anthropic": "Anthropic Claude 官方定价",
-                "google": "Google Gemini 官方定价",
-            }
+            # 建立多维度定位索引：(provider, captured_at_str), local_file_name, provider
+            snap_by_ref = {}
+            snap_by_filename = {}
+            snap_by_provider_latest = {}
 
-            for prov, fname in target_snapshot_files.items():
-                local_f = user_snapshots_dir / fname
-                if not local_f.exists() and bundled_snapshots_dir:
-                    src_f = bundled_snapshots_dir / fname
-                    if src_f.exists():
-                        try:
-                            shutil.copy2(str(src_f), str(local_f))
-                        except Exception:
-                            pass
+            for s in existing_snaps:
+                capt_str = s.captured_at.strftime("%Y-%m-%d %H:%M:%S") if s.captured_at else ""
+                snap_by_ref[(s.provider, capt_str)] = s.id
+                if s.local_file_path:
+                    fname = Path(s.local_file_path).name
+                    snap_by_filename[fname] = s
+                snap_by_provider_latest[s.provider] = s.id
 
-                if local_f.exists() and local_f.stat().st_size > 0:
-                    if prov not in snap_map:
+            seed_snap_id_map = {}  # seed_item['id'] -> real_db_id
+
+            if bundled_snaps_seed and bundled_snaps_seed.exists():
+                with open(bundled_snaps_seed, "r", encoding="utf-8") as f:
+                    seed_snapshots = json.load(f)
+
+                for s_item in seed_snapshots:
+                    prov = s_item["provider"]
+                    capt_raw = s_item.get("captured_at", "")
+                    s_fname = Path(s_item.get("local_file_path", "")).name
+                    real_file = user_snapshots_dir / s_fname
+
+                    # 检查本地是否已有该快照记录（通过 provider + captured_at 前19位精确对齐，杜绝不同批次复用文件名导致的冲突）
+                    matched_snap_id = snap_by_ref.get((prov, capt_raw[:19]))
+                    matched_snap = None
+                    if matched_snap_id:
+                        matched_snap = next((x for x in existing_snaps if x.id == matched_snap_id), None)
+
+                    if matched_snap:
+                        # 确保路径指向当前系统合法的绝对路径
+                        if real_file.exists():
+                            matched_snap.local_file_path = str(real_file)
+                            matched_snap.file_size_bytes = real_file.stat().st_size
+                        seed_snap_id_map[s_item["id"]] = matched_snap.id
+                        snap_by_ref[(prov, capt_raw[:19])] = matched_snap.id
+                        snap_by_provider_latest[prov] = matched_snap.id
+                    else:
+                        # 增量插入快照元数据记录
+                        capt_dt = datetime.utcnow()
+                        if capt_raw:
+                            try:
+                                capt_dt = datetime.fromisoformat(capt_raw)
+                            except Exception:
+                                pass
+
                         new_snap = OfficialSnapshot(
                             provider=prov,
-                            page_title=f"{provider_names.get(prov, prov)} 官方快照",
-                            source_url=target_snapshot_urls.get(prov, ""),
-                            local_file_path=str(local_f),
-                            captured_at=datetime.utcnow(),
-                            file_size_bytes=local_f.stat().st_size,
-                            models_count=0
+                            source_url=s_item.get("source_url", ""),
+                            page_title=s_item.get("page_title", f"{prov} 官方快照"),
+                            local_file_path=str(real_file) if real_file.exists() else s_item.get("local_file_path", ""),
+                            file_size_bytes=real_file.stat().st_size if real_file.exists() else s_item.get("file_size_bytes", 0),
+                            models_count=s_item.get("models_count", 0),
+                            captured_at=capt_dt
                         )
                         session.add(new_snap)
                         await session.flush()
-                        snap_map[prov] = new_snap.id
-                    else:
-                        # 确保已有快照记录关联真实文件路径与 URL
-                        snap_obj = next((s for s in existing_snaps if s.provider == prov), None)
-                        if snap_obj and (not snap_obj.local_file_path or not os.path.exists(snap_obj.local_file_path)):
-                            snap_obj.local_file_path = str(local_f)
-                            snap_obj.file_size_bytes = local_f.stat().st_size
-                            if not snap_obj.source_url:
-                                snap_obj.source_url = target_snapshot_urls.get(prov, "")
+                        seed_snap_id_map[s_item["id"]] = new_snap.id
+                        snap_by_ref[(prov, capt_raw[:19])] = new_snap.id
+                        snap_by_filename[s_fname] = new_snap
+                        snap_by_provider_latest[prov] = new_snap.id
 
-            await session.commit()
+                await session.commit()
 
-            # 4. 官方定价数据 (official_model_prices) 智能全量灌入或增量对齐
-            if bundled_seed_path and bundled_seed_path.exists():
-                with open(bundled_seed_path, "r", encoding="utf-8") as f:
-                    seed_items = json.load(f)
+            # 4. 官方定价数据 (official_model_prices) 智能版本升级与平滑迁移
+            if bundled_prices_seed and bundled_prices_seed.exists():
+                with open(bundled_prices_seed, "r", encoding="utf-8") as f:
+                    seed_prices = json.load(f)
 
                 cnt_res = await session.execute(select(func.count(OfficialModelPrice.id)))
-                current_count = cnt_res.scalar() or 0
+                current_total_models = cnt_res.scalar() or 0
 
-                if current_count == 0:
-                    # 全量初始灌入 (旧版本首次升级场景)
-                    for item in seed_items:
-                        prov = item.get("provider")
-                        item["snapshot_id"] = snap_map.get(prov, None)
-                        session.add(OfficialModelPrice(**item))
+                # 探测本地是否已经包含最新的 2026-09-11 批次生效模型
+                check_latest_res = await session.execute(
+                    select(OfficialModelPrice.id)
+                    .where(OfficialModelPrice.is_current == True)
+                    .where(OfficialModelPrice.price_date.like("2026-09-11%"))
+                    .limit(1)
+                )
+                has_latest_active_batch = check_latest_res.first() is not None
+
+                def resolve_snap_id(p_item):
+                    snap_ref = p_item.get("snapshot_ref")
+                    if snap_ref:
+                        ref_prov = snap_ref.get("provider")
+                        ref_capt = (snap_ref.get("captured_at") or "")[:19]
+                        if (ref_prov, ref_capt) in snap_by_ref:
+                            return snap_by_ref[(ref_prov, ref_capt)]
+                    # 兜底按 provider 查找最近快照
+                    return snap_by_provider_latest.get(p_item.get("provider"))
+
+                if current_total_models == 0:
+                    # 场景 A: 全新安装冷启动 (导入全量多版本基准：598款最新 + 30款历史基准)
+                    for item in seed_prices:
+                        row_data = dict(item)
+                        row_data.pop("snapshot_ref", None)
+                        row_data["snapshot_id"] = resolve_snap_id(item)
+                        session.add(OfficialModelPrice(**row_data))
                     await session.commit()
+
+                elif not has_latest_active_batch:
+                    # 场景 B: 存量旧客户端覆盖升级 (无 2026-09-11 批次)
+                    # 1. 将本地原有当前生效模型全部降级为历史基准 (is_current=False)，保留上期比对和时序大盘
+                    await session.execute(
+                        update(OfficialModelPrice)
+                        .where(OfficialModelPrice.is_current == True)
+                        .values(is_current=False)
+                    )
+
+                    # 2. 注入种子中 2026-09-11 批次的最新官方模型并标记为当前生效 (is_current=True)
+                    for item in seed_prices:
+                        if item.get("is_current"):
+                            row_data = dict(item)
+                            row_data.pop("snapshot_ref", None)
+                            row_data["snapshot_id"] = resolve_snap_id(item)
+                            session.add(OfficialModelPrice(**row_data))
+
+                    # 3. 补齐可能缺失的种子历史模型
+                    res_existing = await session.execute(
+                        select(OfficialModelPrice.provider, OfficialModelPrice.model_name, OfficialModelPrice.price_date)
+                    )
+                    existing_tuples = set(res_existing.all())
+
+                    for item in seed_prices:
+                        if not item.get("is_current"):
+                            tpl = (item.get("provider"), item.get("model_name"), item.get("price_date"))
+                            if tpl not in existing_tuples:
+                                row_data = dict(item)
+                                row_data.pop("snapshot_ref", None)
+                                row_data["snapshot_id"] = resolve_snap_id(item)
+                                session.add(OfficialModelPrice(**row_data))
+
+                    await session.commit()
+
                 else:
-                    # 增量对齐补全 (覆盖升级且数据库已有部分旧官方数据场景)
-                    res_existing = await session.execute(select(OfficialModelPrice))
-                    existing_rows = res_existing.scalars().all()
-                    existing_keys = {
-                        (r.provider, r.raw_model_id, r.billing_mode, r.tier_range): r
-                        for r in existing_rows
-                    }
-
-                    for item in seed_items:
-                        key = (
-                            item.get("provider"),
-                            item.get("raw_model_id"),
-                            item.get("billing_mode"),
-                            item.get("tier_range")
-                        )
-                        if key not in existing_keys:
-                            prov = item.get("provider")
-                            item["snapshot_id"] = snap_map.get(prov, None)
-                            session.add(OfficialModelPrice(**item))
-                        else:
-                            existing_obj = existing_keys[key]
-                            prov = item.get("provider")
-                            if not existing_obj.snapshot_id and prov in snap_map:
-                                existing_obj.snapshot_id = snap_map[prov]
-
-                    # 强制批量对齐所有 snapshot_id 为空的历史数据并持久化
-                    for prov, s_id in snap_map.items():
+                    # 场景 C: 已包含最新 2026-09-11 批次，做快照外键缺失兜底对齐
+                    for prov, s_id in snap_by_provider_latest.items():
                         if s_id:
                             await session.execute(
                                 update(OfficialModelPrice)
@@ -228,8 +255,8 @@ async def init_db():
                                 .where(OfficialModelPrice.snapshot_id.is_(None))
                                 .values(snapshot_id=s_id)
                             )
-
                     await session.commit()
+
     except Exception as e:
         import traceback
         traceback.print_exc()

@@ -98,6 +98,7 @@ data/*
 !data/cache/*.json
 !data/cache/.gitkeep
 !data/official_prices_seed.json
+!data/official_snapshots_seed.json
 !data/official_snapshots/
 !data/official_snapshots/*.html
 !data/official_snapshots/.gitkeep

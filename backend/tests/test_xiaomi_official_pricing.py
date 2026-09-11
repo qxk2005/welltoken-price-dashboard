@@ -67,10 +67,11 @@ async def main():
     async with AsyncSessionLocal() as session:
         # 验证数据库记录
         db_res = await session.execute(
-            select(OfficialModelPrice).where(OfficialModelPrice.provider == "xiaomi")
+            select(OfficialModelPrice)
+            .where(OfficialModelPrice.provider == "xiaomi", OfficialModelPrice.is_current == True)
         )
         db_models = db_res.scalars().all()
-        assert len(db_models) == count, f"数据库实际记录数 ({len(db_models)}) 与入库数 ({count}) 不一致"
+        assert len(db_models) == count, f"数据库实际生效记录数 ({len(db_models)}) 与入库数 ({count}) 不一致"
         print(f"✓ 数据库中已安全持久化 {len(db_models)} 款小米官方模型")
 
         # 验证快照记录
