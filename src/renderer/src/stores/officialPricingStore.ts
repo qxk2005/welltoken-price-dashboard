@@ -34,6 +34,22 @@ export interface OfficialModelPrice {
   converted_output_usd?: number
   converted_cache_read_usd?: number
   converted_cache_write_usd?: number
+  is_current?: boolean
+  previous_input_price?: number | null
+  previous_output_price?: number | null
+  previous_cache_read_price?: number | null
+  previous_cache_write_price?: number | null
+  price_change_input?: number
+  price_change_output?: number
+  price_change_input_pct?: number
+  price_change_output_pct?: number
+  previous_snapshot_id?: number | null
+  previous_price_date?: string
+  is_new_model?: boolean
+  converted_prev_input_usd?: number | null
+  converted_prev_output_usd?: number | null
+  converted_prev_input_cny?: number | null
+  converted_prev_output_cny?: number | null
 }
 
 export interface OfficialSnapshot {
@@ -44,7 +60,47 @@ export interface OfficialSnapshot {
   local_file_path: string
   file_size_bytes: number
   models_count: number
+  is_current?: boolean
   captured_at: string
+}
+
+export interface SnapshotProviderItem {
+  snapshot_id: number
+  provider: string
+  provider_name: string
+  source_url: string
+  page_title: string
+  local_file_path: string
+  file_size_bytes: number
+  models_count: number
+  is_current: boolean
+  captured_at: string
+}
+
+export interface SnapshotDateGroup {
+  snapshot_date: string
+  is_current: boolean
+  total_providers: number
+  total_models: number
+  providers: SnapshotProviderItem[]
+}
+
+export interface SnapshotModelItem {
+  id: number
+  provider: string
+  provider_name: string
+  series: string
+  model_name: string
+  raw_model_id: string
+  billing_mode: string
+  tier_range: string
+  currency: string
+  input_price: number
+  output_price: number
+  cache_read_price: number | null
+  cache_write_price: number | null
+  remarks: string
+  is_current: boolean
 }
 
 export const DEFAULT_COLUMNS: Record<string, { label: string; defaultVisible: boolean }> = {
@@ -54,12 +110,13 @@ export const DEFAULT_COLUMNS: Record<string, { label: string; defaultVisible: bo
   billing_mode: { label: '计费模式', defaultVisible: true },
   input_price: { label: '输入价格 (1M)', defaultVisible: true },
   output_price: { label: '输出价格 (1M)', defaultVisible: true },
+  price_change: { label: '上期价格 / 涨跌', defaultVisible: true },
   cache_read_price: { label: '缓存命中/读 (1M)', defaultVisible: true },
   cache_write_price: { label: '缓存写 (1M)', defaultVisible: true },
   remarks: { label: '官方备注与规则', defaultVisible: true },
   custom_notes: { label: '自定义备注与标签', defaultVisible: true },
   price_date: { label: '价格生效时间', defaultVisible: true },
-  source_anchor: { label: '页面位置与快照对账', defaultVisible: true }
+  source_anchor: { label: '走势与快照对账', defaultVisible: true }
 }
 
 export const useOfficialPricingStore = defineStore('officialPricing', {
@@ -127,6 +184,34 @@ export const useOfficialPricingStore = defineStore('officialPricing', {
       // 代理配置弹窗与状态
       scrapeModalVisible: false,
       customProxy: localStorage.getItem('welltoken_scrape_proxy') || '',
+
+      // 历史走势大盘抽屉
+      historyDrawer: {
+        visible: false,
+        loading: false,
+        model: null as OfficialModelPrice | null,
+        historyPoints: [] as any[],
+        error: ''
+      },
+
+      // 快照版本管理抽屉
+      snapshotManagerDrawer: {
+        visible: false,
+        loading: false,
+        deletingId: null as number | null,
+        deletingDate: null as string | null,
+        message: '',
+        groups: [] as SnapshotDateGroup[],
+        expandedDates: [] as string[],
+        modelDetailModal: {
+          visible: false,
+          loading: false,
+          snapshotId: null as number | null,
+          providerName: '',
+          capturedAt: '',
+          models: [] as SnapshotModelItem[]
+        }
+      },
 
       // 排序状态 (三态：asc -> desc -> null)
       sortField: (localStorage.getItem('welltoken_official_sort_field') as 'provider_name' | 'series' | 'model_name' | null) || null,
@@ -543,6 +628,172 @@ export const useOfficialPricingStore = defineStore('officialPricing', {
       
       const filename = `官方模型价格表_${new Date().toISOString().slice(0, 10)}.xlsx`
       XLSX.writeFile(workbook, filename)
+    },
+
+    // 打开某模型的历史价格变化大盘
+    async openModelHistory(model: OfficialModelPrice) {
+      this.historyDrawer.visible = true
+      this.historyDrawer.model = model
+      this.historyDrawer.loading = true
+      this.historyDrawer.error = ''
+      this.historyDrawer.historyPoints = []
+
+      try {
+        const resp = await axios.get(`${this.apiUrl}/api/v1/official-pricing/model/history`, {
+          params: {
+            provider: model.provider,
+            model_name: model.model_name
+          }
+        })
+        if (resp.data && resp.data.status === 'success') {
+          this.historyDrawer.historyPoints = resp.data.history || []
+        } else {
+          this.historyDrawer.error = resp.data?.message || '获取历史价格数据失败'
+        }
+      } catch (err: any) {
+        console.error('Failed to fetch model history:', err)
+        this.historyDrawer.error = err?.response?.data?.detail || err.message || '网络请求错误'
+      } finally {
+        this.historyDrawer.loading = false
+      }
+    },
+
+    closeModelHistory() {
+      this.historyDrawer.visible = false
+      this.historyDrawer.model = null
+      this.historyDrawer.historyPoints = []
+    },
+
+    // 打开快照版本管理抽屉
+    openSnapshotManager() {
+      this.snapshotManagerDrawer.visible = true
+      this.fetchGroupedSnapshots()
+    },
+
+    closeSnapshotManager() {
+      this.snapshotManagerDrawer.visible = false
+      this.snapshotManagerDrawer.message = ''
+    },
+
+    // 获取按日期聚合的快照分组
+    async fetchGroupedSnapshots() {
+      this.snapshotManagerDrawer.loading = true
+      this.snapshotManagerDrawer.message = ''
+      try {
+        const resp = await axios.get(`${this.apiUrl}/api/v1/official-pricing/snapshots/grouped`)
+        if (Array.isArray(resp.data)) {
+          this.snapshotManagerDrawer.groups = resp.data
+          // 默认展开最新生效日期或第一个日期
+          if (this.snapshotManagerDrawer.groups.length > 0) {
+            const defaultDate = this.snapshotManagerDrawer.groups[0].snapshot_date
+            if (!this.snapshotManagerDrawer.expandedDates.includes(defaultDate)) {
+              this.snapshotManagerDrawer.expandedDates = [defaultDate]
+            }
+          }
+        }
+      } catch (err: any) {
+        console.error('Failed to fetch grouped snapshots:', err)
+        this.snapshotManagerDrawer.message = err?.response?.data?.detail || err.message || '获取快照批次失败'
+      } finally {
+        this.snapshotManagerDrawer.loading = false
+      }
+    },
+
+    // 切换折叠展开某个日期卡片
+    toggleDateGroupExpanded(date: string) {
+      const idx = this.snapshotManagerDrawer.expandedDates.indexOf(date)
+      if (idx >= 0) {
+        this.snapshotManagerDrawer.expandedDates.splice(idx, 1)
+      } else {
+        this.snapshotManagerDrawer.expandedDates.push(date)
+      }
+    },
+
+    // 打开某个快照收录模型的微型明细弹窗
+    async openSnapshotModelDetail(providerItem: SnapshotProviderItem) {
+      const modal = this.snapshotManagerDrawer.modelDetailModal
+      modal.visible = true
+      modal.loading = true
+      modal.snapshotId = providerItem.snapshot_id
+      modal.providerName = providerItem.provider_name
+      modal.capturedAt = providerItem.captured_at
+      modal.models = []
+
+      try {
+        const resp = await axios.get(`${this.apiUrl}/api/v1/official-pricing/snapshots/${providerItem.snapshot_id}/models`)
+        if (resp.data && Array.isArray(resp.data.models)) {
+          modal.models = resp.data.models
+        }
+      } catch (err: any) {
+        console.error('Failed to fetch snapshot models:', err)
+      } finally {
+        modal.loading = false
+      }
+    },
+
+    closeSnapshotModelDetail() {
+      const modal = this.snapshotManagerDrawer.modelDetailModal
+      modal.visible = false
+      modal.models = []
+      modal.snapshotId = null
+    },
+
+    // 删除单厂商快照版本
+    async deleteSnapshotVersion(snapshotId: number): Promise<{ success: boolean; message: string }> {
+      this.snapshotManagerDrawer.deletingId = snapshotId
+      try {
+        const resp = await axios.delete(`${this.apiUrl}/api/v1/official-pricing/snapshots/${snapshotId}`)
+        if (resp.data && resp.data.status === 'success') {
+          // 重新拉取聚合快照与主表格定价
+          await Promise.all([this.fetchGroupedSnapshots(), this.fetchOfficialPrices()])
+          return {
+            success: true,
+            message: resp.data.message || '快照删除成功'
+          }
+        } else {
+          return {
+            success: false,
+            message: resp.data?.message || '删除快照失败'
+          }
+        }
+      } catch (err: any) {
+        console.error('Failed to delete snapshot:', err)
+        return {
+          success: false,
+          message: err?.response?.data?.detail || err.message || '网络请求失败'
+        }
+      } finally {
+        this.snapshotManagerDrawer.deletingId = null
+      }
+    },
+
+    // 一键删除某日期的整批快照
+    async deleteSnapshotDateBatch(snapshotDate: string): Promise<{ success: boolean; message: string }> {
+      this.snapshotManagerDrawer.deletingDate = snapshotDate
+      try {
+        const resp = await axios.delete(`${this.apiUrl}/api/v1/official-pricing/snapshots/by-date/${encodeURIComponent(snapshotDate)}`)
+        if (resp.data && resp.data.status === 'success') {
+          // 重新拉取聚合快照与主表格定价
+          await Promise.all([this.fetchGroupedSnapshots(), this.fetchOfficialPrices()])
+          return {
+            success: true,
+            message: resp.data.message || `日期 ${snapshotDate} 快照已整批删除`
+          }
+        } else {
+          return {
+            success: false,
+            message: resp.data?.message || '整批删除快照失败'
+          }
+        }
+      } catch (err: any) {
+        console.error('Failed to delete snapshot batch by date:', err)
+        return {
+          success: false,
+          message: err?.response?.data?.detail || err.message || '网络请求失败'
+        }
+      } finally {
+        this.snapshotManagerDrawer.deletingDate = null
+      }
     }
   }
 })

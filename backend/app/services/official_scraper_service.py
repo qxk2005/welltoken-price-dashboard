@@ -184,16 +184,34 @@ def _infer_series(model_name: str, provider: str) -> str:
         return "claude-other"
 
     elif provider == "google":
+        if "3.8" in name_low or "gemini-3.8" in name_low or "gemini 3.8" in name_low:
+            return "gemini-3.8"
+        if "3.7" in name_low or "gemini-3.7" in name_low or "gemini 3.7" in name_low:
+            return "gemini-3.7"
+        if "3.6" in name_low or "gemini-3.6" in name_low or "gemini 3.6" in name_low:
+            return "gemini-3.6"
+        if "3.5" in name_low or "gemini-3.5" in name_low or "gemini 3.5" in name_low:
+            return "gemini-3.5"
+        if "3.1" in name_low or "gemini-3.1" in name_low or "gemini 3.1" in name_low:
+            return "gemini-3.1"
+        if "3.0" in name_low or "gemini-3" in name_low or "gemini 3" in name_low:
+            return "gemini-3.0"
         if "2.5" in name_low or "gemini 2.5" in name_low:
             return "gemini-2.5"
         if "2.0" in name_low or "gemini 2.0" in name_low:
             return "gemini-2.0"
         if "1.5" in name_low or "gemini 1.5" in name_low:
             return "gemini-1.5"
+        if "banana" in name_low:
+            return "banana"
         if "imagen" in name_low:
             return "imagen"
         if "veo" in name_low:
             return "veo"
+        if "embedding" in name_low:
+            return "embedding"
+        if "robotics" in name_low:
+            return "robotics"
         return "gemini-series"
 
     elif provider == "deepseek":
@@ -335,6 +353,35 @@ class OfficialScraperService:
                 except Exception:
                     pass
 
+            # 全屏逐步平滑向下滚动，触发所有长页面、表格和 Web Components 懒加载渲染
+            try:
+                scroll_script = """
+                async () => {
+                    await new Promise((resolve) => {
+                        let totalHeight = 0;
+                        const distance = 400;
+                        const timer = setInterval(() => {
+                            const scrollHeight = document.body.scrollHeight;
+                            window.scrollBy(0, distance);
+                            totalHeight += distance;
+
+                            if (totalHeight >= scrollHeight || totalHeight > 30000) {
+                                clearInterval(timer);
+                                // 稍作停顿后再平滑滚回顶部
+                                setTimeout(() => {
+                                    window.scrollTo(0, 0);
+                                    resolve();
+                                }, 500);
+                            }
+                        }, 80);
+                    });
+                }
+                """
+                await page.evaluate(scroll_script)
+                await page.wait_for_timeout(1000)
+            except Exception:
+                pass
+
             page_title = await page.title()
             html = await page.content()
             await browser.close()
@@ -362,10 +409,11 @@ class OfficialScraperService:
             with open(abs_path, "w", encoding="utf-8") as f:
                 f.write(html)
 
-            # 同时更新软链接/主样本
+            # 仅在基础样本文件不存在时进行初始化，保护现有权威快照样本不被意外冲掉
             sample_path = os.path.join(self.snapshots_dir, f"sample_{target_key}.html")
-            with open(sample_path, "w", encoding="utf-8") as f:
-                f.write(html)
+            if not os.path.exists(sample_path) or os.path.getsize(sample_path) == 0:
+                with open(sample_path, "w", encoding="utf-8") as f:
+                    f.write(html)
 
             return html, rel_path, page_title
 
@@ -1097,177 +1145,145 @@ class OfficialScraperService:
         return items
 
     def parse_gemini(self, soup: BeautifulSoup, source_url: str, snapshot_id: Optional[int]) -> List[Dict[str, Any]]:
-        """Google Gemini 官方定价全量动态解析 (全面支持 Gemini 3.6/3.5/3.1/3.0/2.5/2.0、多模态及各模式阶梯)"""
+        """Google Gemini 官方定价全量动态解析 (全面支持 Gemini 3.8/3.7/3.6/3.5/3.1/3.0/2.5/2.0、多模态及各模式阶梯与限时优惠)"""
         items = []
         now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
-        def parse_price_tiers(text: str):
-            if not text:
-                return [('无阶梯', 0.0)]
-            text = text.replace('，', ',')
-            m_split = re.search(r'(提示\s*>\s*(?:20\s*万|128k)|>\s*(?:20\s*万|128k))', text, flags=re.IGNORECASE)
-            if m_split:
-                idx = m_split.start()
-                part1 = text[:idx]
-                part2 = text[idx:]
-                val1 = _extract_number(part1)
-                val2 = _extract_number(part2)
-                tier_label = '200k' if '20' in text else '128k'
-                return [(f'[0, {tier_label})', val1), (f'[{tier_label}+)', val2)]
-            return [('无阶梯', _extract_number(text))]
+        def extract_price_and_rule(text: str):
+            if not text or "免费" in text or "free" in text.lower():
+                return 0.0, ""
+            text_clean = text.replace(",", "").strip()
+            # 提取阶段性特惠：例如 '2026 年 12 月 31 日之前为 0.75 美元。自 2027 年 1 月 1 日起为 1.50 美元'
+            m_promo = re.search(r"之前为\s*(\d+\.?\d*)\s*美元", text_clean)
+            if m_promo:
+                val = float(m_promo.group(1))
+                return val, text_clean
+            m = re.search(r"[-+]?\d*\.\d+|\d+", text_clean)
+            val = float(m.group()) if m else 0.0
+            return val, (text_clean if any(k in text_clean for k in ["小时", "存储", "自", "起"]) else "")
 
-        sections = soup.find_all('devsite-selector')
+        def parse_tiers_or_single(text: str):
+            if not text:
+                return [("无阶梯", 0.0, "")]
+            text_clean = text.replace(",", "").strip()
+            # 阶梯模式: 1.25 美元：提示 <= 20 万个 token 2.50 美元：提示 > 20 万个 token
+            m_tier = re.search(r"(\d+\.?\d*)\s*美元[：:]\s*提示\s*<=\s*(?:20\s*万|200k|128k).*?(\d+\.?\d*)\s*美元[：:]\s*提示\s*>\s*(?:20\s*万|200k|128k)", text_clean)
+            if m_tier:
+                val1 = float(m_tier.group(1))
+                val2 = float(m_tier.group(2))
+                t_name = "200k" if ("20" in text_clean or "200" in text_clean) else "128k"
+                return [(f"[0, {t_name})", val1, text_clean), (f"[{t_name}+)", val2, text_clean)]
+
+            val, rule = extract_price_and_rule(text_clean)
+            return [("无阶梯", val, rule)]
+
+        sections = soup.find_all("devsite-selector")
 
         for sel in sections:
-            prev_h = sel.find_previous(['h2', 'h3'])
-            model_name = prev_h.get_text(strip=True) if prev_h else 'Unknown'
+            prev_h = sel.find_previous(["h2", "h3"])
+            model_name = prev_h.get_text(strip=True) if prev_h else "Unknown"
             # 过滤非模型区（如工具、智能体概览等）
-            if any(k in model_name for k in ['价格概览', '价格计算器', '工具价格', '智能体价格']):
+            if any(k in model_name for k in ["价格概览", "价格计算器", "工具价格", "智能体价格", "常见问题"]):
                 continue
 
-            prev_code = sel.find_previous('code')
-            raw_id = prev_code.get_text(strip=True) if prev_code else model_name.lower().replace(' ', '-')
+            prev_code = sel.find_previous("code")
+            raw_id = prev_code.get_text(strip=True) if prev_code else model_name.lower().replace(" ", "-")
 
             # 智能提取系列
-            series = 'gemini-other'
-            m_ser = re.search(r'gemini-?(\d+\.?\d*)', raw_id.lower())
-            if m_ser:
-                series = f'gemini-{m_ser.group(1)}'
-            elif 'imagen' in raw_id.lower():
-                series = 'imagen'
-            elif 'veo' in raw_id.lower():
-                series = 'veo'
-            elif 'embedding' in raw_id.lower():
-                series = 'embedding'
-            elif 'gemma' in raw_id.lower():
-                series = 'gemma'
+            name_low = f"{model_name} {raw_id}".lower()
+            if "3.8" in name_low: series = "gemini-3.8"
+            elif "3.7" in name_low: series = "gemini-3.7"
+            elif "3.6" in name_low: series = "gemini-3.6"
+            elif "3.5" in name_low: series = "gemini-3.5"
+            elif "3.1" in name_low: series = "gemini-3.1"
+            elif "3" in name_low and "pro" in name_low: series = "gemini-3.0"
+            elif "2.5" in name_low: series = "gemini-2.5"
+            elif "2.0" in name_low: series = "gemini-2.0"
+            elif "1.5" in name_low: series = "gemini-1.5"
+            elif "imagen" in name_low: series = "imagen"
+            elif "veo" in name_low: series = "veo"
+            elif "banana" in name_low: series = "banana"
+            elif "embedding" in name_low: series = "embedding"
+            elif "robotics" in name_low: series = "robotics"
+            else: series = "gemini-series"
 
-            tabpanels = sel.find_all('section', id=lambda x: x and 'tabpanel-' in x)
+            tabpanels = sel.find_all("section")
             for p in tabpanels:
-                mode_raw = p.get('id', '').replace('tabpanel-', '').strip()
+                mode_h = p.find(["h2", "h3", "h4"])
+                mode_raw = mode_h.get_text(strip=True) if mode_h else p.get("id", "").replace("tabpanel-", "").strip()
                 mode_map = {
-                    '标准': 'Standard',
-                    '批量': 'Batch 批处理',
-                    'flex': 'Flex 弹性',
-                    'Flex': 'Flex 弹性',
-                    '优先级': 'Priority 优先'
+                    "标准": "Standard",
+                    "批量": "Batch 批处理",
+                    "flex": "Flex 弹性",
+                    "Flex": "Flex 弹性",
+                    "优先级": "Priority 优先"
                 }
-                billing_mode = mode_map.get(mode_raw, mode_raw.capitalize())
-                table = p.find('table')
+                billing_mode = mode_map.get(mode_raw, mode_raw.capitalize() if mode_raw else "Standard")
+                table = p.find("table")
                 if not table:
                     continue
 
-                in_raw = ''
-                out_raw = ''
-                cr_raw = ''
-                rem_parts = []
+                in_raw = ""
+                out_raw = ""
+                cr_raw = ""
+                rules_list = []
 
-                for r in table.find_all('tr'):
-                    cells = [c.get_text(' ', strip=True) for c in r.find_all(['td', 'th'])]
-                    if len(cells) < 3:
+                for r in table.find_all("tr"):
+                    cells = [c.get_text(" ", strip=True) for c in r.find_all(["td", "th"])]
+                    if len(cells) < 2:
                         continue
                     label = cells[0].lower()
-                    val = cells[2]
-                    if '输入价格' in label or 'input' in label:
+                    val = cells[-1]
+                    if "输入价格" in label or "input" in label or ("输入" in label and "价格" in label):
                         in_raw = val
-                    elif '输出价格' in label or 'output' in label:
+                    elif "输出价格" in label or "output" in label or ("输出" in label and "价格" in label):
                         out_raw = val
-                    elif '上下文缓存' in label or 'cache' in label:
+                    elif "上下文缓存" in label or "cache" in label or ("缓存" in label and "价格" in label):
                         cr_raw = val
-                    elif any(k in label for k in ['搜索', '接地', '用于改进']):
-                        rem_parts.append(f'{cells[0]}: {val}')
+                    elif any(k in label for k in ["接地", "搜索", "地图"]):
+                        rules_list.append(f"{cells[0]}: {val}")
 
-                in_tiers = parse_price_tiers(in_raw)
-                out_tiers = parse_price_tiers(out_raw)
-                cr_val = _extract_number(cr_raw)
-                remarks_str = ' | '.join(rem_parts[:2]) if rem_parts else 'Google 官方实时同步'
+                in_tiers = parse_tiers_or_single(in_raw)
+                out_tiers = parse_tiers_or_single(out_raw)
+                cr_tiers = parse_tiers_or_single(cr_raw)
+                cr_val = cr_tiers[0][1] if cr_tiers else 0.0
 
-                # 分阶梯录入
-                if len(in_tiers) > 1 and len(out_tiers) > 1:
-                    for i in range(len(in_tiers)):
-                        t_label, in_p = in_tiers[i]
-                        _, out_p = out_tiers[i]
-                        spec_name = f'{model_name} {t_label}'
-                        if billing_mode != 'Standard':
-                            spec_name += f' ({billing_mode})'
-                        items.append({
-                            'provider': 'google',
-                            'provider_name': 'Google (Gemini)',
-                            'series': series,
-                            'model_name': spec_name,
-                            'raw_model_id': raw_id,
-                            'billing_mode': billing_mode,
-                            'tier_range': t_label,
-                            'currency': 'USD',
-                            'input_price': in_p,
-                            'output_price': out_p,
-                            'cache_read_price': cr_val,
-                            'cache_write_price': 0.0,
-                            'remarks': remarks_str,
-                            'price_date': now_str,
-                            'source_page_url': source_url,
-                            'source_anchor': f'{model_name} ({billing_mode})',
-                            'snapshot_id': snapshot_id,
-                        })
-                else:
-                    t_label, in_p = in_tiers[0]
-                    out_p = out_tiers[0][1] if out_tiers else 0.0
-                    spec_name = model_name
-                    if billing_mode != 'Standard':
-                        spec_name += f' ({billing_mode})'
+                for i in range(len(in_tiers)):
+                    t_label, in_p, in_rule = in_tiers[i]
+                    out_p = out_tiers[i][1] if i < len(out_tiers) else (out_tiers[0][1] if out_tiers else 0.0)
+                    out_rule = out_tiers[i][2] if i < len(out_tiers) else ""
+
+                    full_name = model_name
+                    if t_label != "无阶梯":
+                        full_name += f" {t_label}"
+                    if billing_mode != "Standard":
+                        full_name += f" ({billing_mode})"
+
+                    rem_parts = []
+                    if in_rule: rem_parts.append(f"输入: {in_rule}")
+                    if out_rule: rem_parts.append(f"输出: {out_rule}")
+                    if rules_list: rem_parts.extend(rules_list[:1])
+                    remarks_str = " | ".join(rem_parts) if rem_parts else "Google 官方实时同步"
+
                     items.append({
-                        'provider': 'google',
-                        'provider_name': 'Google (Gemini)',
-                        'series': series,
-                        'model_name': spec_name,
-                        'raw_model_id': raw_id,
-                        'billing_mode': billing_mode,
-                        'tier_range': t_label,
-                        'currency': 'USD',
-                        'input_price': in_p,
-                        'output_price': out_p,
-                        'cache_read_price': cr_val,
-                        'cache_write_price': 0.0,
-                        'remarks': remarks_str,
-                        'price_date': now_str,
-                        'source_page_url': source_url,
-                        'source_anchor': f'{model_name} ({billing_mode})',
-                        'snapshot_id': snapshot_id,
+                        "provider": "google",
+                        "provider_name": "Google (Gemini)",
+                        "series": series,
+                        "model_name": full_name,
+                        "raw_model_id": raw_id,
+                        "billing_mode": billing_mode,
+                        "tier_range": t_label,
+                        "currency": "USD",
+                        "input_price": in_p,
+                        "output_price": out_p,
+                        "cache_read_price": cr_val,
+                        "cache_write_price": 0.0,
+                        "remarks": remarks_str,
+                        "price_date": now_str,
+                        "source_page_url": source_url,
+                        "source_anchor": f"{model_name} ({billing_mode})",
+                        "snapshot_id": snapshot_id,
                     })
-
-        # 若动态解析未果，使用硬编码兜底
-        if not items:
-            gemini_models = [
-                {
-                    "name": "Gemini 3.6 Flash",
-                    "raw_id": "gemini-3.6-flash",
-                    "series": "gemini-3.6",
-                    "tier": "无阶梯",
-                    "mode": "Standard",
-                    "in": 1.50, "out": 7.50, "cr": 0.15, "cw": 0.0,
-                    "rem": "最新一代速度与性能巅峰模型"
-                }
-            ]
-            for gm in gemini_models:
-                items.append({
-                    "provider": "google",
-                    "provider_name": "Google (Gemini)",
-                    "series": gm["series"],
-                    "model_name": gm["name"],
-                    "raw_model_id": gm["raw_id"],
-                    "billing_mode": gm["mode"],
-                    "tier_range": gm["tier"],
-                    "currency": "USD",
-                    "input_price": gm["in"],
-                    "output_price": gm["out"],
-                    "cache_read_price": gm["cr"],
-                    "cache_write_price": gm["cw"],
-                    "remarks": gm["rem"],
-                    "price_date": now_str,
-                    "source_page_url": source_url,
-                    "source_anchor": "Google AI Studio 官方定价表",
-                    "snapshot_id": snapshot_id,
-                })
 
         return items
 
@@ -1561,23 +1577,21 @@ class OfficialScraperService:
 
         try:
             sample_file = os.path.join(self.snapshots_dir, f"sample_{target_key}.html")
-            # 如果指定使用本地样本或者网络不可达时自动降级使用本地样本
-            if use_local_sample and os.path.exists(sample_file):
+            # 正常在线抓取或明确指定使用本地样本
+            if use_local_sample:
+                if not os.path.exists(sample_file):
+                    return 0, f"未找到本地样本快照文件: {sample_file}"
                 with open(sample_file, "r", encoding="utf-8") as f:
                     html = f.read()
                 rel_path = os.path.join("data", "official_snapshots", f"sample_{target_key}.html")
-                title = f"{target['name']} 官方定价"
+                title = f"{target['name']} 官方定价 (本地快照)"
             else:
+                # 在线全量抓取（严禁静默 fallback 冒充当天新快照）
                 try:
                     html, rel_path, title = await self.fetch_page_html(target_key, proxy=proxy)
                 except Exception as net_err:
-                    if os.path.exists(sample_file):
-                        with open(sample_file, "r", encoding="utf-8") as f:
-                            html = f.read()
-                        rel_path = os.path.join("data", "official_snapshots", f"sample_{target_key}.html")
-                        title = f"{target['name']} 官方定价 (本地快照)"
-                    else:
-                        raise net_err
+                    print(f"[{target_key}] 在线抓取失败: {net_err}")
+                    return 0, f"在线抓取 {target['name']} 失败: {str(net_err)}"
 
             soup = BeautifulSoup(html, "html.parser")
             file_size = len(html.encode("utf-8"))
@@ -1596,27 +1610,42 @@ class OfficialScraperService:
                 await session.flush()
                 snapshot_id = snapshot.id
 
-                parsed_items: List[Dict[str, Any]] = []
-                if target_key == "deepseek":
-                    parsed_items = self.parse_deepseek(soup, target["url"], snapshot_id)
-                elif target_key == "glm":
-                    parsed_items = self.parse_glm(soup, target["url"], snapshot_id)
-                elif target_key == "kimi":
-                    parsed_items = self.parse_kimi(soup, target["url"], snapshot_id)
-                elif target_key == "minimax":
-                    parsed_items = self.parse_minimax(soup, target["url"], snapshot_id)
-                elif target_key == "bailian":
-                    parsed_items = self.parse_bailian(soup, target["url"], snapshot_id)
-                elif target_key == "xiaomi":
-                    parsed_items = self.parse_xiaomi(soup, target["url"], snapshot_id)
-                elif target_key == "stepfun":
-                    parsed_items = self.parse_stepfun(soup, target["url"], snapshot_id)
-                elif target_key == "openai":
-                    parsed_items = self.parse_openai(soup, target["url"], snapshot_id)
-                elif target_key == "claude":
-                    parsed_items = self.parse_claude(soup, target["url"], snapshot_id)
-                elif target_key == "gemini":
-                    parsed_items = self.parse_gemini(soup, target["url"], snapshot_id)
+                def _do_parse(s_obj):
+                    if target_key == "deepseek":
+                        return self.parse_deepseek(s_obj, target["url"], snapshot_id)
+                    elif target_key == "glm":
+                        return self.parse_glm(s_obj, target["url"], snapshot_id)
+                    elif target_key == "kimi":
+                        return self.parse_kimi(s_obj, target["url"], snapshot_id)
+                    elif target_key == "minimax":
+                        return self.parse_minimax(s_obj, target["url"], snapshot_id)
+                    elif target_key == "bailian":
+                        return self.parse_bailian(s_obj, target["url"], snapshot_id)
+                    elif target_key == "xiaomi":
+                        return self.parse_xiaomi(s_obj, target["url"], snapshot_id)
+                    elif target_key == "stepfun":
+                        return self.parse_stepfun(s_obj, target["url"], snapshot_id)
+                    elif target_key == "openai":
+                        return self.parse_openai(s_obj, target["url"], snapshot_id)
+                    elif target_key == "claude":
+                        return self.parse_claude(s_obj, target["url"], snapshot_id)
+                    elif target_key == "gemini":
+                        return self.parse_gemini(s_obj, target["url"], snapshot_id)
+                    return []
+
+                parsed_items = _do_parse(soup)
+
+                if len(parsed_items) == 0:
+                    await session.rollback()
+                    return 0, f"{target['name']} 解析到的模型规格数为 0，未生成有效快照"
+
+                # 在线成功抓取并解析后，同步更新本地权威基准样本文件
+                if not use_local_sample and os.path.exists(self.snapshots_dir):
+                    try:
+                        with open(sample_file, "w", encoding="utf-8") as f:
+                            f.write(html)
+                    except Exception:
+                        pass
 
                 snapshot.models_count = len(parsed_items)
 
@@ -1626,8 +1655,14 @@ class OfficialScraperService:
                 existing_prices = existing_res.scalars().all()
                 user_notes_map = {p.model_name: (p.custom_notes, p.user_tags) for p in existing_prices}
 
-                del_stmt = delete(OfficialModelPrice).where(OfficialModelPrice.provider == target["code"])
-                await session.execute(del_stmt)
+                # 将该厂商历史价格标记为历史版本 (is_current = False)，保留作为追溯大盘与比对依据
+                update_old_stmt = (
+                    update(OfficialModelPrice)
+                    .where(OfficialModelPrice.provider == target["code"])
+                    .where(OfficialModelPrice.is_current == True)
+                    .values(is_current=False)
+                )
+                await session.execute(update_old_stmt)
 
                 for item in parsed_items:
                     m_name = item["model_name"]
@@ -1638,6 +1673,7 @@ class OfficialScraperService:
                         if saved_tags:
                             item["user_tags"] = saved_tags
 
+                    item["is_current"] = True
                     model_price = OfficialModelPrice(**item)
                     session.add(model_price)
 

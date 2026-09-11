@@ -58,7 +58,7 @@ function parseChangelog(markdown) {
     const firstLine = lines[0].trim()
     
     // 匹配 [v1.4.0 ...] - 2026-09-04
-    const titleMatch = firstLine.match(/\[(v[\d\.]+(?:[^\].]+)?)\](?:\s*-\s*(\d{4}-\d{2}-\d{2}))?/)
+    const titleMatch = firstLine.match(/\[(v[\d\.]+[^\]]*)\](?:\s*-\s*(\d{4}-\d{2}-\d{2}))?/)
     const verTag = titleMatch ? titleMatch[1] : firstLine
     const releaseDate = titleMatch && titleMatch[2] ? titleMatch[2] : ''
 

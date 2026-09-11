@@ -1,24 +1,53 @@
 {
   "name": "welltoken-price-dashboard",
   "productName": "WellToken Price Dashboard",
-  "version": "1.5.0",
-  "fullVersion": "v1.5.0",
+  "version": "1.5.1",
+  "fullVersion": "v1.5.1",
   "description": "Cross-platform Token & Crypto Price Dashboard built with Electron, Vue 3, SQLite and Python FastAPI",
   "author": "qxk2005",
   "homepage": "https://github.com/qxk2005/welltoken-price-dashboard",
   "git": {
-    "commit": "8398a75",
+    "commit": "75f5d0a",
     "branch": "main",
-    "date": "2026-09-06 22:26:12 +0800"
+    "date": "2026-09-11 12:01:27 +0800"
   },
   "build": {
-    "time": "2026-09-06 22:43:26",
-    "iso": "2026-09-06T14:43:26.390Z",
-    "node": "v24.7.0",
-    "platform": "win32",
-    "arch": "x64"
+    "time": "2026-09-11 12:01:36",
+    "iso": "2026-09-11T04:01:36.094Z",
+    "node": "v26.8.1",
+    "platform": "darwin",
+    "arch": "arm64"
   },
   "changelog": [
+    {
+      "version": "1.5.1",
+      "tag": "v1.5.1 官方多版本快照管理、上期价格追溯对比、历史走势大盘与Gemini 3.8最新定价固化版",
+      "fullTitle": "[v1.5.1 官方多版本快照管理、上期价格追溯对比、历史走势大盘与Gemini 3.8最新定价固化版] - 2026-09-11",
+      "date": "2026-09-11",
+      "sections": [
+        {
+          "title": "🌟 全新功能与架构重构",
+          "items": [
+            "**以统一抓取日期+厂商为维度的手风琴快照版本管理 (`SnapshotManagerModal.vue`)**：",
+            "将快照管理彻底重构为以“抓取日期批次（如 2026-09-11）”为顶层的手风琴折叠面板，默认展开最新生效日期；",
+            "展开呈现该日期下全部 10 家厂商卡片矩阵，支持在抽屉内一键查阅原始 HTML 网页证据；",
+            "新增快照收录模型清单预览模态框，支持查看该快照全部模型明细与价格；",
+            "支持按厂商单独删除快照或一键删除整批次快照；若删除当前最新快照，全自动回滚至上一历史有效版本。",
+            "**上期价格追溯对比与涨跌变动呈现**：",
+            "主表格全视图模式新增「上期价格 / 涨跌」列，通过绿降红涨微标直观展现环比涨跌幅与价差；",
+            "悬浮卡片清晰展现换算后的上一期基准单价与对账日期。",
+            "**模型专属历史价格演变大盘 (`ModelHistoryDrawer.vue`)**：",
+            "点击模型操作列「走势 📈」按钮呼出抽屉，内嵌多币种联动的 ECharts 时序折线走势图与历次版本明细比对表。",
+            "**全量 10 家官方厂商最新模型与 Gemini 3.8 Flash 定价升级**：",
+            "彻底重构 Google (Gemini) 解析器，支持全系 84 款最新规格（包括 `Gemini 3.8 Flash` 标准/Batch/Flex/Priority 4 种模式）；",
+            "语义化提取阶段性特惠价格（输入 $0.75 / 输出 $3.75），并在备注中完整留存官方政策规则；",
+            "抓取引擎引入全屏平滑滚动触发懒加载与 DOM 脱水，严禁静默 fallback 冒充新快照；",
+            "同日多次抓取严格以最后一次为准，清理 114 份冗余碎片，当前最新生效模型数扩充至 **598 款**，并固化至 `data/official_prices_seed.json`，开箱即用。"
+          ]
+        }
+      ],
+      "rawContent": "### 🌟 全新功能与架构重构\n- **以统一抓取日期+厂商为维度的手风琴快照版本管理 (`SnapshotManagerModal.vue`)**：\n  - 将快照管理彻底重构为以“抓取日期批次（如 2026-09-11）”为顶层的手风琴折叠面板，默认展开最新生效日期；\n  - 展开呈现该日期下全部 10 家厂商卡片矩阵，支持在抽屉内一键查阅原始 HTML 网页证据；\n  - 新增快照收录模型清单预览模态框，支持查看该快照全部模型明细与价格；\n  - 支持按厂商单独删除快照或一键删除整批次快照；若删除当前最新快照，全自动回滚至上一历史有效版本。\n- **上期价格追溯对比与涨跌变动呈现**：\n  - 主表格全视图模式新增「上期价格 / 涨跌」列，通过绿降红涨微标直观展现环比涨跌幅与价差；\n  - 悬浮卡片清晰展现换算后的上一期基准单价与对账日期。\n- **模型专属历史价格演变大盘 (`ModelHistoryDrawer.vue`)**：\n  - 点击模型操作列「走势 📈」按钮呼出抽屉，内嵌多币种联动的 ECharts 时序折线走势图与历次版本明细比对表。\n- **全量 10 家官方厂商最新模型与 Gemini 3.8 Flash 定价升级**：\n  - 彻底重构 Google (Gemini) 解析器，支持全系 84 款最新规格（包括 `Gemini 3.8 Flash` 标准/Batch/Flex/Priority 4 种模式）；\n  - 语义化提取阶段性特惠价格（输入 $0.75 / 输出 $3.75），并在备注中完整留存官方政策规则；\n  - 抓取引擎引入全屏平滑滚动触发懒加载与 DOM 脱水，严禁静默 fallback 冒充新快照；\n  - 同日多次抓取严格以最后一次为准，清理 114 份冗余碎片，当前最新生效模型数扩充至 **598 款**，并固化至 `data/official_prices_seed.json`，开箱即用。\n\n---"
+    },
     {
       "version": "1.5.0",
       "tag": "v1.5.0 小米等官方快照营销公告弹窗与全屏遮罩彻底净化加固版",
@@ -465,26 +494,32 @@
     }
   ],
   "latestChangelog": {
-    "version": "1.5.0",
-    "tag": "v1.5.0 小米等官方快照营销公告弹窗与全屏遮罩彻底净化加固版",
-    "fullTitle": "[v1.5.0 小米等官方快照营销公告弹窗与全屏遮罩彻底净化加固版] - 2026-09-06",
-    "date": "2026-09-06",
+    "version": "1.5.1",
+    "tag": "v1.5.1 官方多版本快照管理、上期价格追溯对比、历史走势大盘与Gemini 3.8最新定价固化版",
+    "fullTitle": "[v1.5.1 官方多版本快照管理、上期价格追溯对比、历史走势大盘与Gemini 3.8最新定价固化版] - 2026-09-11",
+    "date": "2026-09-11",
     "sections": [
       {
-        "title": "🛠️ 关键缺陷修复与核验体验优化",
+        "title": "🌟 全新功能与架构重构",
         "items": [
-          "**彻底根治小米（Xiaomi MiMo）等官方快照在内置抽屉对账时弹出营销公告窗口及全屏遮罩挡住定价内容缺陷**：",
-          "**根本原因定位**：小米官网页面在加载时会触发 Ant Design 营销弹窗及全屏灰色遮罩蒙层（`.ant-modal-root`, `.ant-modal-mask`, `Announcement_announcementModal__AHN0r`）；快照展示端点为了防止本地白屏，安全剔除了原页面的所有 `<script>`，导致该弹窗失去了原本的点击 `[X]` 关闭逻辑，变成静态挡在页面中央；全屏遮罩蒙层同时阻断了用户对后方价格表格的点击与滚动；",
-          "**快照渲染端点 DOM 级彻底剔除与 CSS 强力屏蔽**：在 [backend/app/api/v1/official_pricing.py](file:///d:/AI/WPD/backend/app/api/v1/official_pricing.py) 的 `view_snapshot_html` 中：",
-          "遍历并彻底删除 `.ant-modal-root`, `.ant-modal-mask`, `.ant-modal-wrap`, `.ant-modal`, `.el-overlay`, `.modal-backdrop`, `[class*=\"announcementModal\"]`, `[class*=\"NoticeModal\"]` 以及无表格数据的纯提示框 `[role=\"dialog\"]:not(:has(table))`；",
-          "在注入的 `<style>` 标签中加入强力屏蔽样式（`display: none !important; opacity: 0 !important; pointer-events: none !important; z-index: -9999 !important;`），实现双重防护，杜绝任何残余遮罩阻断用户操作；",
-          "**抓取阶段防范与存盘清洗**：在 [backend/app/services/official_scraper_service.py](file:///d:/AI/WPD/backend/app/services/official_scraper_service.py) 中，Playwright 访问时自动探测并点击关闭常见弹窗（`.ant-modal-close`, `button[aria-label=\"Close\"]`, `button:has-text(\"我知道了\")` 等），并在快照文件存盘前再次清洗 DOM，确保新抓取的离线快照文件本身干干净净；",
-          "**存量快照全面净化**：对 `data/official_snapshots/` 以及本地 AppData 目录下的所有受遮挡快照（`sample_xiaomi.html`, `sample_glm.html`, `sample_openai.html` 等）进行了静态 DOM 净化；",
-          "**自动化测试套件构建**：新增 [backend/tests/test_snapshot_cleaning.py](file:///d:/AI/WPD/backend/tests/test_snapshot_cleaning.py)，覆盖 DOM 节点剔除验证、逻辑保留正常表格 dialog 测试、以及 FastAPI API 路由真实净化验证；",
-          "**测试全套通过**：小米官方定价与快照测试、阶跃星辰快照测试、Vue 类型检查 `npm run typecheck` 与前端构建 `npm run build` 全部顺利通过。"
+          "**以统一抓取日期+厂商为维度的手风琴快照版本管理 (`SnapshotManagerModal.vue`)**：",
+          "将快照管理彻底重构为以“抓取日期批次（如 2026-09-11）”为顶层的手风琴折叠面板，默认展开最新生效日期；",
+          "展开呈现该日期下全部 10 家厂商卡片矩阵，支持在抽屉内一键查阅原始 HTML 网页证据；",
+          "新增快照收录模型清单预览模态框，支持查看该快照全部模型明细与价格；",
+          "支持按厂商单独删除快照或一键删除整批次快照；若删除当前最新快照，全自动回滚至上一历史有效版本。",
+          "**上期价格追溯对比与涨跌变动呈现**：",
+          "主表格全视图模式新增「上期价格 / 涨跌」列，通过绿降红涨微标直观展现环比涨跌幅与价差；",
+          "悬浮卡片清晰展现换算后的上一期基准单价与对账日期。",
+          "**模型专属历史价格演变大盘 (`ModelHistoryDrawer.vue`)**：",
+          "点击模型操作列「走势 📈」按钮呼出抽屉，内嵌多币种联动的 ECharts 时序折线走势图与历次版本明细比对表。",
+          "**全量 10 家官方厂商最新模型与 Gemini 3.8 Flash 定价升级**：",
+          "彻底重构 Google (Gemini) 解析器，支持全系 84 款最新规格（包括 `Gemini 3.8 Flash` 标准/Batch/Flex/Priority 4 种模式）；",
+          "语义化提取阶段性特惠价格（输入 $0.75 / 输出 $3.75），并在备注中完整留存官方政策规则；",
+          "抓取引擎引入全屏平滑滚动触发懒加载与 DOM 脱水，严禁静默 fallback 冒充新快照；",
+          "同日多次抓取严格以最后一次为准，清理 114 份冗余碎片，当前最新生效模型数扩充至 **598 款**，并固化至 `data/official_prices_seed.json`，开箱即用。"
         ]
       }
     ],
-    "rawContent": "### 🛠️ 关键缺陷修复与核验体验优化\n- **彻底根治小米（Xiaomi MiMo）等官方快照在内置抽屉对账时弹出营销公告窗口及全屏遮罩挡住定价内容缺陷**：\n  - **根本原因定位**：小米官网页面在加载时会触发 Ant Design 营销弹窗及全屏灰色遮罩蒙层（`.ant-modal-root`, `.ant-modal-mask`, `Announcement_announcementModal__AHN0r`）；快照展示端点为了防止本地白屏，安全剔除了原页面的所有 `<script>`，导致该弹窗失去了原本的点击 `[X]` 关闭逻辑，变成静态挡在页面中央；全屏遮罩蒙层同时阻断了用户对后方价格表格的点击与滚动；\n  - **快照渲染端点 DOM 级彻底剔除与 CSS 强力屏蔽**：在 [backend/app/api/v1/official_pricing.py](file:///d:/AI/WPD/backend/app/api/v1/official_pricing.py) 的 `view_snapshot_html` 中：\n    - 遍历并彻底删除 `.ant-modal-root`, `.ant-modal-mask`, `.ant-modal-wrap`, `.ant-modal`, `.el-overlay`, `.modal-backdrop`, `[class*=\"announcementModal\"]`, `[class*=\"NoticeModal\"]` 以及无表格数据的纯提示框 `[role=\"dialog\"]:not(:has(table))`；\n    - 在注入的 `<style>` 标签中加入强力屏蔽样式（`display: none !important; opacity: 0 !important; pointer-events: none !important; z-index: -9999 !important;`），实现双重防护，杜绝任何残余遮罩阻断用户操作；\n  - **抓取阶段防范与存盘清洗**：在 [backend/app/services/official_scraper_service.py](file:///d:/AI/WPD/backend/app/services/official_scraper_service.py) 中，Playwright 访问时自动探测并点击关闭常见弹窗（`.ant-modal-close`, `button[aria-label=\"Close\"]`, `button:has-text(\"我知道了\")` 等），并在快照文件存盘前再次清洗 DOM，确保新抓取的离线快照文件本身干干净净；\n  - **存量快照全面净化**：对 `data/official_snapshots/` 以及本地 AppData 目录下的所有受遮挡快照（`sample_xiaomi.html`, `sample_glm.html`, `sample_openai.html` 等）进行了静态 DOM 净化；\n  - **自动化测试套件构建**：新增 [backend/tests/test_snapshot_cleaning.py](file:///d:/AI/WPD/backend/tests/test_snapshot_cleaning.py)，覆盖 DOM 节点剔除验证、逻辑保留正常表格 dialog 测试、以及 FastAPI API 路由真实净化验证；\n  - **测试全套通过**：小米官方定价与快照测试、阶跃星辰快照测试、Vue 类型检查 `npm run typecheck` 与前端构建 `npm run build` 全部顺利通过。\n\n---"
+    "rawContent": "### 🌟 全新功能与架构重构\n- **以统一抓取日期+厂商为维度的手风琴快照版本管理 (`SnapshotManagerModal.vue`)**：\n  - 将快照管理彻底重构为以“抓取日期批次（如 2026-09-11）”为顶层的手风琴折叠面板，默认展开最新生效日期；\n  - 展开呈现该日期下全部 10 家厂商卡片矩阵，支持在抽屉内一键查阅原始 HTML 网页证据；\n  - 新增快照收录模型清单预览模态框，支持查看该快照全部模型明细与价格；\n  - 支持按厂商单独删除快照或一键删除整批次快照；若删除当前最新快照，全自动回滚至上一历史有效版本。\n- **上期价格追溯对比与涨跌变动呈现**：\n  - 主表格全视图模式新增「上期价格 / 涨跌」列，通过绿降红涨微标直观展现环比涨跌幅与价差；\n  - 悬浮卡片清晰展现换算后的上一期基准单价与对账日期。\n- **模型专属历史价格演变大盘 (`ModelHistoryDrawer.vue`)**：\n  - 点击模型操作列「走势 📈」按钮呼出抽屉，内嵌多币种联动的 ECharts 时序折线走势图与历次版本明细比对表。\n- **全量 10 家官方厂商最新模型与 Gemini 3.8 Flash 定价升级**：\n  - 彻底重构 Google (Gemini) 解析器，支持全系 84 款最新规格（包括 `Gemini 3.8 Flash` 标准/Batch/Flex/Priority 4 种模式）；\n  - 语义化提取阶段性特惠价格（输入 $0.75 / 输出 $3.75），并在备注中完整留存官方政策规则；\n  - 抓取引擎引入全屏平滑滚动触发懒加载与 DOM 脱水，严禁静默 fallback 冒充新快照；\n  - 同日多次抓取严格以最后一次为准，清理 114 份冗余碎片，当前最新生效模型数扩充至 **598 款**，并固化至 `data/official_prices_seed.json`，开箱即用。\n\n---"
   }
 }

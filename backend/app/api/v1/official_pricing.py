@@ -3,12 +3,13 @@
 提供官方价格查询、汇率动态折算、用户自定义备注/标签更新、触发实时抓取以及 HTML 快照对账查阅。
 """
 import os
+from collections import OrderedDict
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, update
+from sqlalchemy import select, func, or_, update, delete
 
 from backend.app.config import DATA_DIR
 from backend.app.database import get_db
@@ -43,20 +44,23 @@ async def get_official_prices(
     billing_mode: Optional[str] = Query(None, description="计费模式筛选"),
     db: AsyncSession = Depends(get_db)
 ):
-    """获取官方价格全量列表（支持多维筛选与汇率自动折算）"""
+    """获取官方价格当前生效全量列表（支持多维筛选、汇率自动折算、上期价格自动对比与涨跌计算）"""
     rate = exchange_rate_service.current_rate
     if not rate or rate <= 0:
         rate = 7.30
 
-    query = select(OfficialModelPrice).where(OfficialModelPrice.is_active == True)
+    query = select(OfficialModelPrice).where(
+        OfficialModelPrice.is_active == True,
+        OfficialModelPrice.is_current == True
+    )
 
-    if provider:
+    if provider and isinstance(provider, str):
         query = query.where(OfficialModelPrice.provider == provider)
-    if series:
+    if series and isinstance(series, str):
         query = query.where(OfficialModelPrice.series == series)
-    if billing_mode:
+    if billing_mode and isinstance(billing_mode, str):
         query = query.where(OfficialModelPrice.billing_mode == billing_mode)
-    if search:
+    if search and isinstance(search, str) and search.strip():
         kw = f"%{search.strip()}%"
         query = query.where(
             or_(
@@ -72,22 +76,51 @@ async def get_official_prices(
     result = await db.execute(query)
     records = result.scalars().all()
 
+    # 预查询所有模型在历史快照中的上一次有效价格 (is_current == False)
+    prev_subq = (
+        select(
+            OfficialModelPrice.provider,
+            OfficialModelPrice.model_name,
+            OfficialModelPrice.input_price,
+            OfficialModelPrice.output_price,
+            OfficialModelPrice.cache_read_price,
+            OfficialModelPrice.cache_write_price,
+            OfficialModelPrice.price_date,
+            OfficialModelPrice.snapshot_id,
+            func.row_number().over(
+                partition_by=[OfficialModelPrice.provider, OfficialModelPrice.model_name],
+                order_by=OfficialModelPrice.id.desc()
+            ).label("rn")
+        )
+        .where(
+            OfficialModelPrice.is_current == False,
+            OfficialModelPrice.is_active == True
+        )
+        .subquery()
+    )
+    prev_stmt = select(prev_subq).where(prev_subq.c.rn == 1)
+    prev_res = await db.execute(prev_stmt)
+    prev_map = {
+        (row.provider, row.model_name): row
+        for row in prev_res.all()
+    }
+
     # 提取唯一的厂商列表与系列列表供前端筛选框使用
     providers_res = await db.execute(
         select(OfficialModelPrice.provider, OfficialModelPrice.provider_name)
-        .where(OfficialModelPrice.is_active == True)
+        .where(OfficialModelPrice.is_active == True, OfficialModelPrice.is_current == True)
         .distinct()
     )
     providers_list = [{"code": r[0], "name": r[1]} for r in providers_res.all()]
 
     series_res = await db.execute(
         select(OfficialModelPrice.series, OfficialModelPrice.provider)
-        .where(OfficialModelPrice.is_active == True)
+        .where(OfficialModelPrice.is_active == True, OfficialModelPrice.is_current == True)
         .distinct()
     )
     series_list = [{"series": r[0], "provider": r[1]} for r in series_res.all() if r[0]]
 
-    # 封装并计算双币种（CNY ¥ 与 USD $）
+    # 封装并计算双币种与上期价格对比
     items = []
     for m in records:
         item_dict = {
@@ -111,10 +144,46 @@ async def get_official_prices(
             "source_page_url": m.source_page_url or "",
             "source_anchor": m.source_anchor or "",
             "snapshot_id": m.snapshot_id,
+            "is_current": m.is_current,
             "is_active": m.is_active,
             "created_at": m.created_at,
             "updated_at": m.updated_at,
         }
+
+        # 计算上期对比数据
+        prev = prev_map.get((m.provider, m.model_name))
+        if prev:
+            prev_in = float(prev.input_price or 0.0)
+            prev_out = float(prev.output_price or 0.0)
+            diff_in = round(m.input_price - prev_in, 6)
+            diff_out = round(m.output_price - prev_out, 6)
+            diff_in_pct = round((diff_in / prev_in) * 100, 2) if prev_in > 0 else (100.0 if diff_in > 0 else 0.0)
+            diff_out_pct = round((diff_out / prev_out) * 100, 2) if prev_out > 0 else (100.0 if diff_out > 0 else 0.0)
+
+            item_dict["previous_input_price"] = prev_in
+            item_dict["previous_output_price"] = prev_out
+            item_dict["previous_cache_read_price"] = float(prev.cache_read_price or 0.0)
+            item_dict["previous_cache_write_price"] = float(prev.cache_write_price or 0.0)
+            item_dict["price_change_input"] = diff_in
+            item_dict["price_change_output"] = diff_out
+            item_dict["price_change_input_pct"] = diff_in_pct
+            item_dict["price_change_output_pct"] = diff_out_pct
+            item_dict["previous_snapshot_id"] = prev.snapshot_id
+            item_dict["previous_price_date"] = prev.price_date or ""
+            item_dict["is_new_model"] = False
+        else:
+            item_dict["previous_input_price"] = None
+            item_dict["previous_output_price"] = None
+            item_dict["previous_cache_read_price"] = None
+            item_dict["previous_cache_write_price"] = None
+            item_dict["price_change_input"] = 0.0
+            item_dict["price_change_output"] = 0.0
+            item_dict["price_change_input_pct"] = 0.0
+            item_dict["price_change_output_pct"] = 0.0
+            item_dict["previous_snapshot_id"] = None
+            item_dict["previous_price_date"] = ""
+            item_dict["is_new_model"] = True
+
         # 汇率换算逻辑
         if m.currency == "USD":
             item_dict["converted_input_usd"] = m.input_price
@@ -125,6 +194,17 @@ async def get_official_prices(
             item_dict["converted_output_cny"] = round(m.output_price * rate, 4)
             item_dict["converted_cache_read_cny"] = round(m.cache_read_price * rate, 4)
             item_dict["converted_cache_write_cny"] = round(m.cache_write_price * rate, 4)
+            # 上期折合
+            if item_dict["previous_input_price"] is not None:
+                item_dict["converted_prev_input_usd"] = item_dict["previous_input_price"]
+                item_dict["converted_prev_output_usd"] = item_dict["previous_output_price"]
+                item_dict["converted_prev_input_cny"] = round(item_dict["previous_input_price"] * rate, 4)
+                item_dict["converted_prev_output_cny"] = round(item_dict["previous_output_price"] * rate, 4)
+            else:
+                item_dict["converted_prev_input_usd"] = None
+                item_dict["converted_prev_output_usd"] = None
+                item_dict["converted_prev_input_cny"] = None
+                item_dict["converted_prev_output_cny"] = None
         else:
             item_dict["converted_input_cny"] = m.input_price
             item_dict["converted_output_cny"] = m.output_price
@@ -134,6 +214,17 @@ async def get_official_prices(
             item_dict["converted_output_usd"] = round(m.output_price / rate, 4) if rate > 0 else 0.0
             item_dict["converted_cache_read_usd"] = round(m.cache_read_price / rate, 4) if rate > 0 else 0.0
             item_dict["converted_cache_write_usd"] = round(m.cache_write_price / rate, 4) if rate > 0 else 0.0
+            # 上期折合
+            if item_dict["previous_input_price"] is not None:
+                item_dict["converted_prev_input_cny"] = item_dict["previous_input_price"]
+                item_dict["converted_prev_output_cny"] = item_dict["previous_output_price"]
+                item_dict["converted_prev_input_usd"] = round(item_dict["previous_input_price"] / rate, 4) if rate > 0 else 0.0
+                item_dict["converted_prev_output_usd"] = round(item_dict["previous_output_price"] / rate, 4) if rate > 0 else 0.0
+            else:
+                item_dict["converted_prev_input_usd"] = None
+                item_dict["converted_prev_output_usd"] = None
+                item_dict["converted_prev_input_cny"] = None
+                item_dict["converted_prev_output_cny"] = None
 
         items.append(item_dict)
 
@@ -208,7 +299,15 @@ async def trigger_scrape(
 
 @router.get("/snapshots")
 async def list_snapshots(db: AsyncSession = Depends(get_db)):
-    """获取所有已留存的官网快照"""
+    """获取所有已留存的官网快照（标注当前生效版本）"""
+    # 查找当前生效价格对应的 snapshot_id 集合
+    curr_snap_ids_res = await db.execute(
+        select(OfficialModelPrice.snapshot_id)
+        .where(OfficialModelPrice.is_current == True, OfficialModelPrice.snapshot_id.is_not(None))
+        .distinct()
+    )
+    current_snap_ids = set(r[0] for r in curr_snap_ids_res.all())
+
     query = select(OfficialSnapshot).order_by(OfficialSnapshot.captured_at.desc())
     res = await db.execute(query)
     snapshots = res.scalars().all()
@@ -221,10 +320,385 @@ async def list_snapshots(db: AsyncSession = Depends(get_db)):
             "local_file_path": s.local_file_path,
             "file_size_bytes": s.file_size_bytes,
             "models_count": s.models_count,
+            "is_current": s.id in current_snap_ids,
             "captured_at": s.captured_at.strftime("%Y-%m-%d %H:%M:%S") if s.captured_at else "",
         }
         for s in snapshots
     ]
+
+
+@router.get("/snapshots/grouped")
+async def list_snapshots_grouped(db: AsyncSession = Depends(get_db)):
+    """按日期（YYYY-MM-DD）聚合快照列表（标注当前生效版本、收录厂商、模型总数）"""
+    # 查找当前生效价格对应的 snapshot_id 集合
+    curr_snap_ids_res = await db.execute(
+        select(OfficialModelPrice.snapshot_id)
+        .where(OfficialModelPrice.is_current == True, OfficialModelPrice.snapshot_id.is_not(None))
+        .distinct()
+    )
+    current_snap_ids = set(r[0] for r in curr_snap_ids_res.all())
+
+    # 查询所有快照，按 captured_at 降序
+    query = select(OfficialSnapshot).order_by(OfficialSnapshot.captured_at.desc(), OfficialSnapshot.id.desc())
+    res = await db.execute(query)
+    snapshots = res.scalars().all()
+
+    # 统计每个 snapshot 实际关联的模型数
+    model_count_res = await db.execute(
+        select(OfficialModelPrice.snapshot_id, func.count(OfficialModelPrice.id))
+        .where(OfficialModelPrice.snapshot_id.is_not(None))
+        .group_by(OfficialModelPrice.snapshot_id)
+    )
+    model_count_map = {r[0]: r[1] for r in model_count_res.all()}
+
+    from backend.app.services.official_scraper_service import OFFICIAL_TARGETS
+    provider_name_map = {
+        p: conf.get("name", p) for p, conf in OFFICIAL_TARGETS.items()
+    }
+
+    # 按 YYYY-MM-DD 分组
+    date_groups = OrderedDict()
+    for s in snapshots:
+        d_str = s.captured_at.strftime("%Y-%m-%d") if s.captured_at else "未知日期"
+        if d_str not in date_groups:
+            date_groups[d_str] = {
+                "snapshot_date": d_str,
+                "is_current": False,
+                "total_providers": 0,
+                "total_models": 0,
+                "providers": []
+            }
+
+        is_curr = s.id in current_snap_ids
+        if is_curr:
+            date_groups[d_str]["is_current"] = True
+
+        cnt = model_count_map.get(s.id, s.models_count or 0)
+        date_groups[d_str]["total_models"] += cnt
+
+        date_groups[d_str]["providers"].append({
+            "snapshot_id": s.id,
+            "provider": s.provider,
+            "provider_name": provider_name_map.get(s.provider, s.provider),
+            "source_url": s.source_url,
+            "page_title": s.page_title,
+            "local_file_path": s.local_file_path,
+            "file_size_bytes": s.file_size_bytes,
+            "models_count": cnt,
+            "is_current": is_curr,
+            "captured_at": s.captured_at.strftime("%Y-%m-%d %H:%M:%S") if s.captured_at else "",
+        })
+
+    result = []
+    for g in date_groups.values():
+        g["total_providers"] = len(g["providers"])
+        result.append(g)
+
+    return result
+
+
+@router.get("/snapshots/{snapshot_id}/models")
+async def get_snapshot_models(snapshot_id: int, db: AsyncSession = Depends(get_db)):
+    """获取指定快照收录的所有模型明细列表"""
+    snap_res = await db.execute(select(OfficialSnapshot).where(OfficialSnapshot.id == snapshot_id))
+    snapshot = snap_res.scalar_one_or_none()
+    if not snapshot:
+        raise HTTPException(status_code=404, detail="未找到该快照")
+
+    query = (
+        select(OfficialModelPrice)
+        .where(OfficialModelPrice.snapshot_id == snapshot_id)
+        .order_by(OfficialModelPrice.series.asc(), OfficialModelPrice.model_name.asc())
+    )
+    res = await db.execute(query)
+    models = res.scalars().all()
+
+    from backend.app.services.official_scraper_service import OFFICIAL_TARGETS
+    p_name = OFFICIAL_TARGETS.get(snapshot.provider, {}).get("name", snapshot.provider)
+
+    items = []
+    for m in models:
+        items.append({
+            "id": m.id,
+            "provider": m.provider,
+            "provider_name": p_name,
+            "series": m.series or "other",
+            "model_name": m.model_name,
+            "raw_model_id": m.raw_model_id or "",
+            "billing_mode": m.billing_mode or "Standard",
+            "tier_range": m.tier_range or "无阶梯",
+            "currency": m.currency,
+            "input_price": m.input_price,
+            "output_price": m.output_price,
+            "cache_read_price": m.cache_read_price,
+            "cache_write_price": m.cache_write_price,
+            "remarks": m.remarks or "",
+            "is_current": m.is_current,
+        })
+
+    return {
+        "snapshot_id": snapshot.id,
+        "provider": snapshot.provider,
+        "provider_name": p_name,
+        "captured_at": snapshot.captured_at.strftime("%Y-%m-%d %H:%M:%S") if snapshot.captured_at else "",
+        "page_title": snapshot.page_title,
+        "source_url": snapshot.source_url,
+        "total": len(items),
+        "models": items
+    }
+
+
+@router.get("/model/history")
+async def get_model_history(
+    provider: str = Query(..., description="厂商代码，如 openai, deepseek 等"),
+    model_name: str = Query(..., description="模型名称"),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取指定模型在各历史快照中的价格变化轨迹序列（用于时序走势大盘与版本对比）"""
+    rate = exchange_rate_service.current_rate
+    if not rate or rate <= 0:
+        rate = 7.30
+
+    query = (
+        select(OfficialModelPrice, OfficialSnapshot)
+        .outerjoin(OfficialSnapshot, OfficialModelPrice.snapshot_id == OfficialSnapshot.id)
+        .where(
+            OfficialModelPrice.provider == provider,
+            OfficialModelPrice.model_name == model_name,
+            OfficialModelPrice.is_active == True
+        )
+        .order_by(OfficialModelPrice.created_at.asc(), OfficialModelPrice.id.asc())
+    )
+    result = await db.execute(query)
+    rows = result.all()
+
+    points = []
+    prev_in = None
+    prev_out = None
+
+    for price_obj, snap_obj in rows:
+        in_p = price_obj.input_price
+        out_p = price_obj.output_price
+        cache_r = price_obj.cache_read_price
+        cache_w = price_obj.cache_write_price
+
+        diff_in = round(in_p - prev_in, 6) if prev_in is not None else 0.0
+        diff_out = round(out_p - prev_out, 6) if prev_out is not None else 0.0
+        diff_in_pct = round((diff_in / prev_in) * 100, 2) if (prev_in is not None and prev_in > 0) else 0.0
+        diff_out_pct = round((diff_out / prev_out) * 100, 2) if (prev_out is not None and prev_out > 0) else 0.0
+
+        if price_obj.currency == "USD":
+            in_cny = round(in_p * rate, 4)
+            out_cny = round(out_p * rate, 4)
+            in_usd = in_p
+            out_usd = out_p
+        else:
+            in_cny = in_p
+            out_cny = out_p
+            in_usd = round(in_p / rate, 4) if rate > 0 else 0.0
+            out_usd = round(out_p / rate, 4) if rate > 0 else 0.0
+
+        captured_time = ""
+        if snap_obj and snap_obj.captured_at:
+            captured_time = snap_obj.captured_at.strftime("%Y-%m-%d %H:%M:%S")
+        elif price_obj.created_at:
+            captured_time = price_obj.created_at.strftime("%Y-%m-%d %H:%M:%S")
+
+        points.append({
+            "id": price_obj.id,
+            "snapshot_id": price_obj.snapshot_id,
+            "captured_at": captured_time,
+            "price_date": price_obj.price_date or "",
+            "is_current": price_obj.is_current,
+            "currency": price_obj.currency,
+            "input_price": in_p,
+            "output_price": out_p,
+            "cache_read_price": cache_r,
+            "cache_write_price": cache_w,
+            "converted_input_cny": in_cny,
+            "converted_output_cny": out_cny,
+            "converted_input_usd": in_usd,
+            "converted_output_usd": out_usd,
+            "diff_input": diff_in,
+            "diff_output": diff_out,
+            "diff_input_pct": diff_in_pct,
+            "diff_output_pct": diff_out_pct,
+            "billing_mode": price_obj.billing_mode,
+            "tier_range": price_obj.tier_range,
+            "remarks": price_obj.remarks,
+        })
+        prev_in = in_p
+        prev_out = out_p
+
+    return {
+        "status": "success",
+        "provider": provider,
+        "model_name": model_name,
+        "total_points": len(points),
+        "history": points,
+        "rate": rate,
+    }
+
+
+@router.delete("/snapshots/{snapshot_id}")
+async def delete_snapshot(
+    snapshot_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """删除某次快照版本；若删除的是当前最新生效快照，自动将该厂商上一个有效快照回滚为当前生效版本"""
+    query = select(OfficialSnapshot).where(OfficialSnapshot.id == snapshot_id)
+    res = await db.execute(query)
+    snapshot = res.scalar_one_or_none()
+    if not snapshot:
+        raise HTTPException(status_code=404, detail="未找到该快照")
+
+    provider = snapshot.provider
+    local_file_path = snapshot.local_file_path
+
+    # 检查该快照下是否存在当前生效的价格 (is_current == True)
+    curr_check = await db.execute(
+        select(func.count(OfficialModelPrice.id))
+        .where(OfficialModelPrice.snapshot_id == snapshot_id, OfficialModelPrice.is_current == True)
+    )
+    is_active_version = (curr_check.scalar() or 0) > 0
+
+    rolled_back_to = None
+
+    if is_active_version:
+        # 寻找该厂商的上一个最新快照版本 (按 captured_at 倒序排列，排除当前快照)
+        prev_snap_stmt = (
+            select(OfficialSnapshot)
+            .where(OfficialSnapshot.provider == provider, OfficialSnapshot.id != snapshot_id)
+            .order_by(OfficialSnapshot.captured_at.desc(), OfficialSnapshot.id.desc())
+            .limit(1)
+        )
+        prev_snap = (await db.execute(prev_snap_stmt)).scalar_one_or_none()
+        if prev_snap:
+            rolled_back_to = prev_snap.id
+            # 将该上期快照的所有价格记录设为当前生效
+            await db.execute(
+                update(OfficialModelPrice)
+                .where(OfficialModelPrice.snapshot_id == prev_snap.id)
+                .values(is_current=True)
+            )
+
+    # 删除该快照下的所有价格记录
+    await db.execute(delete(OfficialModelPrice).where(OfficialModelPrice.snapshot_id == snapshot_id))
+
+    # 删除快照元数据记录
+    await db.delete(snapshot)
+    await db.commit()
+
+    # 尝试物理删除本地磁盘 HTML 快照文件 (保护基础样本 sample_*.html 不被物理删除)
+    cleaned_file = False
+    try:
+        if local_file_path and not os.path.basename(local_file_path).startswith("sample_"):
+            raw_p = Path(local_file_path)
+            cand_paths = [
+                raw_p,
+                DATA_DIR / "official_snapshots" / raw_p.name,
+                DATA_DIR / raw_p,
+                Path(os.getcwd()) / local_file_path,
+            ]
+            for p in cand_paths:
+                if p.exists() and p.is_file():
+                    os.remove(str(p))
+                    cleaned_file = True
+                    break
+    except Exception:
+        pass
+
+    return {
+        "status": "success",
+        "message": f"快照 #{snapshot_id} 已成功删除",
+        "provider": provider,
+        "is_active_version": is_active_version,
+        "rolled_back_to_snapshot_id": rolled_back_to,
+        "file_deleted": cleaned_file
+    }
+
+
+@router.delete("/snapshots/by-date/{snapshot_date}")
+async def delete_snapshots_by_date(snapshot_date: str, db: AsyncSession = Depends(get_db)):
+    """一键删除指定日期的整批快照；若包含当前生效快照，自动回滚各厂商至上一个历史有效快照"""
+    query = select(OfficialSnapshot).order_by(OfficialSnapshot.id.asc())
+    res = await db.execute(query)
+    all_snaps = res.scalars().all()
+
+    target_snaps = [s for s in all_snaps if s.captured_at and s.captured_at.strftime("%Y-%m-%d") == snapshot_date]
+    if not target_snaps:
+        raise HTTPException(status_code=404, detail=f"未找到日期为 {snapshot_date} 的快照记录")
+
+    target_ids = [s.id for s in target_snaps]
+
+    # 检查其中是否有正在生效的快照
+    curr_snap_ids_res = await db.execute(
+        select(OfficialModelPrice.snapshot_id)
+        .where(OfficialModelPrice.snapshot_id.in_(target_ids), OfficialModelPrice.is_current == True)
+        .distinct()
+    )
+    active_in_batch = set(r[0] for r in curr_snap_ids_res.all())
+
+    rolled_back_providers = {}
+    if active_in_batch:
+        # 对每一个受影响的厂商，寻找其在该日期之前的最近有效快照
+        for snap in target_snaps:
+            if snap.id in active_in_batch:
+                prev_stmt = (
+                    select(OfficialSnapshot)
+                    .where(
+                        OfficialSnapshot.provider == snap.provider,
+                        OfficialSnapshot.id.notin_(target_ids),
+                        OfficialSnapshot.captured_at < snap.captured_at
+                    )
+                    .order_by(OfficialSnapshot.captured_at.desc(), OfficialSnapshot.id.desc())
+                    .limit(1)
+                )
+                prev_snap = (await db.execute(prev_stmt)).scalar_one_or_none()
+                if prev_snap:
+                    # 回滚生效
+                    await db.execute(
+                        update(OfficialModelPrice)
+                        .where(OfficialModelPrice.snapshot_id == prev_snap.id)
+                        .values(is_current=True)
+                    )
+                    rolled_back_providers[snap.provider] = prev_snap.id
+
+    # 删除这些快照下的所有价格记录
+    await db.execute(delete(OfficialModelPrice).where(OfficialModelPrice.snapshot_id.in_(target_ids)))
+
+    # 物理删除本地磁盘 HTML 快照文件
+    deleted_files = 0
+    for s in target_snaps:
+        if s.local_file_path and not os.path.basename(s.local_file_path).startswith("sample_"):
+            raw_p = Path(s.local_file_path)
+            cand_paths = [
+                raw_p,
+                DATA_DIR / "official_snapshots" / raw_p.name,
+                DATA_DIR / raw_p,
+                Path(os.getcwd()) / s.local_file_path,
+            ]
+            for p in cand_paths:
+                if p.exists() and p.is_file():
+                    try:
+                        os.remove(str(p))
+                        deleted_files += 1
+                    except Exception:
+                        pass
+                    break
+
+    # 删除快照元数据记录
+    await db.execute(delete(OfficialSnapshot).where(OfficialSnapshot.id.in_(target_ids)))
+    await db.commit()
+
+    return {
+        "status": "success",
+        "message": f"成功删除日期 {snapshot_date} 下的 {len(target_snaps)} 份快照",
+        "snapshot_date": snapshot_date,
+        "deleted_count": len(target_snaps),
+        "deleted_files_count": deleted_files,
+        "rolled_back_providers": rolled_back_providers
+    }
 
 
 @router.get("/snapshots/{snapshot_id}/view")

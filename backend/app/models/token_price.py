@@ -228,6 +228,7 @@ class OfficialModelPrice(Base):
     source_page_url = Column(String(500), default="")         # 官网页面 URL
     source_anchor = Column(String(200), default="")           # 页面中具体章节定位/标题锚点
     snapshot_id = Column(Integer, ForeignKey("official_snapshots.id"), nullable=True, index=True)
+    is_current = Column(Boolean, default=True, index=True)   # 是否为当前生效的最新快照价格
     is_active = Column(Boolean, default=True)                 # 是否有效
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

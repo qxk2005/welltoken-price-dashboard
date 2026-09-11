@@ -171,6 +171,18 @@
             </button>
           </div>
 
+          <!-- 快照版本管理按钮 -->
+          <button
+            @click="store.openSnapshotManager"
+            class="px-3 py-1.5 rounded-xl border border-[#0071E3]/30 bg-[#E8F2FD] hover:bg-[#D0E6FD] text-xs font-bold text-[#0071E3] flex items-center space-x-1.5 transition-all shadow-2xs cursor-pointer whitespace-nowrap"
+            title="管理与查阅离线快照版本，支持异常版本删除与自动回滚"
+          >
+            <span>快照版本管理</span>
+            <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-[#0071E3] text-white">
+              {{ store.snapshotManagerDrawer.groups.length ? store.snapshotManagerDrawer.groups.length + ' 批' : (store.snapshots.length ? store.snapshots.length + ' 份' : '版本') }}
+            </span>
+          </button>
+
           <!-- 自定义列按钮 -->
           <button
             @click="isColModalVisible = true"
@@ -321,6 +333,7 @@
               <th v-if="store.visibleColumns.billing_mode" class="py-2.5 px-3 font-bold text-[#1D1D1F] whitespace-nowrap">计费模式</th>
               <th v-if="store.visibleColumns.input_price" class="py-2.5 px-3 font-bold text-[#1D1D1F] whitespace-nowrap text-right">输入单价 (1M)</th>
               <th v-if="store.visibleColumns.output_price" class="py-2.5 px-3 font-bold text-[#1D1D1F] whitespace-nowrap text-right">输出单价 (1M)</th>
+              <th v-if="store.visibleColumns.price_change" class="py-2.5 px-3 font-bold text-[#1D1D1F] whitespace-nowrap text-right">上期价格 / 涨跌</th>
               <th v-if="store.visibleColumns.cache_read_price" class="py-2.5 px-3 font-bold text-[#1D1D1F] whitespace-nowrap text-right">缓存读/命中 (1M)</th>
               <th v-if="store.visibleColumns.cache_write_price" class="py-2.5 px-3 font-bold text-[#1D1D1F] whitespace-nowrap text-right">缓存写 (1M)</th>
               <th v-if="store.visibleColumns.remarks" class="py-2.5 px-3 font-bold text-[#1D1D1F] min-w-[180px]">官方备注</th>
@@ -370,6 +383,26 @@
                 {{ formatPrice(item, 'output_price') }}
               </td>
 
+              <td v-if="store.visibleColumns.price_change" class="py-2 px-3 font-mono text-right whitespace-nowrap text-xs">
+                <div v-if="!item.is_new_model && item.previous_input_price !== null" class="space-y-0.5" :title="`上期单价: 输入 ${formatPrevPrice(item, 'input')}, 输出 ${formatPrevPrice(item, 'output')}${item.previous_price_date ? ' (' + item.previous_price_date + ')' : ''}`">
+                  <div class="flex items-center justify-end space-x-1">
+                    <span class="text-[10px] text-[#86868B]">入:</span>
+                    <span v-if="hasPriceChange(item.price_change_input)" class="text-[10px] font-bold px-1 rounded" :class="isPriceDrop(item.price_change_input) ? 'bg-[#E8F8EE] text-[#34C759]' : 'bg-[#FFF0F0] text-[#FF3B30]'">
+                      {{ isPriceDrop(item.price_change_input) ? '↓' : '↑' }} {{ Math.abs(item.price_change_input_pct || 0) }}%
+                    </span>
+                    <span v-else class="text-[#86868B] text-[10px]">-</span>
+                  </div>
+                  <div class="flex items-center justify-end space-x-1">
+                    <span class="text-[10px] text-[#86868B]">出:</span>
+                    <span v-if="hasPriceChange(item.price_change_output)" class="text-[10px] font-bold px-1 rounded" :class="isPriceDrop(item.price_change_output) ? 'bg-[#E8F8EE] text-[#34C759]' : 'bg-[#FFF0F0] text-[#FF3B30]'">
+                      {{ isPriceDrop(item.price_change_output) ? '↓' : '↑' }} {{ Math.abs(item.price_change_output_pct || 0) }}%
+                    </span>
+                    <span v-else class="text-[#86868B] text-[10px]">-</span>
+                  </div>
+                </div>
+                <div v-else class="text-[#86868B] text-[10px] italic">新收录</div>
+              </td>
+
               <td v-if="store.visibleColumns.cache_read_price" class="py-2 px-3 font-mono text-right whitespace-nowrap text-[#34C759]">
                 {{ formatPrice(item, 'cache_read_price') }}
               </td>
@@ -416,14 +449,24 @@
               </td>
 
               <td v-if="store.visibleColumns.source_anchor" class="py-2 px-3 text-center whitespace-nowrap">
-                <button
-                  @click="store.openSnapshotDrawer(item)"
-                  class="px-2 py-1 rounded-lg border border-[#0071E3]/30 bg-[#F2F7FF] hover:bg-[#0071E3] text-[#0071E3] hover:text-white text-[11px] font-medium transition-all shadow-2xs cursor-pointer flex items-center space-x-1 mx-auto"
-                  title="查看完整 HTML 快照与官方证据链"
-                >
-                  <span>快照对账</span>
-                  <span>📄</span>
-                </button>
+                <div class="flex items-center space-x-1 justify-center">
+                  <button
+                    @click="store.openModelHistory(item)"
+                    class="px-2 py-1 rounded-lg border border-[#34C759]/30 bg-[#E8F8EE] hover:bg-[#34C759] text-[#34C759] hover:text-white text-[11px] font-medium transition-all shadow-2xs cursor-pointer flex items-center space-x-1"
+                    title="查看历史价格走势大盘与时序折线图"
+                  >
+                    <span>走势</span>
+                    <span>📈</span>
+                  </button>
+                  <button
+                    @click="store.openSnapshotDrawer(item)"
+                    class="px-2 py-1 rounded-lg border border-[#0071E3]/30 bg-[#F2F7FF] hover:bg-[#0071E3] text-[#0071E3] hover:text-white text-[11px] font-medium transition-all shadow-2xs cursor-pointer flex items-center space-x-1"
+                    title="查看完整 HTML 快照与官方证据链"
+                  >
+                    <span>快照</span>
+                    <span>📄</span>
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -477,6 +520,25 @@
                   </td>
                   <td v-if="store.visibleColumns.input_price" class="py-2 px-3 font-mono text-right whitespace-nowrap font-bold" :class="getPriceColor(item.input_price)">{{ formatPrice(item, 'input_price') }}</td>
                   <td v-if="store.visibleColumns.output_price" class="py-2 px-3 font-mono text-right whitespace-nowrap font-bold" :class="getPriceColor(item.output_price)">{{ formatPrice(item, 'output_price') }}</td>
+                  <td v-if="store.visibleColumns.price_change" class="py-2 px-3 font-mono text-right whitespace-nowrap text-xs">
+                    <div v-if="!item.is_new_model && item.previous_input_price !== null" class="space-y-0.5" :title="`上期单价: 输入 ${formatPrevPrice(item, 'input')}, 输出 ${formatPrevPrice(item, 'output')}${item.previous_price_date ? ' (' + item.previous_price_date + ')' : ''}`">
+                      <div class="flex items-center justify-end space-x-1">
+                        <span class="text-[10px] text-[#86868B]">入:</span>
+                        <span v-if="hasPriceChange(item.price_change_input)" class="text-[10px] font-bold px-1 rounded" :class="isPriceDrop(item.price_change_input) ? 'bg-[#E8F8EE] text-[#34C759]' : 'bg-[#FFF0F0] text-[#FF3B30]'">
+                          {{ isPriceDrop(item.price_change_input) ? '↓' : '↑' }} {{ Math.abs(item.price_change_input_pct || 0) }}%
+                        </span>
+                        <span v-else class="text-[#86868B] text-[10px]">-</span>
+                      </div>
+                      <div class="flex items-center justify-end space-x-1">
+                        <span class="text-[10px] text-[#86868B]">出:</span>
+                        <span v-if="hasPriceChange(item.price_change_output)" class="text-[10px] font-bold px-1 rounded" :class="isPriceDrop(item.price_change_output) ? 'bg-[#E8F8EE] text-[#34C759]' : 'bg-[#FFF0F0] text-[#FF3B30]'">
+                          {{ isPriceDrop(item.price_change_output) ? '↓' : '↑' }} {{ Math.abs(item.price_change_output_pct || 0) }}%
+                        </span>
+                        <span v-else class="text-[#86868B] text-[10px]">-</span>
+                      </div>
+                    </div>
+                    <div v-else class="text-[#86868B] text-[10px] italic">新收录</div>
+                  </td>
                   <td v-if="store.visibleColumns.cache_read_price" class="py-2 px-3 font-mono text-right whitespace-nowrap text-[#34C759]">{{ formatPrice(item, 'cache_read_price') }}</td>
                   <td v-if="store.visibleColumns.cache_write_price" class="py-2 px-3 font-mono text-right whitespace-nowrap text-[#FF9500]">{{ formatPrice(item, 'cache_write_price') }}</td>
                   <td v-if="store.visibleColumns.remarks" class="py-2 px-3 text-xs text-[#6E6E73] leading-relaxed">{{ item.remarks || '-' }}</td>
@@ -494,10 +556,24 @@
                   </td>
                   <td v-if="store.visibleColumns.price_date" class="py-2 px-3 font-mono text-[11px] text-[#86868B] whitespace-nowrap">{{ item.price_date || '-' }}</td>
                   <td v-if="store.visibleColumns.source_anchor" class="py-2 px-3 text-center whitespace-nowrap">
-                    <button @click="store.openSnapshotDrawer(item)" class="px-2 py-1 rounded-lg border border-[#0071E3]/30 bg-[#F2F7FF] hover:bg-[#0071E3] text-[#0071E3] hover:text-white text-[11px] font-medium transition-all shadow-2xs cursor-pointer flex items-center space-x-1 mx-auto">
-                      <span>快照对账</span>
-                      <span>📄</span>
-                    </button>
+                    <div class="flex items-center space-x-1 justify-center">
+                      <button
+                        @click="store.openModelHistory(item)"
+                        class="px-2 py-1 rounded-lg border border-[#34C759]/30 bg-[#E8F8EE] hover:bg-[#34C759] text-[#34C759] hover:text-white text-[11px] font-medium transition-all shadow-2xs cursor-pointer flex items-center space-x-1"
+                        title="查看历史价格走势大盘与时序折线图"
+                      >
+                        <span>走势</span>
+                        <span>📈</span>
+                      </button>
+                      <button
+                        @click="store.openSnapshotDrawer(item)"
+                        class="px-2 py-1 rounded-lg border border-[#0071E3]/30 bg-[#F2F7FF] hover:bg-[#0071E3] text-[#0071E3] hover:text-white text-[11px] font-medium transition-all shadow-2xs cursor-pointer flex items-center space-x-1"
+                        title="查看完整 HTML 快照与官方证据链"
+                      >
+                        <span>快照</span>
+                        <span>📄</span>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </template>
@@ -551,6 +627,25 @@
                   </td>
                   <td v-if="store.visibleColumns.input_price" class="py-2 px-3 font-mono text-right whitespace-nowrap font-bold" :class="getPriceColor(item.input_price)">{{ formatPrice(item, 'input_price') }}</td>
                   <td v-if="store.visibleColumns.output_price" class="py-2 px-3 font-mono text-right whitespace-nowrap font-bold" :class="getPriceColor(item.output_price)">{{ formatPrice(item, 'output_price') }}</td>
+                  <td v-if="store.visibleColumns.price_change" class="py-2 px-3 font-mono text-right whitespace-nowrap text-xs">
+                    <div v-if="!item.is_new_model && item.previous_input_price !== null" class="space-y-0.5" :title="`上期单价: 输入 ${formatPrevPrice(item, 'input')}, 输出 ${formatPrevPrice(item, 'output')}${item.previous_price_date ? ' (' + item.previous_price_date + ')' : ''}`">
+                      <div class="flex items-center justify-end space-x-1">
+                        <span class="text-[10px] text-[#86868B]">入:</span>
+                        <span v-if="hasPriceChange(item.price_change_input)" class="text-[10px] font-bold px-1 rounded" :class="isPriceDrop(item.price_change_input) ? 'bg-[#E8F8EE] text-[#34C759]' : 'bg-[#FFF0F0] text-[#FF3B30]'">
+                          {{ isPriceDrop(item.price_change_input) ? '↓' : '↑' }} {{ Math.abs(item.price_change_input_pct || 0) }}%
+                        </span>
+                        <span v-else class="text-[#86868B] text-[10px]">-</span>
+                      </div>
+                      <div class="flex items-center justify-end space-x-1">
+                        <span class="text-[10px] text-[#86868B]">出:</span>
+                        <span v-if="hasPriceChange(item.price_change_output)" class="text-[10px] font-bold px-1 rounded" :class="isPriceDrop(item.price_change_output) ? 'bg-[#E8F8EE] text-[#34C759]' : 'bg-[#FFF0F0] text-[#FF3B30]'">
+                          {{ isPriceDrop(item.price_change_output) ? '↓' : '↑' }} {{ Math.abs(item.price_change_output_pct || 0) }}%
+                        </span>
+                        <span v-else class="text-[#86868B] text-[10px]">-</span>
+                      </div>
+                    </div>
+                    <div v-else class="text-[#86868B] text-[10px] italic">新收录</div>
+                  </td>
                   <td v-if="store.visibleColumns.cache_read_price" class="py-2 px-3 font-mono text-right whitespace-nowrap text-[#34C759]">{{ formatPrice(item, 'cache_read_price') }}</td>
                   <td v-if="store.visibleColumns.cache_write_price" class="py-2 px-3 font-mono text-right whitespace-nowrap text-[#FF9500]">{{ formatPrice(item, 'cache_write_price') }}</td>
                   <td v-if="store.visibleColumns.remarks" class="py-2 px-3 text-xs text-[#6E6E73] leading-relaxed">{{ item.remarks || '-' }}</td>
@@ -568,10 +663,24 @@
                   </td>
                   <td v-if="store.visibleColumns.price_date" class="py-2 px-3 font-mono text-[11px] text-[#86868B] whitespace-nowrap">{{ item.price_date || '-' }}</td>
                   <td v-if="store.visibleColumns.source_anchor" class="py-2 px-3 text-center whitespace-nowrap">
-                    <button @click="store.openSnapshotDrawer(item)" class="px-2 py-1 rounded-lg border border-[#0071E3]/30 bg-[#F2F7FF] hover:bg-[#0071E3] text-[#0071E3] hover:text-white text-[11px] font-medium transition-all shadow-2xs cursor-pointer flex items-center space-x-1 mx-auto">
-                      <span>快照对账</span>
-                      <span>📄</span>
-                    </button>
+                    <div class="flex items-center space-x-1 justify-center">
+                      <button
+                        @click="store.openModelHistory(item)"
+                        class="px-2 py-1 rounded-lg border border-[#34C759]/30 bg-[#E8F8EE] hover:bg-[#34C759] text-[#34C759] hover:text-white text-[11px] font-medium transition-all shadow-2xs cursor-pointer flex items-center space-x-1"
+                        title="查看历史价格走势大盘与时序折线图"
+                      >
+                        <span>走势</span>
+                        <span>📈</span>
+                      </button>
+                      <button
+                        @click="store.openSnapshotDrawer(item)"
+                        class="px-2 py-1 rounded-lg border border-[#0071E3]/30 bg-[#F2F7FF] hover:bg-[#0071E3] text-[#0071E3] hover:text-white text-[11px] font-medium transition-all shadow-2xs cursor-pointer flex items-center space-x-1"
+                        title="查看完整 HTML 快照与官方证据链"
+                      >
+                        <span>快照</span>
+                        <span>📄</span>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </template>
@@ -646,6 +755,25 @@
                       </td>
                       <td v-if="store.visibleColumns.input_price" class="py-2 px-3 font-mono text-right whitespace-nowrap font-bold" :class="getPriceColor(item.input_price)">{{ formatPrice(item, 'input_price') }}</td>
                       <td v-if="store.visibleColumns.output_price" class="py-2 px-3 font-mono text-right whitespace-nowrap font-bold" :class="getPriceColor(item.output_price)">{{ formatPrice(item, 'output_price') }}</td>
+                      <td v-if="store.visibleColumns.price_change" class="py-2 px-3 font-mono text-right whitespace-nowrap text-xs">
+                        <div v-if="!item.is_new_model && item.previous_input_price !== null" class="space-y-0.5" :title="`上期单价: 输入 ${formatPrevPrice(item, 'input')}, 输出 ${formatPrevPrice(item, 'output')}${item.previous_price_date ? ' (' + item.previous_price_date + ')' : ''}`">
+                          <div class="flex items-center justify-end space-x-1">
+                            <span class="text-[10px] text-[#86868B]">入:</span>
+                            <span v-if="hasPriceChange(item.price_change_input)" class="text-[10px] font-bold px-1 rounded" :class="isPriceDrop(item.price_change_input) ? 'bg-[#E8F8EE] text-[#34C759]' : 'bg-[#FFF0F0] text-[#FF3B30]'">
+                              {{ isPriceDrop(item.price_change_input) ? '↓' : '↑' }} {{ Math.abs(item.price_change_input_pct || 0) }}%
+                            </span>
+                            <span v-else class="text-[#86868B] text-[10px]">-</span>
+                          </div>
+                          <div class="flex items-center justify-end space-x-1">
+                            <span class="text-[10px] text-[#86868B]">出:</span>
+                            <span v-if="hasPriceChange(item.price_change_output)" class="text-[10px] font-bold px-1 rounded" :class="isPriceDrop(item.price_change_output) ? 'bg-[#E8F8EE] text-[#34C759]' : 'bg-[#FFF0F0] text-[#FF3B30]'">
+                              {{ isPriceDrop(item.price_change_output) ? '↓' : '↑' }} {{ Math.abs(item.price_change_output_pct || 0) }}%
+                            </span>
+                            <span v-else class="text-[#86868B] text-[10px]">-</span>
+                          </div>
+                        </div>
+                        <div v-else class="text-[#86868B] text-[10px] italic">新收录</div>
+                      </td>
                       <td v-if="store.visibleColumns.cache_read_price" class="py-2 px-3 font-mono text-right whitespace-nowrap text-[#34C759]">{{ formatPrice(item, 'cache_read_price') }}</td>
                       <td v-if="store.visibleColumns.cache_write_price" class="py-2 px-3 font-mono text-right whitespace-nowrap text-[#FF9500]">{{ formatPrice(item, 'cache_write_price') }}</td>
                       <td v-if="store.visibleColumns.remarks" class="py-2 px-3 text-xs text-[#6E6E73] leading-relaxed">{{ item.remarks || '-' }}</td>
@@ -663,10 +791,24 @@
                       </td>
                       <td v-if="store.visibleColumns.price_date" class="py-2 px-3 font-mono text-[11px] text-[#86868B] whitespace-nowrap">{{ item.price_date || '-' }}</td>
                       <td v-if="store.visibleColumns.source_anchor" class="py-2 px-3 text-center whitespace-nowrap">
-                        <button @click="store.openSnapshotDrawer(item)" class="px-2 py-1 rounded-lg border border-[#0071E3]/30 bg-[#F2F7FF] hover:bg-[#0071E3] text-[#0071E3] hover:text-white text-[11px] font-medium transition-all shadow-2xs cursor-pointer flex items-center space-x-1 mx-auto">
-                          <span>快照对账</span>
-                          <span>📄</span>
-                        </button>
+                        <div class="flex items-center space-x-1 justify-center">
+                          <button
+                            @click="store.openModelHistory(item)"
+                            class="px-2 py-1 rounded-lg border border-[#34C759]/30 bg-[#E8F8EE] hover:bg-[#34C759] text-[#34C759] hover:text-white text-[11px] font-medium transition-all shadow-2xs cursor-pointer flex items-center space-x-1"
+                            title="查看历史价格走势大盘与时序折线图"
+                          >
+                            <span>走势</span>
+                            <span>📈</span>
+                          </button>
+                          <button
+                            @click="store.openSnapshotDrawer(item)"
+                            class="px-2 py-1 rounded-lg border border-[#0071E3]/30 bg-[#F2F7FF] hover:bg-[#0071E3] text-[#0071E3] hover:text-white text-[11px] font-medium transition-all shadow-2xs cursor-pointer flex items-center space-x-1"
+                            title="查看完整 HTML 快照与官方证据链"
+                          >
+                            <span>快照</span>
+                            <span>📄</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   </template>
@@ -699,7 +841,9 @@
 
     <OfficialNoteEditModal />
 
-    <OfficialScrapeModal />
+    <ModelHistoryDrawer />
+
+    <SnapshotManagerModal />
 
     <SnapshotPreviewDrawer />
   </div>
@@ -711,7 +855,8 @@ import { useOfficialPricingStore, OfficialModelPrice } from '../stores/officialP
 import SystemIcon from '../components/SystemIcon.vue'
 import OfficialColumnConfigModal from '../components/OfficialColumnConfigModal.vue'
 import OfficialNoteEditModal from '../components/OfficialNoteEditModal.vue'
-import OfficialScrapeModal from '../components/OfficialScrapeModal.vue'
+import ModelHistoryDrawer from '../components/ModelHistoryDrawer.vue'
+import SnapshotManagerModal from '../components/SnapshotManagerModal.vue'
 import SnapshotPreviewDrawer from '../components/SnapshotPreviewDrawer.vue'
 
 const store = useOfficialPricingStore()
@@ -783,6 +928,32 @@ function formatPrice(item: OfficialModelPrice, field: 'input_price' | 'output_pr
     const sym = item.currency === 'USD' ? '$' : '¥'
     return `${sym} ${val.toFixed(3)}`
   }
+}
+
+// 格式化上期价格
+function formatPrevPrice(item: OfficialModelPrice, type: 'input' | 'output'): string {
+  const val = type === 'input' ? item.previous_input_price : item.previous_output_price
+  if (val === null || val === undefined) return '-'
+  if (val === 0) return '0.00'
+
+  if (store.currencyMode === 'cny') {
+    const cnyVal = type === 'input' ? item.converted_prev_input_cny : item.converted_prev_output_cny
+    return `¥${(cnyVal ?? val).toFixed(3)}`
+  } else if (store.currencyMode === 'usd') {
+    const usdVal = type === 'input' ? item.converted_prev_input_usd : item.converted_prev_output_usd
+    return `$${(usdVal ?? val).toFixed(3)}`
+  } else {
+    const sym = item.currency === 'USD' ? '$' : '¥'
+    return `${sym}${val.toFixed(3)}`
+  }
+}
+
+function hasPriceChange(val: number | undefined): boolean {
+  return typeof val === 'number' && val !== 0
+}
+
+function isPriceDrop(val: number | undefined): boolean {
+  return typeof val === 'number' && val < 0
 }
 
 function getPriceColor(price: number): string {

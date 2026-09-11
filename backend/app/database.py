@@ -44,6 +44,7 @@ async def init_db():
             "ALTER TABLE channel_model_mappings ADD COLUMN official_model_name VARCHAR(150) DEFAULT '';",
             "ALTER TABLE model_metadata ADD COLUMN last_updated VARCHAR(30) DEFAULT '';",
             "ALTER TABLE model_metadata ADD COLUMN family VARCHAR(80) DEFAULT '';",
+            "ALTER TABLE official_model_prices ADD COLUMN is_current BOOLEAN DEFAULT 1;",
         ]
         for sql in migrations:
             try:
