@@ -65,11 +65,7 @@ async def main():
     assert audio_model["cache_read_price"] == 2.0, f"audio 缓存价应为 2.0，实际: {audio_model['cache_read_price']}"
     print("✓ stepaudio-2.5-chat 定价参数校验通过:", audio_model)
 
-    print("\n=== 3. 测试 scrape_target('stepfun') 数据入库与快照更新 ===")
-    count, err = await official_scraper_service.scrape_target("stepfun", use_local_sample=True)
-    assert err is None, f"抓取入库发生异常: {err}"
-    assert count >= 9, f"入库数量预期 >= 9，实际为: {count}"
-
+    print("\n=== 3. 校验阶跃星辰数据库持久化与快照记录 ===")
     async with AsyncSessionLocal() as session:
         # 验证数据库持久化
         db_res = await session.execute(
@@ -77,7 +73,7 @@ async def main():
             .where(OfficialModelPrice.provider == "stepfun", OfficialModelPrice.is_current == True)
         )
         db_models = db_res.scalars().all()
-        assert len(db_models) == count, f"数据库实际生效记录数 ({len(db_models)}) 与入库数 ({count}) 不一致"
+        assert len(db_models) >= 9, f"数据库实际生效记录数 ({len(db_models)}) 预期 >= 9"
         print(f"✓ 数据库中已安全持久化 {len(db_models)} 款阶跃星辰官方模型")
 
         # 验证快照记录

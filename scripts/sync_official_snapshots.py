@@ -49,25 +49,37 @@ async def prepare_history_and_latest():
 
     for idx, target_key in enumerate(targets, 1):
         target_info = OFFICIAL_TARGETS[target_key]
-        print(f"[{idx}/{len(targets)}] 正在抓取更新: {target_info['name']} ({target_key})...")
-        try:
-            # 允许网络抓取；若网络超时则降级使用本地样本
-            count, err = await official_scraper_service.scrape_target(target_key, use_local_sample=False)
-            if err:
-                print(f"    ⚠️ 网络抓取遇到异常 ({err})，尝试本地离线样本降级...")
-                count, err2 = await official_scraper_service.scrape_target(target_key, use_local_sample=True)
-                if err2:
-                    print(f"    ❌ 抓取失败: {err2}")
-                    results[target_key] = {"count": 0, "status": f"error: {err2}"}
+        print(f"[{idx}/{len(targets)}] 正在在线抓取更新: {target_info['name']} ({target_key})...")
+        
+        # 强制在线抓取，遇到网络抖动自动指数退避重试最多 3 次 (严格遵守严禁静默 fallback 规范)
+        max_retries = 3
+        success = False
+        last_err = None
+        count = 0
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                count, err = await official_scraper_service.scrape_target(target_key, use_local_sample=False)
+                if not err and count > 0:
+                    print(f"    ✅ 在线抓取解析成功: {count} 个模型规格 (尝试 {attempt}/{max_retries})")
+                    results[target_key] = {"count": count, "status": "success (online live)"}
+                    success = True
+                    break
                 else:
-                    print(f"    ✅ 离线样本抓取解析成功: {count} 个模型规格")
-                    results[target_key] = {"count": count, "status": "success (offline fallback)"}
-            else:
-                print(f"    ✅ 在线抓取解析成功: {count} 个模型规格")
-                results[target_key] = {"count": count, "status": "success (online live)"}
-        except Exception as e:
-            print(f"    ❌ 抓取异常: {e}")
-            results[target_key] = {"count": 0, "status": f"exception: {e}"}
+                    last_err = err or "解析到的模型规格为 0"
+                    print(f"    ⚠️ 尝试 {attempt}/{max_retries} 失败: {last_err}")
+            except Exception as e:
+                last_err = str(e)
+                print(f"    ⚠️ 尝试 {attempt}/{max_retries} 异常: {last_err}")
+
+            if attempt < max_retries:
+                wait_sec = attempt * 3
+                print(f"    ⏳ 等待 {wait_sec} 秒后重试...")
+                await asyncio.sleep(wait_sec)
+
+        if not success:
+            print(f"    ❌ 最终抓取失败: {last_err}")
+            results[target_key] = {"count": 0, "status": f"error: {last_err}"}
 
     # 3. 统计最新与历史状态
     async with AsyncSessionLocal() as session:
@@ -83,41 +95,11 @@ async def prepare_history_and_latest():
 
         print(f"\n>>> 抓取入库完成! 当前最新生效模型数: {curr_count}, 历史回溯模型点数: {hist_count}")
 
-        # 4. 导出当前全部官方模型价格到 official_prices_seed.json 保证打包与只读运行
-        print("\n>>> 正在导出至 data/official_prices_seed.json 种子文件...")
-        all_curr_res = await session.execute(
-            select(OfficialModelPrice).where(OfficialModelPrice.is_current == True).order_by(OfficialModelPrice.id.asc())
-        )
-        curr_models = all_curr_res.scalars().all()
-
-        seed_data = []
-        for m in curr_models:
-            seed_data.append({
-                "provider": m.provider,
-                "provider_name": m.provider_name,
-                "series": m.series,
-                "model_name": m.model_name,
-                "raw_model_id": m.raw_model_id,
-                "billing_mode": m.billing_mode,
-                "tier_range": m.tier_range,
-                "currency": m.currency,
-                "input_price": m.input_price,
-                "output_price": m.output_price,
-                "cache_read_price": m.cache_read_price,
-                "cache_write_price": m.cache_write_price,
-                "remarks": m.remarks,
-                "custom_notes": m.custom_notes,
-                "user_tags": m.user_tags,
-                "price_date": m.price_date,
-                "source_page_url": m.source_page_url,
-                "source_anchor": m.source_anchor,
-                "is_active": m.is_active,
-            })
-
-        seed_path = DATA_DIR / "official_prices_seed.json"
-        with open(seed_path, "w", encoding="utf-8") as f:
-            json.dump(seed_data, f, ensure_ascii=False, indent=2)
-        print(f"    ✅ 种子文件导出成功: {len(seed_data)} 条模型，路径: {seed_path}")
+    # 4. 调用全量种子导出脚本，生成最新的 official_prices_seed.json 与 official_snapshots_seed.json
+    print("\n>>> 正在导出全量种子文件 (official_prices_seed.json & official_snapshots_seed.json)...")
+    from scripts.export_full_seeds import export_seeds
+    export_seeds()
+    print(">>> 种子文件导出完毕!")
 
 
 if __name__ == "__main__":

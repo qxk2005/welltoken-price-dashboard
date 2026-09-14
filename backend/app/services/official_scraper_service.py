@@ -36,13 +36,13 @@ OFFICIAL_TARGETS = {
     "glm": {
         "code": "zhipuai",
         "name": "智谱 (GLM)",
-        "url": "https://bigmodel.cn/pricing",
+        "url": "https://docs.bigmodel.cn/cn/guide/start/pricing",
         "currency": "CNY",
     },
     "kimi": {
         "code": "moonshotai",
         "name": "Moonshot (Kimi)",
-        "url": "https://www.kimi.com/membership/pricing?from=header_nav&tab=api",
+        "url": "https://platform.kimi.com/docs/pricing/chat",
         "currency": "CNY",
     },
     "minimax": {
@@ -84,7 +84,7 @@ OFFICIAL_TARGETS = {
     "gemini": {
         "code": "google",
         "name": "Google (Gemini)",
-        "url": "https://ai.google.dev/gemini-api/docs/pricing?hl=zh-cn",
+        "url": "https://ai.google.dev/gemini-api/docs/pricing",
         "currency": "USD",
     }
 }
@@ -241,8 +241,10 @@ def _infer_series(model_name: str, provider: str) -> str:
     elif provider == "moonshotai":
         if "k3" in name_low:
             return "kimi-k3"
-        if "k2" in name_low:
-            return "kimi-k2"
+        if "k2.7" in name_low:
+            return "kimi-k2.7"
+        if "k2.6" in name_low or "k2" in name_low:
+            return "kimi-k2.6"
         return "moonshot-v1"
 
     elif provider == "minimax":
@@ -420,9 +422,17 @@ class OfficialScraperService:
     # ---------------- 厂商专项解析器 ----------------
 
     def parse_deepseek(self, soup: BeautifulSoup, source_url: str, snapshot_id: Optional[int]) -> List[Dict[str, Any]]:
-        """DeepSeek 官方定价解析 (基于 expand_table_matrix 纵向跨行矩阵展开，精准提取高峰与闲时价格)"""
+        """DeepSeek 官方定价解析 (基于 expand_table_matrix 纵向跨行矩阵展开，精准提取高峰与闲时价格，自动清洗表头脚注编号并收录政策注解)"""
         items = []
         now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+        # 提取页面中的官方脚注注解（例如 (1) 旧模型迁移说明、(2) 延续服务政策等）
+        footnotes = {}
+        for el in soup.find_all(["p", "li"]):
+            t = el.get_text(strip=True)
+            m = re.match(r"^[\(（](\d+)[\)）]\s*(.+)$", t)
+            if m:
+                footnotes[m.group(1)] = m.group(2).strip()
 
         # 查找包含模型价格的表格
         tables = soup.find_all("table")
@@ -433,46 +443,52 @@ class OfficialScraperService:
 
             # 第一行识别列式模型名称
             header_row = matrix[0]
-            model_names = [name.strip() for name in header_row[1:] if "deepseek" in name.lower()]
-            if not model_names:
+            raw_model_names = [name.strip() for name in header_row[1:] if "deepseek" in name.lower()]
+            if not raw_model_names:
                 continue
 
-            price_map: Dict[str, Dict[str, float]] = {m: {} for m in model_names}
+            price_map: Dict[str, Dict[str, float]] = {m: {} for m in raw_model_names}
 
             for row in matrix:
                 row_text = " ".join(row)
                 if "价格" not in row_text:
                     continue
 
-                val_cols = row[-len(model_names):]
+                val_cols = row[-len(raw_model_names):]
                 is_idle = "空闲" in row_text
                 is_peak = "高峰" in row_text
 
                 if "缓存命中" in row_text and "未命中" not in row_text:
                     key = "cache_idle" if is_idle else "cache_peak"
-                    for idx, m in enumerate(model_names):
+                    for idx, m in enumerate(raw_model_names):
                         price_map[m][key] = _extract_number(val_cols[idx])
                 elif "缓存未命中" in row_text or ("输入" in row_text and "缓存" not in row_text):
                     key = "input_idle" if is_idle else "input_peak"
-                    for idx, m in enumerate(model_names):
+                    for idx, m in enumerate(raw_model_names):
                         price_map[m][key] = _extract_number(val_cols[idx])
                 elif "输出" in row_text:
                     key = "output_idle" if is_idle else "output_peak"
-                    for idx, m in enumerate(model_names):
+                    for idx, m in enumerate(raw_model_names):
                         price_map[m][key] = _extract_number(val_cols[idx])
 
-            for m in model_names:
+            for raw_m in raw_model_names:
+                # 剥离表头角标编号 (1)、(2) 等无效数字，提取纯净模型名称与原生 raw_model_id
+                fn_match = re.search(r"[\(（](\d+)[\)）]", raw_m)
+                fn_idx = fn_match.group(1) if fn_match else None
+                clean_m = re.sub(r"[\(（]\s*\d+\s*[\)）]", "", raw_m).strip()
+                fn_note = f"；官方注解: {footnotes[fn_idx]}" if (fn_idx and fn_idx in footnotes) else ""
+
                 # 1. 高峰时段 (Standard)
-                in_peak = price_map[m].get("input_peak", 9.0 if "pro" in m else 3.0)
-                out_peak = price_map[m].get("output_peak", 27.0 if "pro" in m else 9.0)
-                cache_peak = price_map[m].get("cache_peak", 0.30 if "pro" in m else 0.10)
+                in_peak = price_map[raw_m].get("input_peak", 9.0 if "pro" in clean_m else 2.0)
+                out_peak = price_map[raw_m].get("output_peak", 27.0 if "pro" in clean_m else 8.0)
+                cache_peak = price_map[raw_m].get("cache_peak", 0.30 if "pro" in clean_m else 0.04)
 
                 items.append({
                     "provider": "deepseek",
                     "provider_name": "DeepSeek (深度求索)",
-                    "series": _infer_series(m, "deepseek"),
-                    "model_name": f"{m} [高峰时段]",
-                    "raw_model_id": m,
+                    "series": _infer_series(clean_m, "deepseek"),
+                    "model_name": f"{clean_m} [高峰时段]",
+                    "raw_model_id": clean_m,
                     "billing_mode": "Standard",
                     "tier_range": "无阶梯",
                     "currency": "CNY",
@@ -480,24 +496,24 @@ class OfficialScraperService:
                     "output_price": out_peak,
                     "cache_read_price": cache_peak,
                     "cache_write_price": 0.0,
-                    "remarks": "工作日 09:00-12:00, 14:00-18:00；上下文 1M，输出最大 384K，支持思考模式与 Anthropic 协议",
+                    "remarks": f"工作日高峰时段 09:00-12:00, 14:00-18:00；上下文 1M，输出最大 384K{fn_note}",
                     "price_date": now_str,
                     "source_page_url": source_url,
-                    "source_anchor": "价格(1)(2) 表格",
+                    "source_anchor": "价格 表格",
                     "snapshot_id": snapshot_id,
                 })
 
                 # 2. 空闲时段 (半价优惠)
-                in_idle = price_map[m].get("input_idle", 4.5 if "pro" in m else 1.5)
-                out_idle = price_map[m].get("output_idle", 13.5 if "pro" in m else 4.5)
-                cache_idle = price_map[m].get("cache_idle", 0.15 if "pro" in m else 0.05)
+                in_idle = price_map[raw_m].get("input_idle", 4.5 if "pro" in clean_m else 1.0)
+                out_idle = price_map[raw_m].get("output_idle", 13.5 if "pro" in clean_m else 4.0)
+                cache_idle = price_map[raw_m].get("cache_idle", 0.15 if "pro" in clean_m else 0.02)
 
                 items.append({
                     "provider": "deepseek",
                     "provider_name": "DeepSeek (深度求索)",
-                    "series": _infer_series(m, "deepseek"),
-                    "model_name": f"{m} [闲时优惠]",
-                    "raw_model_id": m,
+                    "series": _infer_series(clean_m, "deepseek"),
+                    "model_name": f"{clean_m} [闲时优惠]",
+                    "raw_model_id": clean_m,
                     "billing_mode": "闲时半价",
                     "tier_range": "无阶梯",
                     "currency": "CNY",
@@ -505,196 +521,314 @@ class OfficialScraperService:
                     "output_price": out_idle,
                     "cache_read_price": cache_idle,
                     "cache_write_price": 0.0,
-                    "remarks": "周一至周五 00:00-09:00, 12:00-14:00, 18:00-24:00 及周末全天半价",
+                    "remarks": f"周一至周五 00:00-09:00, 12:00-14:00, 18:00-24:00 及周末全天半价优惠{fn_note}",
                     "price_date": now_str,
                     "source_page_url": source_url,
-                    "source_anchor": "价格(1)(2) 表格",
+                    "source_anchor": "价格 表格",
                     "snapshot_id": snapshot_id,
                 })
 
         return items
 
     def parse_glm(self, soup: BeautifulSoup, source_url: str, snapshot_id: Optional[int]) -> List[Dict[str, Any]]:
-        """智谱 GLM 官方定价解析（基于跨行矩阵展开，精准拆分阶梯计费模型）"""
+        """智谱 GLM 官方定价解析（支持多表矩阵展开、多阶梯计费与全系列模型精准提取）"""
         items = []
         now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
         tables = soup.find_all("table")
         tiered_model_bases = set()
 
-        # 1. 优先解析 Table 1（最新全系列旗舰模型与分段阶梯表）
-        if len(tables) > 1:
-            t1 = tables[1]
-            matrix = expand_table_matrix(t1)
-            for row in matrix:
-                if len(row) < 5:
-                    continue
-                raw_name = row[0].strip()
-                # 剔除徽章干扰
-                clean_name = re.sub(r"\s+(新品|5折.*|限时.*)$", "", raw_name).strip()
-                if not clean_name or any(x in clean_name for x in ["Search", "Tool", "微调", "算力", "增购"]):
-                    continue
-
-                tier_info = row[1].strip()
-                in_p = _extract_number(row[2])
-                out_p = _extract_number(row[3])
-                cw_p = 0.0 if "免费" in row[4] else _extract_number(row[4])
-                cr_p = _extract_number(row[5]) if len(row) > 5 else 0.0
-
-                is_tiered = any(x in tier_info for x in ["输入长度", "[0,", "[32", "[", "+)"])
-                if is_tiered:
-                    tiered_model_bases.add(clean_name)
-                    model_display_name = f"{clean_name} {tier_info}"
-                    tier_range = tier_info
-                else:
-                    model_display_name = clean_name
-                    tier_range = "无阶梯"
-
-                remarks_parts = []
-                if len(row) > 4 and row[4]:
-                    remarks_parts.append(f"缓存写: {row[4]}")
-                if len(row) > 6 and row[6]:
-                    remarks_parts.append(f"模态: {row[6]}")
-
-                items.append({
-                    "provider": "zhipuai",
-                    "provider_name": "智谱 (GLM)",
-                    "series": _infer_series(clean_name, "zhipuai"),
-                    "model_name": model_display_name,
-                    "raw_model_id": clean_name,
-                    "billing_mode": "Standard",
-                    "tier_range": tier_range,
-                    "currency": "CNY",
-                    "input_price": in_p,
-                    "output_price": out_p,
-                    "cache_read_price": cr_p,
-                    "cache_write_price": cw_p,
-                    "remarks": "，".join(remarks_parts) if remarks_parts else "官网最新旗舰定价",
-                    "price_date": now_str,
-                    "source_page_url": source_url,
-                    "source_anchor": "最新旗舰与分段阶梯表 (Table 1)",
-                    "snapshot_id": snapshot_id,
-                })
-
-        # 2. 解析其余标准通用推理模型表（Table 3~13），坚决排除微调训练、算力单元与专有部署
         for idx, table in enumerate(tables):
-            if idx == 1 or idx > 13:
-                continue
-            table_txt = table.get_text()
-            # 严格过滤非推理 Token 计费表格
-            if any(x in table_txt for x in ["GPU Unit", "算力单元", "训练语料", "微调", "万元 / 年", "万元/年", "定制", "在线客服", "咨询", "LoRA", "Training", "Public Instance", "Private Instance", "Deployment"]):
-                continue
-
             matrix = expand_table_matrix(table)
-            for row in matrix:
-                if len(row) < 4:
-                    continue
-                first = row[0].strip()
-                clean_name = re.sub(r"\s+(新品|5折.*|限时.*)$", "", first).strip()
-                if not any(k in clean_name for k in ["GLM", "Cog", "Embedding", "Rerank", "CharGLM", "CodeGeeX"]):
-                    continue
-                # 如果该基础模型已在 Table 1 中作为阶梯分段模型收录（如 GLM-4.5-Air），坚决不再生成粗粒度单行！
-                if clean_name in tiered_model_bases:
-                    continue
-                if any(x in clean_name for x in ["Search", "Tool", "知识库", "微调"]):
-                    continue
+            if not matrix or len(matrix) < 2:
+                continue
+            headers = matrix[0]
+            h_str = " ".join(headers)
 
-                # 提取标准价格与 Batch 价格
-                price_val = None
-                batch_val = None
-                if len(row) >= 4 and ("Tokens" in row[3] or "¥" in row[3] or "Free" in row[3]):
-                    price_val = 0.0 if "Free" in row[3] else _extract_number(row[3])
-                    if len(row) >= 5 and ("Tokens" in row[4] or "¥" in row[4]):
-                        batch_val = _extract_number(row[4])
+            # 严格过滤微调、私有化部署、算力单元、定制报价等非在线推理服务
+            if any(x in h_str for x in ["算力单元", "微调", "私有实例", "刊例价", "套餐包含", "工具名称", "功能名称"]):
+                continue
 
-                if price_val is None:
-                    continue
+            # 类型 1: 标准 Token 计费表 (包含 "输入单价" 和 "输出单价")
+            if "输入单价" in h_str and "输出单价" in h_str:
+                for row in matrix[1:]:
+                    if len(row) < 4:
+                        continue
+                    raw_name = row[0].strip()
+                    clean_name = re.sub(r"\s+(新品|5折.*|限时.*)$", "", raw_name).strip()
+                    if not clean_name or any(x in clean_name for x in ["模型名称", "Search", "Tool"]):
+                        continue
 
-                # Standard 模式
-                items.append({
-                    "provider": "zhipuai",
-                    "provider_name": "智谱 (GLM)",
-                    "series": _infer_series(clean_name, "zhipuai"),
-                    "model_name": clean_name,
-                    "raw_model_id": clean_name,
-                    "billing_mode": "Standard",
-                    "tier_range": "无阶梯",
-                    "currency": "CNY",
-                    "input_price": price_val,
-                    "output_price": price_val,
-                    "cache_read_price": round(price_val * 0.2, 4),
-                    "cache_write_price": 0.0,
-                    "remarks": f"Context: {row[2]}" if len(row) > 2 else "",
-                    "price_date": now_str,
-                    "source_page_url": source_url,
-                    "source_anchor": f"通用模型定价 (Table {idx})",
-                    "snapshot_id": snapshot_id,
-                })
+                    ctx_or_tier = row[1].strip() if len(row) > 1 else ""
+                    in_p = _extract_number(row[2]) if len(row) > 2 else 0.0
+                    out_p = _extract_number(row[3]) if len(row) > 3 else 0.0
+                    cw_p = 0.0 if (len(row) > 4 and "免费" in row[4]) else (_extract_number(row[4]) if len(row) > 4 else 0.0)
+                    cr_p = _extract_number(row[5]) if len(row) > 5 else round(in_p * 0.25, 4)
 
-                # Batch API 模式
-                if batch_val is not None:
+                    is_tiered = any(x in ctx_or_tier for x in ["输入长度", "[0,", "[32", "[", "+)", "≥", "输出 ["])
+                    if is_tiered:
+                        tiered_model_bases.add(clean_name)
+                        model_display_name = f"{clean_name} {ctx_or_tier}"
+                        tier_range = ctx_or_tier
+                    else:
+                        model_display_name = clean_name
+                        tier_range = "无阶梯"
+
+                    remarks_parts = []
+                    if len(row) > 4 and row[4]:
+                        remarks_parts.append(f"缓存存储: {row[4]}")
+                    if len(row) > 6 and row[6]:
+                        remarks_parts.append(f"模态: {row[6]}")
+                    if ctx_or_tier and not is_tiered:
+                        remarks_parts.append(f"上下文: {ctx_or_tier}")
+
                     items.append({
                         "provider": "zhipuai",
                         "provider_name": "智谱 (GLM)",
                         "series": _infer_series(clean_name, "zhipuai"),
-                        "model_name": f"{clean_name} (Batch 模式)",
+                        "model_name": model_display_name,
                         "raw_model_id": clean_name,
-                        "billing_mode": "Batch 批处理",
-                        "tier_range": "无阶梯",
+                        "billing_mode": "Standard",
+                        "tier_range": tier_range,
                         "currency": "CNY",
-                        "input_price": batch_val,
-                        "output_price": batch_val,
-                        "cache_read_price": round(batch_val * 0.2, 4),
-                        "cache_write_price": 0.0,
-                        "remarks": f"Batch API 5折优惠，Context: {row[2]}" if len(row) > 2 else "Batch API 5折优惠",
+                        "input_price": in_p,
+                        "output_price": out_p,
+                        "cache_read_price": cr_p,
+                        "cache_write_price": cw_p,
+                        "remarks": "，".join(remarks_parts) or "官网最新旗舰定价",
                         "price_date": now_str,
                         "source_page_url": source_url,
-                        "source_anchor": f"通用模型定价 (Table {idx}) - Batch",
+                        "source_anchor": f"旗舰模型阶梯定价表 (Table {idx})",
                         "snapshot_id": snapshot_id,
                     })
+
+            # 类型 2: 单价 / Batch 定价表 (包含 "单价" 但不包含 "输出单价")
+            elif "单价" in h_str and "输出单价" not in h_str:
+                price_col = -1
+                batch_col = -1
+                ctx_col = -1
+                for c_i, h in enumerate(headers):
+                    if "batch" in h.lower():
+                        batch_col = c_i
+                    elif "单价" in h or "价格" in h:
+                        price_col = c_i
+                    elif "上下文" in h or "规格" in h:
+                        ctx_col = c_i
+
+                if price_col != -1:
+                    for row in matrix[1:]:
+                        if len(row) <= price_col:
+                            continue
+                        raw_name = row[0].strip()
+                        clean_name = re.sub(r"\s+(新品|5折.*|限时.*)$", "", raw_name).strip()
+                        if not clean_name or any(x in clean_name for x in ["模型名称", "Search", "Tool", "knowledge"]):
+                            continue
+                        if clean_name in tiered_model_bases:
+                            continue
+
+                        price_str = row[price_col]
+                        if not any(k in price_str for k in ["元", "Tokens", "tokens", "免费", "0."]) and not re.search(r"\d", price_str):
+                            continue
+                        price_val = 0.0 if "免费" in price_str else _extract_number(price_str)
+                        ctx_str = row[ctx_col] if ctx_col != -1 and len(row) > ctx_col else ""
+
+                        items.append({
+                            "provider": "zhipuai",
+                            "provider_name": "智谱 (GLM)",
+                            "series": _infer_series(clean_name, "zhipuai"),
+                            "model_name": clean_name,
+                            "raw_model_id": clean_name,
+                            "billing_mode": "Standard",
+                            "tier_range": "无阶梯",
+                            "currency": "CNY",
+                            "input_price": price_val,
+                            "output_price": price_val,
+                            "cache_read_price": round(price_val * 0.2, 4),
+                            "cache_write_price": 0.0,
+                            "remarks": f"规格/上下文: {ctx_str}" if ctx_str else "标准定价",
+                            "price_date": now_str,
+                            "source_page_url": source_url,
+                            "source_anchor": f"通用模型定价 (Table {idx})",
+                            "snapshot_id": snapshot_id,
+                        })
+
+                        if batch_col != -1 and len(row) > batch_col and "不支持" not in row[batch_col]:
+                            b_val = _extract_number(row[batch_col])
+                            items.append({
+                                "provider": "zhipuai",
+                                "provider_name": "智谱 (GLM)",
+                                "series": _infer_series(clean_name, "zhipuai"),
+                                "model_name": f"{clean_name} (Batch 模式)",
+                                "raw_model_id": clean_name,
+                                "billing_mode": "Batch 批处理",
+                                "tier_range": "无阶梯",
+                                "currency": "CNY",
+                                "input_price": b_val,
+                                "output_price": b_val,
+                                "cache_read_price": round(b_val * 0.2, 4),
+                                "cache_write_price": 0.0,
+                                "remarks": f"Batch 批处理优惠; 规格: {ctx_str}",
+                                "price_date": now_str,
+                                "source_page_url": source_url,
+                                "source_anchor": f"通用模型定价 (Table {idx}) - Batch",
+                                "snapshot_id": snapshot_id,
+                            })
 
         return items
 
     def parse_kimi(self, soup: BeautifulSoup, source_url: str, snapshot_id: Optional[int]) -> List[Dict[str, Any]]:
-        """Moonshot Kimi 官方定价解析"""
+        """Moonshot Kimi 官方定价解析 (适配新版开放平台定价文档及行列式表格，兼容旧版与正则保底)"""
         items = []
         now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
+        # 方式一：DOM 中的 Table 解析
         tables = soup.find_all("table")
         for t in tables:
             rows = t.find_all("tr")
-            if len(rows) < 4:
+            if not rows:
                 continue
 
-            headers = [c.get_text(strip=True) for c in rows[0].find_all(["th", "td"])]
-            model_names = headers[1:]
+            # 检查是否为新版行式表格：第一行通常为表头 ["模型", "计费单位", "输入价格（缓存命中）", "输入价格（缓存未命中）", "输出价格", "上下文窗口"]
+            header_cells = rows[0].find_all(["th", "td"])
+            headers = [c.get_text(" ", strip=True) for c in header_cells]
+            h_text = " ".join(headers)
 
-            row1 = [c.get_text(strip=True) for c in rows[1].find_all(["th", "td"])][1:]
-            row2 = [c.get_text(strip=True) for c in rows[2].find_all(["th", "td"])][1:]
-            row3 = [c.get_text(strip=True) for c in rows[3].find_all(["th", "td"])][1:]
+            if "模型" in h_text or "Model" in h_text:
+                m_idx = -1
+                unit_idx = -1
+                cache_hit_idx = -1
+                input_idx = -1
+                output_idx = -1
+                ctx_idx = -1
 
-            for i, m in enumerate(model_names):
-                cr = _extract_number(row1[i]) if i < len(row1) else 0.0
-                inp = _extract_number(row2[i]) if i < len(row2) else 0.0
-                out = _extract_number(row3[i]) if i < len(row3) else 0.0
+                for idx, h in enumerate(headers):
+                    if "模型" in h or "Model" in h:
+                        m_idx = idx
+                    elif "单位" in h or "Unit" in h:
+                        unit_idx = idx
+                    elif "缓存命中" in h or ("命中" in h and "未命中" not in h):
+                        cache_hit_idx = idx
+                    elif "未命中" in h or ("输入" in h and cache_hit_idx != idx):
+                        input_idx = idx
+                    elif "输出" in h or "Output" in h:
+                        output_idx = idx
+                    elif "上下文" in h or "Context" in h or "窗口" in h:
+                        ctx_idx = idx
 
+                if m_idx != -1 and (input_idx != -1 or output_idx != -1):
+                    for row in rows[1:]:
+                        cells = [c.get_text(" ", strip=True) for c in row.find_all(["td", "th"])]
+                        if len(cells) <= m_idx:
+                            continue
+                        model_name = cells[m_idx].strip()
+                        if not model_name or model_name in ["模型", "Model"]:
+                            continue
+
+                        unit_str = cells[unit_idx].strip() if unit_idx != -1 and unit_idx < len(cells) else "1M tokens"
+                        ctx_str = cells[ctx_idx].strip() if ctx_idx != -1 and ctx_idx < len(cells) else ""
+                        cr_str = cells[cache_hit_idx].strip() if cache_hit_idx != -1 and cache_hit_idx < len(cells) else "0"
+                        inp_str = cells[input_idx].strip() if input_idx != -1 and input_idx < len(cells) else "0"
+                        out_str = cells[output_idx].strip() if output_idx != -1 and output_idx < len(cells) else "0"
+
+                        cr = _extract_number(cr_str)
+                        inp = _extract_number(inp_str)
+                        out = _extract_number(out_str)
+
+                        remarks_parts = [f"计费单位: {unit_str}"]
+                        if ctx_str:
+                            remarks_parts.append(f"上下文窗口: {ctx_str}")
+                        remarks_parts.append("官方最新 Kimi API 标准计费，支持长上下文与高命中缓存")
+                        remarks = "; ".join(remarks_parts)
+
+                        items.append({
+                            "provider": "moonshotai",
+                            "provider_name": "Moonshot (Kimi)",
+                            "series": _infer_series(model_name, "moonshotai"),
+                            "model_name": model_name,
+                            "raw_model_id": model_name,
+                            "billing_mode": "Standard",
+                            "tier_range": "无阶梯",
+                            "currency": "CNY",
+                            "input_price": inp,
+                            "output_price": out,
+                            "cache_read_price": cr,
+                            "cache_write_price": 0.0,
+                            "remarks": remarks,
+                            "price_date": now_str,
+                            "source_page_url": source_url,
+                            "source_anchor": f"{model_name} (Kimi API 定价表)",
+                            "snapshot_id": snapshot_id,
+                        })
+                    if items:
+                        return items
+
+            # 兼容旧版转置表格 (第一行为模型名，第二行为缓存命中，第三行为输入，第四行为输出)
+            if len(rows) >= 4 and not items:
+                model_names = headers[1:]
+                if any("moonshot" in m.lower() or "kimi" in m.lower() for m in model_names):
+                    row1 = [c.get_text(strip=True) for c in rows[1].find_all(["th", "td"])][1:]
+                    row2 = [c.get_text(strip=True) for c in rows[2].find_all(["th", "td"])][1:]
+                    row3 = [c.get_text(strip=True) for c in rows[3].find_all(["th", "td"])][1:]
+
+                    for i, m in enumerate(model_names):
+                        cr = _extract_number(row1[i]) if i < len(row1) else 0.0
+                        inp = _extract_number(row2[i]) if i < len(row2) else 0.0
+                        out = _extract_number(row3[i]) if i < len(row3) else 0.0
+
+                        items.append({
+                            "provider": "moonshotai",
+                            "provider_name": "Moonshot (Kimi)",
+                            "series": _infer_series(m, "moonshotai"),
+                            "model_name": m,
+                            "raw_model_id": m,
+                            "billing_mode": "Standard",
+                            "tier_range": "无阶梯",
+                            "currency": "CNY",
+                            "input_price": inp,
+                            "output_price": out,
+                            "cache_read_price": cr,
+                            "cache_write_price": 0.0,
+                            "remarks": "官方最新 Kimi API 标准计费，支持长上下文与高命中缓存",
+                            "price_date": now_str,
+                            "source_page_url": source_url,
+                            "source_anchor": "Kimi 会员与 API 定价表",
+                            "snapshot_id": snapshot_id,
+                        })
+                    if items:
+                        return items
+
+        # 方式二：HTML 正则兜底解析（若 Playwright/SSR 仅返回 DocTable props 或未渲染成真实 DOM Table）
+        if not items:
+            raw_text = str(soup)
+            doc_rows = re.findall(r"\[[`\"]?([a-zA-Z0-9_\-\.]+)[`\"]?,\s*[`\"]?([^`\",]+)[`\"]?,\s*[`\"]?([^`\"]+)[`\"]?,\s*[`\"]?([^`\"]+)[`\"]?,\s*[`\"]?([^`\"]+)[`\"]?,\s*[`\"]?([^`\"\]]+)[`\"]?\]", raw_text)
+            for row in doc_rows:
+                m_name = row[0].strip()
+                if not ("kimi" in m_name.lower() or "moonshot" in m_name.lower()):
+                    continue
+                unit_str = row[1].strip()
+                cr_val = _extract_number(row[2])
+                inp_val = _extract_number(row[3])
+                out_val = _extract_number(row[4])
+                ctx_str = row[5].strip()
+
+                remarks = f"计费单位: {unit_str}; 上下文窗口: {ctx_str}; 官方最新 Kimi API 标准计费，支持长上下文与高命中缓存"
                 items.append({
                     "provider": "moonshotai",
                     "provider_name": "Moonshot (Kimi)",
-                    "series": _infer_series(m, "moonshotai"),
-                    "model_name": m,
-                    "raw_model_id": m,
+                    "series": _infer_series(m_name, "moonshotai"),
+                    "model_name": m_name,
+                    "raw_model_id": m_name,
                     "billing_mode": "Standard",
                     "tier_range": "无阶梯",
                     "currency": "CNY",
-                    "input_price": inp,
-                    "output_price": out,
-                    "cache_read_price": cr,
+                    "input_price": inp_val,
+                    "output_price": out_val,
+                    "cache_read_price": cr_val,
                     "cache_write_price": 0.0,
-                    "remarks": "官方最新 Kimi API 标准计费，支持长上下文与高命中缓存",
+                    "remarks": remarks,
                     "price_date": now_str,
                     "source_page_url": source_url,
-                    "source_anchor": "Kimi 会员与 API 定价表",
+                    "source_anchor": f"{m_name} (Kimi API 定价表)",
                     "snapshot_id": snapshot_id,
                 })
 
@@ -1676,6 +1810,31 @@ class OfficialScraperService:
                     item["is_current"] = True
                     model_price = OfficialModelPrice(**item)
                     session.add(model_price)
+
+                # 幂等化治理：检查当天是否已存在该厂商的旧快照。若存在，自动清理该厂商当天的旧快照及其已失效模型，防止同日批次内累积多份快照
+                cur_day = snapshot.captured_at.strftime("%Y-%m-%d") if snapshot.captured_at else datetime.utcnow().strftime("%Y-%m-%d")
+                same_day_old_snaps_res = await session.execute(
+                    select(OfficialSnapshot)
+                    .where(
+                        OfficialSnapshot.provider == target["code"],
+                        OfficialSnapshot.id != snapshot.id,
+                        OfficialSnapshot.captured_at.like(f"{cur_day}%")
+                    )
+                )
+                same_day_old_snaps = same_day_old_snaps_res.scalars().all()
+                for old_s in same_day_old_snaps:
+                    await session.execute(
+                        delete(OfficialModelPrice).where(OfficialModelPrice.snapshot_id == old_s.id)
+                    )
+                    if old_s.local_file_path:
+                        try:
+                            abs_p = os.path.abspath(old_s.local_file_path)
+                            f_name = os.path.basename(abs_p)
+                            if not f_name.startswith("sample_") and abs_p != os.path.abspath(rel_path) and os.path.exists(abs_p):
+                                os.remove(abs_p)
+                        except Exception:
+                            pass
+                    await session.delete(old_s)
 
                 await session.commit()
                 return len(parsed_items), None

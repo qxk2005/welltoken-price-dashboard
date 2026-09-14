@@ -356,8 +356,10 @@ async def list_snapshots_grouped(db: AsyncSession = Depends(get_db)):
         p: conf.get("name", p) for p, conf in OFFICIAL_TARGETS.items()
     }
 
-    # 按 YYYY-MM-DD 分组
+    # 按 YYYY-MM-DD 分组，并对同一日期内的同一厂商进行唯一性去重（优先保留生效中或最新快照）
     date_groups = OrderedDict()
+    date_provider_map = OrderedDict()
+
     for s in snapshots:
         d_str = s.captured_at.strftime("%Y-%m-%d") if s.captured_at else "未知日期"
         if d_str not in date_groups:
@@ -374,9 +376,7 @@ async def list_snapshots_grouped(db: AsyncSession = Depends(get_db)):
             date_groups[d_str]["is_current"] = True
 
         cnt = model_count_map.get(s.id, s.models_count or 0)
-        date_groups[d_str]["total_models"] += cnt
-
-        date_groups[d_str]["providers"].append({
+        p_item = {
             "snapshot_id": s.id,
             "provider": s.provider,
             "provider_name": provider_name_map.get(s.provider, s.provider),
@@ -387,7 +387,20 @@ async def list_snapshots_grouped(db: AsyncSession = Depends(get_db)):
             "models_count": cnt,
             "is_current": is_curr,
             "captured_at": s.captured_at.strftime("%Y-%m-%d %H:%M:%S") if s.captured_at else "",
-        })
+        }
+
+        key = (d_str, s.provider)
+        if key not in date_provider_map:
+            date_provider_map[key] = p_item
+        else:
+            # 若已存在同日期同厂商快照：若当前项是生效中而原有项不是，则替换为生效项
+            if is_curr and not date_provider_map[key]["is_current"]:
+                date_provider_map[key] = p_item
+
+    # 将去重后的唯一厂商快照聚合装配到各日期批次中
+    for (d_str, provider), p_item in date_provider_map.items():
+        date_groups[d_str]["providers"].append(p_item)
+        date_groups[d_str]["total_models"] += p_item["models_count"]
 
     result = []
     for g in date_groups.values():
@@ -408,10 +421,22 @@ async def get_snapshot_models(snapshot_id: int, db: AsyncSession = Depends(get_d
     query = (
         select(OfficialModelPrice)
         .where(OfficialModelPrice.snapshot_id == snapshot_id)
-        .order_by(OfficialModelPrice.series.asc(), OfficialModelPrice.model_name.asc())
+        .order_by(OfficialModelPrice.is_current.desc(), OfficialModelPrice.id.desc())
     )
     res = await db.execute(query)
-    models = res.scalars().all()
+    raw_models = res.scalars().all()
+
+    # 内存去重保护：针对同一个快照，确保 (model_name, billing_mode, tier_range) 唯一，优先保留 is_current=True 的记录
+    seen_keys = set()
+    models = []
+    for m in raw_models:
+        key = (m.model_name, m.billing_mode, m.tier_range)
+        if key not in seen_keys:
+            seen_keys.add(key)
+            models.append(m)
+
+    # 恢复系列与模型名正序展示
+    models.sort(key=lambda m: (m.series or "other", m.model_name))
 
     from backend.app.services.official_scraper_service import OFFICIAL_TARGETS
     p_name = OFFICIAL_TARGETS.get(snapshot.provider, {}).get("name", snapshot.provider)

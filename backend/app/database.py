@@ -183,14 +183,15 @@ async def init_db():
                 cnt_res = await session.execute(select(func.count(OfficialModelPrice.id)))
                 current_total_models = cnt_res.scalar() or 0
 
-                # 探测本地是否已经包含最新的 2026-09-11 批次生效模型
-                check_latest_res = await session.execute(
-                    select(OfficialModelPrice.id)
-                    .where(OfficialModelPrice.is_current == True)
-                    .where(OfficialModelPrice.price_date.like("2026-09-11%"))
-                    .limit(1)
+                # 动态对比本地最新生效模型批次时间与种子文件中的批次时间
+                max_seed_date = max((p.get("price_date") or "" for p in seed_prices if p.get("is_current")), default="")
+                max_db_res = await session.execute(
+                    select(func.max(OfficialModelPrice.price_date)).where(OfficialModelPrice.is_current == True)
                 )
-                has_latest_active_batch = check_latest_res.first() is not None
+                max_db_date = max_db_res.scalar() or ""
+
+                # 只有当种子文件中包含严格更新的生效批次时，才触发覆盖升级 (杜绝本地刚在线抓取后重启被重复覆盖)
+                need_seed_upgrade = bool(max_seed_date and max_db_date and max_seed_date > max_db_date)
 
                 def resolve_snap_id(p_item):
                     snap_ref = p_item.get("snapshot_ref")
@@ -203,7 +204,7 @@ async def init_db():
                     return snap_by_provider_latest.get(p_item.get("provider"))
 
                 if current_total_models == 0:
-                    # 场景 A: 全新安装冷启动 (导入全量多版本基准：598款最新 + 30款历史基准)
+                    # 场景 A: 全新安装冷启动 (导入全量多版本基准)
                     for item in seed_prices:
                         row_data = dict(item)
                         row_data.pop("snapshot_ref", None)
@@ -211,8 +212,8 @@ async def init_db():
                         session.add(OfficialModelPrice(**row_data))
                     await session.commit()
 
-                elif not has_latest_active_batch:
-                    # 场景 B: 存量旧客户端覆盖升级 (无 2026-09-11 批次)
+                elif need_seed_upgrade:
+                    # 场景 B: 存量旧客户端覆盖升级 (种子中的批次比本地最新批次更新)
                     # 1. 将本地原有当前生效模型全部降级为历史基准 (is_current=False)，保留上期比对和时序大盘
                     await session.execute(
                         update(OfficialModelPrice)

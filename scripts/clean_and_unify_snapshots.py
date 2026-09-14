@@ -1,7 +1,8 @@
 """
 统一快照日期维度与数据去重瘦身脚本
-规则：每天每个厂商以最后一次（最新）抓取的快照为准，清理当天较早的冗余快照、价格记录及无用本地快照文件。
-最新日期（2026-09-11）的 10 家厂商快照作为当前生效基准 (is_current = True)。
+规则：每天每个厂商以最后一次（最新或当前生效）抓取的快照为准，清理当天较早的冗余快照、作废模型记录及无用本地快照文件。
+最新日期的 10 家厂商快照作为当前生效基准 (is_current = True)。
+清洗完成后自动调用 export_full_seeds 导出干净的种子文件。
 """
 import os
 import sys
@@ -21,36 +22,51 @@ from backend.app.models.token_price import OfficialSnapshot, OfficialModelPrice
 async def clean_and_unify():
     print("=== 开始执行快照统一日期整理与数据清洗 ===")
     async with AsyncSessionLocal() as db:
-        # 1. 查询所有快照
-        snaps_res = await db.execute(select(OfficialSnapshot).order_by(OfficialSnapshot.captured_at.asc()))
+        # 1. 找出当前已标记为 is_current=True 的 snapshot_id 集合
+        curr_res = await db.execute(
+            select(OfficialModelPrice.snapshot_id)
+            .where(OfficialModelPrice.is_current == True, OfficialModelPrice.snapshot_id.is_not(None))
+            .distinct()
+        )
+        current_snap_ids = set(r[0] for r in curr_res.all())
+        print(f"当前数据库中生效的 snapshot_ids: {current_snap_ids}")
+
+        # 2. 查询所有快照
+        snaps_res = await db.execute(
+            select(OfficialSnapshot).order_by(OfficialSnapshot.captured_at.asc(), OfficialSnapshot.id.asc())
+        )
         all_snapshots = snaps_res.scalars().all()
         print(f"当前数据库共有快照: {len(all_snapshots)} 份")
 
-        # 2. 按 (day, provider) 分组
+        # 3. 按 (day, provider) 分组
         grouped = defaultdict(list)
         for s in all_snapshots:
-            day = str(s.captured_at)[:10]
+            day = str(s.captured_at)[:10] if s.captured_at else "unknown"
             grouped[(day, s.provider)].append(s)
 
         keepers = []
         to_delete_snaps = []
 
         for (day, provider), slist in grouped.items():
-            # 按 captured_at 升序，最后一个为最新
-            latest = slist[-1]
-            keepers.append(latest)
-            if len(slist) > 1:
-                for old in slist[:-1]:
-                    to_delete_snaps.append(old)
+            # 优先选属于当前生效集合的快照；若均不在生效集合中，选该日最后一次抓取的最新快照
+            curr_in_list = [s for s in slist if s.id in current_snap_ids]
+            if curr_in_list:
+                keeper = curr_in_list[-1]
+            else:
+                keeper = slist[-1]
+            keepers.append(keeper)
+            for s in slist:
+                if s.id != keeper.id:
+                    to_delete_snaps.append(s)
 
-        print(f"保留最新基准快照: {len(keepers)} 份，待清理冗余快照: {len(to_delete_snaps)} 份")
+        print(f"保留基准快照: {len(keepers)} 份，待清理冗余快照: {len(to_delete_snaps)} 份")
 
         keeper_files = set(os.path.abspath(k.local_file_path) for k in keepers if k.local_file_path)
         deleted_files_count = 0
 
-        # 3. 删除冗余快照及下属价格点
+        # 4. 删除冗余快照及下属价格点
         for old in to_delete_snaps:
-            # 删除价格点
+            # 删除旧价格记录
             await db.execute(
                 delete(OfficialModelPrice).where(OfficialModelPrice.snapshot_id == old.id)
             )
@@ -74,13 +90,13 @@ async def clean_and_unify():
         await db.commit()
         print(f"成功清理 {len(to_delete_snaps)} 份冗余快照，删除 {deleted_files_count} 个冗余 HTML 快照文件")
 
-        # 4. 重新设置 is_current 状态
-        # 找出最大的日期（最新日期，即 2026-09-11）
+        # 5. 重新校准 is_current 状态
+        # 找出最新日期（即当前抓取批次，如 2026-09-14）
         all_days = sorted(set(str(k.captured_at)[:10] for k in keepers), reverse=True)
         latest_day = all_days[0] if all_days else None
         print(f"当前最新生效基准日期为: {latest_day}")
 
-        # 先将所有记录 is_current 置为 False
+        # 先将所有历史记录 is_current 置为 False
         await db.execute(update(OfficialModelPrice).values(is_current=False))
 
         # 将 latest_day 的 keeper 对应的价格置为 True
@@ -92,43 +108,29 @@ async def clean_and_unify():
         )
         await db.commit()
 
-        # 5. 统计核查当前生效模型数
+        # 6. 统计核查当前生效模型数
         curr_res = await db.execute(
             select(OfficialModelPrice).where(OfficialModelPrice.is_current == True)
         )
         current_models = curr_res.scalars().all()
         print(f"清洗完成！最新生效日期 {latest_day} 下共有 {len(current_models)} 款官方模型生效中")
 
-        # 6. 同步导出至种子文件 data/official_prices_seed.json
-        seed_path = Path("data/official_prices_seed.json")
-        seed_data = []
+        # 验证这批模型中 (provider, model_name) 是否严格唯一
+        seen = set()
+        duplicates = []
         for m in current_models:
-            seed_data.append({
-                "provider": m.provider,
-                "provider_name": m.provider_name,
-                "series": m.series,
-                "model_name": m.model_name,
-                "raw_model_id": m.raw_model_id,
-                "billing_mode": m.billing_mode,
-                "tier_range": m.tier_range,
-                "currency": m.currency,
-                "input_price": m.input_price,
-                "output_price": m.output_price,
-                "cache_read_price": m.cache_read_price,
-                "cache_write_price": m.cache_write_price,
-                "remarks": m.remarks,
-                "custom_notes": m.custom_notes,
-                "user_tags": m.user_tags,
-                "price_date": m.price_date,
-                "source_page_url": m.source_page_url,
-                "source_anchor": m.source_anchor,
-                "is_current": True,
-                "is_active": True
-            })
+            key = (m.provider, m.model_name, m.billing_mode, m.tier_range)
+            if key in seen:
+                duplicates.append(key)
+            seen.add(key)
+        assert len(duplicates) == 0, f"发现重复模型: {duplicates}"
+        print(f"✓ 校验通过: 当前生效批次中所有 {len(current_models)} 款模型规格严格唯一，无任何重复！")
 
-        with open(seed_path, "w", encoding="utf-8") as f:
-            json.dump(seed_data, f, ensure_ascii=False, indent=2)
-        print(f"已同步更新种子数据 -> {seed_path} ({len(seed_data)} 条)")
+    # 7. 同步导出种子文件
+    print("\n>>> 正在调用 scripts/export_full_seeds.py 同步全量干净种子...")
+    from scripts.export_full_seeds import export_seeds
+    export_seeds()
+    print(">>> 种子文件同步完毕！")
 
 
 if __name__ == "__main__":

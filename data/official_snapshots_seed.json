@@ -5,7 +5,7 @@
     "source_url": "https://api-docs.deepseek.com/zh-cn/quick_start/pricing/",
     "page_title": "DeepSeek (深度求索) 官方定价",
     "local_file_path": "data/official_snapshots/sample_deepseek.html",
-    "file_size_bytes": 47611,
+    "file_size_bytes": 49687,
     "models_count": 6,
     "captured_at": "2026-09-03 08:14:09.327538"
   },
@@ -15,8 +15,8 @@
     "source_url": "https://bigmodel.cn/pricing",
     "page_title": "智谱 (GLM) 官方定价",
     "local_file_path": "data/official_snapshots/sample_glm.html",
-    "file_size_bytes": 1676126,
-    "models_count": 54,
+    "file_size_bytes": 1413451,
+    "models_count": 7,
     "captured_at": "2026-09-03 08:14:09.405459"
   },
   {
@@ -25,7 +25,7 @@
     "source_url": "https://www.kimi.com/membership/pricing?from=header_nav&tab=api",
     "page_title": "Moonshot (Kimi) 官方定价",
     "local_file_path": "data/official_snapshots/sample_kimi.html",
-    "file_size_bytes": 33528,
+    "file_size_bytes": 245309,
     "models_count": 3,
     "captured_at": "2026-09-03 08:14:09.427816"
   },
@@ -35,8 +35,8 @@
     "source_url": "https://platform.minimaxi.com/docs/guides/pricing-paygo",
     "page_title": "MiniMax 官方定价",
     "local_file_path": "data/official_snapshots/sample_minimax.html",
-    "file_size_bytes": 432992,
-    "models_count": 19,
+    "file_size_bytes": 794001,
+    "models_count": 6,
     "captured_at": "2026-09-03 08:14:09.448183"
   },
   {
@@ -45,8 +45,8 @@
     "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
     "page_title": "阿里百炼 (Aliyun) 官方定价",
     "local_file_path": "data/official_snapshots/sample_bailian.html",
-    "file_size_bytes": 2112739,
-    "models_count": 327,
+    "file_size_bytes": 2113303,
+    "models_count": 1,
     "captured_at": "2026-09-03 08:14:09.889968"
   },
   {
@@ -55,8 +55,8 @@
     "source_url": "https://platform.openai.com/docs/pricing",
     "page_title": "OpenAI 官方定价",
     "local_file_path": "data/official_snapshots/sample_openai.html",
-    "file_size_bytes": 648068,
-    "models_count": 62,
+    "file_size_bytes": 668697,
+    "models_count": 4,
     "captured_at": "2026-09-03 08:14:10.041416"
   },
   {
@@ -65,7 +65,7 @@
     "source_url": "https://platform.claude.com/docs/en/about-claude/pricing",
     "page_title": "Anthropic (Claude) 官方定价",
     "local_file_path": "data/official_snapshots/sample_claude.html",
-    "file_size_bytes": 656658,
+    "file_size_bytes": 563119,
     "models_count": 26,
     "captured_at": "2026-09-03 08:14:10.083869"
   },
@@ -75,8 +75,8 @@
     "source_url": "https://ai.google.dev/gemini-api/docs/pricing?hl=zh-cn",
     "page_title": "Google (Gemini) 官方定价",
     "local_file_path": "data/official_snapshots/sample_gemini.html",
-    "file_size_bytes": 332967,
-    "models_count": 79,
+    "file_size_bytes": 304098,
+    "models_count": 6,
     "captured_at": "2026-09-03 10:32:44.819278"
   },
   {
@@ -85,7 +85,7 @@
     "source_url": "https://mimo.mi.com/docs/zh-CN/price/pay-as-you-go",
     "page_title": "小米 (MiMo) 官方定价",
     "local_file_path": "data/official_snapshots/sample_xiaomi.html",
-    "file_size_bytes": 174518,
+    "file_size_bytes": 427673,
     "models_count": 6,
     "captured_at": "2026-09-04 06:01:41.632633"
   },
@@ -95,7 +95,7 @@
     "source_url": "https://platform.stepfun.com/docs/zh/guides/pricing/details",
     "page_title": "阶跃星辰 (StepFun) 官方定价",
     "local_file_path": "data/official_snapshots/sample_stepfun.html",
-    "file_size_bytes": 419935,
+    "file_size_bytes": 445407,
     "models_count": 9,
     "captured_at": "2026-09-04 09:37:40.311604"
   },
@@ -115,7 +115,7 @@
     "source_url": "https://bigmodel.cn/pricing",
     "page_title": "智谱 (GLM) 官方定价 (本地快照)",
     "local_file_path": "data/official_snapshots/sample_glm.html",
-    "file_size_bytes": 1699799,
+    "file_size_bytes": 1413451,
     "models_count": 50,
     "captured_at": "2026-09-11 03:48:13.202250"
   },
@@ -125,7 +125,7 @@
     "source_url": "https://www.kimi.com/membership/pricing?from=header_nav&tab=api",
     "page_title": "Moonshot (Kimi) 官方定价 (本地快照)",
     "local_file_path": "data/official_snapshots/sample_kimi.html",
-    "file_size_bytes": 34004,
+    "file_size_bytes": 245309,
     "models_count": 3,
     "captured_at": "2026-09-11 03:48:33.565245"
   },
@@ -136,7 +136,7 @@
     "page_title": "按量计费 - MiniMax 开放平台文档中心",
     "local_file_path": "data/official_snapshots/minimax_20260911_034846.html",
     "file_size_bytes": 777998,
-    "models_count": 19,
+    "models_count": 13,
     "captured_at": "2026-09-11 03:48:46.332799"
   },
   {
@@ -146,28 +146,8 @@
     "page_title": "阿里云百炼模型价格-大模型服务平台百炼(Model Studio)-阿里云帮助中心",
     "local_file_path": "data/official_snapshots/bailian_20260911_034904.html",
     "file_size_bytes": 2143242,
-    "models_count": 327,
+    "models_count": 326,
     "captured_at": "2026-09-11 03:49:04.890780"
-  },
-  {
-    "id": 143,
-    "provider": "xiaomi",
-    "source_url": "https://mimo.mi.com/docs/zh-CN/price/pay-as-you-go",
-    "page_title": "小米 (MiMo) 官方定价 (本地快照)",
-    "local_file_path": "data/official_snapshots/sample_xiaomi.html",
-    "file_size_bytes": 175587,
-    "models_count": 6,
-    "captured_at": "2026-09-11 03:49:45.312393"
-  },
-  {
-    "id": 144,
-    "provider": "stepfun",
-    "source_url": "https://platform.stepfun.com/docs/zh/guides/pricing/details",
-    "page_title": "定价与限速 - StepFun 开放平台文档中心",
-    "local_file_path": "data/official_snapshots/stepfun_20260911_035010.html",
-    "file_size_bytes": 425440,
-    "models_count": 9,
-    "captured_at": "2026-09-11 03:50:10.687237"
   },
   {
     "id": 145,
@@ -176,7 +156,7 @@
     "page_title": "Pricing | OpenAI API",
     "local_file_path": "data/official_snapshots/openai_20260911_035024.html",
     "file_size_bytes": 667525,
-    "models_count": 70,
+    "models_count": 68,
     "captured_at": "2026-09-11 03:50:24.521167"
   },
   {
@@ -195,8 +175,128 @@
     "source_url": "https://ai.google.dev/gemini-api/docs/pricing?hl=zh-cn",
     "page_title": "Google (Gemini) 官方定价 (本地快照)",
     "local_file_path": "data/official_snapshots/sample_gemini.html",
-    "file_size_bytes": 331126,
+    "file_size_bytes": 304098,
     "models_count": 84,
     "captured_at": "2026-09-11 03:50:38.920866"
+  },
+  {
+    "id": 149,
+    "provider": "stepfun",
+    "source_url": "https://platform.stepfun.com/docs/zh/guides/pricing/details",
+    "page_title": "阶跃星辰 (StepFun) 官方定价 (本地快照)",
+    "local_file_path": "data/official_snapshots/sample_stepfun.html",
+    "file_size_bytes": 445407,
+    "models_count": 9,
+    "captured_at": "2026-09-11 04:17:23.256287"
+  },
+  {
+    "id": 150,
+    "provider": "xiaomi",
+    "source_url": "https://mimo.mi.com/docs/zh-CN/price/pay-as-you-go",
+    "page_title": "小米 (MiMo) 官方定价 (本地快照)",
+    "local_file_path": "data/official_snapshots/sample_xiaomi.html",
+    "file_size_bytes": 427673,
+    "models_count": 6,
+    "captured_at": "2026-09-11 04:17:23.708249"
+  },
+  {
+    "id": 161,
+    "provider": "deepseek",
+    "source_url": "https://api-docs.deepseek.com/zh-cn/quick_start/pricing/",
+    "page_title": "模型 & 价格 | DeepSeek API Docs",
+    "local_file_path": "data/official_snapshots/deepseek_20260914_035422.html",
+    "file_size_bytes": 49687,
+    "models_count": 4,
+    "captured_at": "2026-09-14 03:54:22.054029"
+  },
+  {
+    "id": 162,
+    "provider": "zhipuai",
+    "source_url": "https://docs.bigmodel.cn/cn/guide/start/pricing",
+    "page_title": "API 定价 - 智谱AI开放文档",
+    "local_file_path": "data/official_snapshots/glm_20260914_035429.html",
+    "file_size_bytes": 1413451,
+    "models_count": 68,
+    "captured_at": "2026-09-14 03:54:29.094130"
+  },
+  {
+    "id": 163,
+    "provider": "moonshotai",
+    "source_url": "https://platform.kimi.com/docs/pricing/chat",
+    "page_title": "模型推理价格说明 - Kimi API 开放平台",
+    "local_file_path": "data/official_snapshots/kimi_20260914_035434.html",
+    "file_size_bytes": 245309,
+    "models_count": 4,
+    "captured_at": "2026-09-14 03:54:34.568123"
+  },
+  {
+    "id": 164,
+    "provider": "minimax",
+    "source_url": "https://platform.minimaxi.com/docs/guides/pricing-paygo",
+    "page_title": "按量计费 - MiniMax 开放平台文档中心",
+    "local_file_path": "data/official_snapshots/minimax_20260914_035441.html",
+    "file_size_bytes": 794001,
+    "models_count": 13,
+    "captured_at": "2026-09-14 03:54:41.228629"
+  },
+  {
+    "id": 165,
+    "provider": "alibaba",
+    "source_url": "https://help.aliyun.com/zh/model-studio/model-pricing",
+    "page_title": "阿里云百炼模型价格-大模型服务平台百炼(Model Studio)-阿里云帮助中心",
+    "local_file_path": "data/official_snapshots/bailian_20260914_035453.html",
+    "file_size_bytes": 2113303,
+    "models_count": 326,
+    "captured_at": "2026-09-14 03:54:54.045906"
+  },
+  {
+    "id": 168,
+    "provider": "openai",
+    "source_url": "https://platform.openai.com/docs/pricing",
+    "page_title": "Pricing | OpenAI API",
+    "local_file_path": "data/official_snapshots/openai_20260914_035515.html",
+    "file_size_bytes": 668697,
+    "models_count": 67,
+    "captured_at": "2026-09-14 03:55:15.912147"
+  },
+  {
+    "id": 169,
+    "provider": "anthropic",
+    "source_url": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "page_title": "Pricing - Claude Platform Docs",
+    "local_file_path": "data/official_snapshots/claude_20260914_035530.html",
+    "file_size_bytes": 563119,
+    "models_count": 26,
+    "captured_at": "2026-09-14 03:55:30.232809"
+  },
+  {
+    "id": 173,
+    "provider": "google",
+    "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+    "page_title": "Gemini Developer API pricing  |  Gemini API  |  Google AI for Developers",
+    "local_file_path": "data/official_snapshots/gemini_20260914_040513.html",
+    "file_size_bytes": 304098,
+    "models_count": 72,
+    "captured_at": "2026-09-14 04:05:13.751087"
+  },
+  {
+    "id": 174,
+    "provider": "stepfun",
+    "source_url": "https://platform.stepfun.com/docs/zh/guides/pricing/details",
+    "page_title": "阶跃星辰 (StepFun) 官方定价 (本地快照)",
+    "local_file_path": "data/official_snapshots/sample_stepfun.html",
+    "file_size_bytes": 445407,
+    "models_count": 9,
+    "captured_at": "2026-09-14 04:06:45.034813"
+  },
+  {
+    "id": 175,
+    "provider": "xiaomi",
+    "source_url": "https://mimo.mi.com/docs/zh-CN/price/pay-as-you-go",
+    "page_title": "小米 (MiMo) 官方定价 (本地快照)",
+    "local_file_path": "data/official_snapshots/sample_xiaomi.html",
+    "file_size_bytes": 427673,
+    "models_count": 6,
+    "captured_at": "2026-09-14 04:06:45.396236"
   }
 ]

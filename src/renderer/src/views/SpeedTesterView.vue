@@ -75,29 +75,91 @@
             </div>
           </div>
 
-          <!-- 4. 测试模型 ID (下拉列表选择) -->
-          <div class="space-y-1">
+          <!-- 4. 测试模型 ID (可编辑输入框 + 候选下拉弹出面板 Combobox) -->
+          <div class="space-y-1 relative" ref="modelComboboxRef">
             <label class="font-medium text-[#1D1D1F] flex items-center justify-between">
-              <span>测试模型 ID (Model ID)</span>
-              <span class="text-[10px] text-[#86868B]">共 {{ currentSiteModels.length }} 款可用</span>
+              <span class="flex items-center space-x-1.5">
+                <span>测试模型 ID (Model ID)</span>
+                <span class="text-[10px] text-[#0071E3] bg-[#0071E3]/10 px-1.5 py-0.2 rounded font-normal">支持直接修改对齐真实名称</span>
+              </span>
+              <span v-if="currentSiteModels.length > 0" class="text-[10px] text-[#86868B]">
+                共 {{ currentSiteModels.length }} 款可用
+              </span>
             </label>
-            <div v-if="currentSiteModels.length > 0">
-              <select
-                v-model="form.modelId"
-                class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-3 py-2 text-xs text-[#1D1D1F] font-mono focus:outline-none transition-all cursor-pointer"
-              >
-                <option v-for="m in currentSiteModels" :key="m.model_id" :value="m.model_id">
-                  {{ m.model_name || m.model_id }} ({{ m.model_id }})
-                </option>
-              </select>
-            </div>
-            <div v-else>
+
+            <!-- 组合输入框：可直接输入修改，也可展开下拉选择 -->
+            <div class="relative flex items-center">
               <input
                 v-model="form.modelId"
                 type="text"
-                placeholder="如 deepseek-v3, gpt-4o, glm-5.2..."
-                class="w-full bg-[#F9F9FB] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl px-3 py-1.5 text-xs text-[#1D1D1F] font-mono focus:outline-none transition-all"
+                placeholder="选择或输入真实模型 ID，如 deepseek-v3, gpt-4o, kimi-k2.6..."
+                @focus="isModelDropdownOpen = currentSiteModels.length > 0"
+                class="w-full bg-[#F2F2F7] border border-[#E5E5EA] focus:border-[#0071E3] focus:bg-[#FFFFFF] rounded-xl pl-3 pr-8 py-2 text-xs text-[#1D1D1F] font-mono focus:outline-none transition-all placeholder:text-[#8E8E93]"
               />
+
+              <!-- 右侧下拉展开/收起按钮 -->
+              <button
+                v-if="currentSiteModels.length > 0"
+                type="button"
+                @click.stop="toggleModelDropdown"
+                class="absolute right-1.5 p-1 rounded-lg hover:bg-[#E5E5EA] text-[#86868B] hover:text-[#1D1D1F] transition-all cursor-pointer flex items-center justify-center"
+                title="展开/收起候选模型列表"
+              >
+                <svg
+                  class="w-4 h-4 transition-transform duration-200"
+                  :class="{ 'rotate-180 text-[#0071E3]': isModelDropdownOpen }"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- 下拉模型弹出选择浮层 -->
+            <div
+              v-if="isModelDropdownOpen && currentSiteModels.length > 0"
+              class="absolute left-0 right-0 top-full mt-1.5 z-30 bg-[#FFFFFF] border border-[#E5E5EA] rounded-xl shadow-xl overflow-hidden animate-fade-in max-h-56 flex flex-col"
+            >
+              <div class="px-2.5 py-1.5 bg-[#F9F9FB] border-b border-[#E5E5EA] text-[10.5px] text-[#86868B] flex items-center justify-between">
+                <span>点击选用，可在上方输入框中自由二次修改</span>
+                <span>{{ filteredComboboxModels.length }} 个匹配</span>
+              </div>
+              <div class="overflow-y-auto divide-y divide-[#F2F2F7] flex-1">
+                <div
+                  v-for="m in filteredComboboxModels"
+                  :key="m.model_id"
+                  @click="selectModel(m.model_id)"
+                  class="px-3 py-2 hover:bg-[#F2F2F7] transition-colors cursor-pointer flex items-center justify-between group"
+                  :class="{ 'bg-[#0071E3]/5 text-[#0071E3]': form.modelId === m.model_id }"
+                >
+                  <div class="min-w-0 pr-2">
+                    <div class="text-xs font-mono font-medium truncate" :class="form.modelId === m.model_id ? 'text-[#0071E3] font-bold' : 'text-[#1D1D1F]'">
+                      {{ m.model_id }}
+                    </div>
+                    <div v-if="m.model_name && m.model_name !== m.model_id" class="text-[10px] text-[#86868B] truncate mt-0.5">
+                      别名: {{ m.model_name }}
+                    </div>
+                  </div>
+                  <span
+                    v-if="form.modelId === m.model_id"
+                    class="text-[10px] text-[#0071E3] font-bold flex-shrink-0"
+                  >
+                    ✓ 已选
+                  </span>
+                  <span
+                    v-else
+                    class="text-[10px] text-[#86868B] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                  >
+                    选用 ↵
+                  </span>
+                </div>
+                <div v-if="filteredComboboxModels.length === 0" class="py-4 text-center text-[#86868B] text-xs">
+                  无完全匹配的模型 ID，您可以直接在上方输入自定义名称
+                </div>
+              </div>
             </div>
           </div>
 
@@ -435,7 +497,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, nextTick, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import axios from 'axios'
 import { useDashboardStore } from '../stores/dashboardStore'
 import ScoreBreakdownTooltip from '../components/ScoreBreakdownTooltip.vue'
@@ -459,6 +521,39 @@ const benchmarkResult = ref<any>(null)
 const selectedDetailForPreview = ref<any>(null)
 const executionLogs = ref<ExecutionLog[]>([])
 const logContainerRef = ref<HTMLElement | null>(null)
+
+// 模型 Combobox 可选择与可编辑状态
+const modelComboboxRef = ref<HTMLElement | null>(null)
+const isModelDropdownOpen = ref(false)
+
+const toggleModelDropdown = () => {
+  if (currentSiteModels.value.length === 0) return
+  isModelDropdownOpen.value = !isModelDropdownOpen.value
+}
+
+const selectModel = (modelId: string) => {
+  form.modelId = modelId
+  isModelDropdownOpen.value = false
+}
+
+const filteredComboboxModels = computed(() => {
+  if (!form.modelId || currentSiteModels.value.some((m) => m.model_id === form.modelId)) {
+    return currentSiteModels.value
+  }
+  const q = form.modelId.trim().toLowerCase()
+  const matched = currentSiteModels.value.filter(
+    (m) =>
+      (m.model_id && m.model_id.toLowerCase().includes(q)) ||
+      (m.model_name && m.model_name.toLowerCase().includes(q))
+  )
+  return matched.length > 0 ? matched : currentSiteModels.value
+})
+
+const handleClickOutside = (e: MouseEvent) => {
+  if (modelComboboxRef.value && !modelComboboxRef.value.contains(e.target as Node)) {
+    isModelDropdownOpen.value = false
+  }
+}
 
 const form = reactive({
   baseUrl: '',
@@ -526,6 +621,11 @@ const initSpeedTestContext = async () => {
 
 onMounted(async () => {
   await initSpeedTestContext()
+  window.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('click', handleClickOutside)
 })
 
 // 监听从其他页面触发的一键测速跳转
