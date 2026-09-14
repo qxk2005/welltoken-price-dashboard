@@ -933,10 +933,85 @@ async def view_snapshot_html(
       var isLong = kw.indexOf('272k+') !== -1 || kw.indexOf('Long') !== -1 || kw.indexOf('128k+') !== -1;
       var targetScrollEl = null;
 
-      // ================= 步骤 0: 智能 Tab 选项卡模式切换 (如 OpenAI / Astro Content Switcher) =================
-      var targetMode = isBatch ? 'Batch' : (isFlex ? 'Flex' : (isFast ? 'Fast mode' : 'Standard'));
-      var targetTabIndex = isBatch ? 1 : (isFlex ? 2 : (isFast ? 3 : 0));
+      // ================= 步骤 0: 智能 Tab 选项卡模式切换与静态页面点击水合 =================
+      var isPrioMode = isFast || kw.indexOf('Priority') !== -1 || kw.indexOf('优先') !== -1;
+      var targetMode = isBatch ? 'Batch' : (isFlex ? 'Flex' : (isPrioMode ? 'Priority' : 'Standard'));
+      var targetModeKeywords = isBatch
+        ? ['batch', '批处理']
+        : (isFlex ? ['flex', '弹性'] : (isPrioMode ? ['优先', 'priority', 'fast'] : ['标准', 'standard']));
 
+      // 0.1 支持标准 WAI-ARIA [role="tab"] 与 [role="tabpanel"] (如 MiniMax, Tailwind/Radix UI 页面)
+      var ariaTabs = document.querySelectorAll('[role="tab"]');
+      var ariaPanels = document.querySelectorAll('[role="tabpanel"]');
+
+      if (ariaTabs.length > 0) {
+        function activateAriaTab(tabEl) {
+          var targetPanelId = tabEl.getAttribute('aria-controls');
+          var targetPanel = targetPanelId ? document.getElementById(targetPanelId) : null;
+
+          if (!targetPanel) {
+            var tabIdx = Array.prototype.indexOf.call(ariaTabs, tabEl);
+            if (tabIdx !== -1 && ariaPanels[tabIdx]) targetPanel = ariaPanels[tabIdx];
+          }
+
+          for (var at = 0; at < ariaTabs.length; at++) {
+            var t = ariaTabs[at];
+            if (t === tabEl) {
+              t.setAttribute('aria-selected', 'true');
+              t.style.borderBottomColor = '#0071E3';
+              t.style.color = '#0071E3';
+              t.style.fontWeight = 'bold';
+            } else {
+              t.setAttribute('aria-selected', 'false');
+              t.style.borderBottomColor = 'transparent';
+              t.style.color = '';
+              t.style.fontWeight = '';
+            }
+          }
+
+          for (var ap = 0; ap < ariaPanels.length; ap++) {
+            var p = ariaPanels[ap];
+            if (p === targetPanel) {
+              p.removeAttribute('hidden');
+              p.classList.remove('hidden');
+              p.style.display = 'block';
+            } else {
+              p.setAttribute('hidden', 'true');
+              p.classList.add('hidden');
+              p.style.display = 'none';
+            }
+          }
+        }
+
+        var matchedTab = null;
+        for (var at = 0; at < ariaTabs.length; at++) {
+          var tText = (ariaTabs[at].innerText || ariaTabs[at].textContent || '').trim().toLowerCase();
+          var isTabMatch = targetModeKeywords.some(function(kwItem) { return tText.indexOf(kwItem.toLowerCase()) !== -1; });
+          if (isTabMatch) {
+            matchedTab = ariaTabs[at];
+            break;
+          }
+        }
+        if (!matchedTab && ariaTabs.length > 0) {
+          matchedTab = ariaTabs[0];
+        }
+        if (matchedTab) {
+          activateAriaTab(matchedTab);
+        }
+
+        for (var at = 0; at < ariaTabs.length; at++) {
+          (function(tab) {
+            tab.style.cursor = 'pointer';
+            tab.onclick = function(e) {
+              e.preventDefault();
+              activateAriaTab(tab);
+            };
+          })(ariaTabs[at]);
+        }
+      }
+
+      // 0.2 原有 Astro / OpenAI Content Switcher 兼容支持
+      var targetTabIndex = isBatch ? 1 : (isFlex ? 2 : (isPrioMode ? 3 : 0));
       var switchers = document.querySelectorAll('.content-switcher-selector, [role="tablist"]');
       var containers = document.querySelectorAll('.content-switcher-panes');
 
@@ -959,7 +1034,7 @@ async def view_snapshot_html(
         var btns = switchers[s].querySelectorAll('button, a, [role="tab"]');
         for (var b = 0; b < btns.length; b++) {
           var btnText = (btns[b].innerText || btns[b].textContent || '').trim();
-          if (btnText === targetMode || (isFast && (btnText === 'Fast mode' || btnText === 'Priority'))) {
+          if (btnText === targetMode || (isPrioMode && (btnText === 'Fast mode' || btnText === 'Priority' || btnText.indexOf('优先') !== -1))) {
             btns[b].style.backgroundColor = '#0071E3';
             btns[b].style.color = '#FFFFFF';
             btns[b].setAttribute('aria-selected', 'true');
@@ -1164,7 +1239,10 @@ async def view_snapshot_html(
         }
 
         var searchRoots = [];
-        if (isBatch && batchTables.length > 0) {
+        var activeAriaPanel = document.querySelector('[role="tabpanel"]:not([hidden]):not(.hidden)');
+        if (activeAriaPanel && activeAriaPanel.querySelector('table')) {
+          searchRoots.push(activeAriaPanel);
+        } else if (isBatch && batchTables.length > 0) {
           searchRoots = batchTables;
         } else if (!isBatch && batchTables.length > 0) {
           searchRoots = standardTables;
@@ -1218,8 +1296,11 @@ async def view_snapshot_html(
 
             // 若有阶梯参数，结合阶梯判定
             var tierMatched = true;
+            var isUpperTier = kw.indexOf('+') !== -1 || kw.indexOf('>') !== -1 || /512k\+|200k\+|128k\+|256k\+/i.test(kw);
+            var isLowerTier = kw.indexOf('[0') !== -1 || kw.indexOf('0,') !== -1 || kw.indexOf('≤') !== -1 || kw.indexOf('<') !== -1;
+
             if (kw.indexOf('[') !== -1) {
-              var tierPart = kw.split('[')[1].split(')')[0].toLowerCase();
+              var tierPart = kw.split('[')[1].replace(/[\\]\\)\\s]/g, '').toLowerCase();
               var tierNums = tierPart.match(/\\d+[kkmg]?/g) || [];
               tierMatched = tierNums.length === 0 || tierNums.some(function(n) { return rText.indexOf(n) !== -1; });
             }
@@ -1229,6 +1310,22 @@ async def view_snapshot_html(
             if (!isHeaderRow && tdList.length > 0) {
               score += 200; // 基础数据行
               if (hasPrices) score += 100; // 包含真实价格数据
+
+              // 阶梯方向智能权重奖惩
+              if (isUpperTier) {
+                if (rText.indexOf('>') !== -1 || rText.indexOf('+') !== -1 || rText.indexOf('以上') !== -1) {
+                  score += 250; // 阶梯方向精准吻合 (如 > 512k, 512k+)
+                } else if (rText.indexOf('≤') !== -1 || rText.indexOf('<') !== -1 || rText.indexOf('以下') !== -1) {
+                  score -= 200; // 反向阶梯严重扣分
+                }
+              } else if (isLowerTier) {
+                if (rText.indexOf('≤') !== -1 || rText.indexOf('<') !== -1 || rText.indexOf('以下') !== -1) {
+                  score += 250; // 阶梯方向精准吻合 (如 ≤ 512k, [0, 512k))
+                } else if (rText.indexOf('>') !== -1 || rText.indexOf('+') !== -1 || rText.indexOf('以上') !== -1) {
+                  score -= 200; // 反向阶梯严重扣分
+                }
+              }
+
               // 检查是否有某个具体单元格直接完全匹配或作为词首匹配候选词 (例如 <td><code>mimo-v2.5</code></td>)
               for (var d = 0; d < tdList.length; d++) {
                 var tdT = norm(tdList[d].innerText);

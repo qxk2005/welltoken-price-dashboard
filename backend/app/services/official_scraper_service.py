@@ -859,20 +859,26 @@ class OfficialScraperService:
                     cr_nums = re.findall(r"\d+\.\d+", cols[3]) if len(cols) > 3 else []
                     cr_p = float(cr_nums[-1]) if cr_nums else (_extract_number(cols[3]) if len(cols) > 3 else 0.0)
 
+                    # Table 0 为 Standard 标准响应，Table 1 为 Priority 优先服务 (1.5倍计费)
+                    is_priority = (idx == 1) or ("优先" in str(t.parent) or "1.5" in str(t.parent))
+                    b_mode = "Priority 优先" if is_priority else "Standard"
+                    m_name = f"MiniMax-M3 {tier_str} (Priority 优先)" if is_priority else f"MiniMax-M3 {tier_str}"
+                    remarks = "官方优先*服务，按标准价格的 1.5 倍计费，更快响应并降低失败率" if is_priority else "官方永久五折特惠，标准响应层级，支持超长上下文"
+
                     items.append({
                         "provider": "minimax",
                         "provider_name": "MiniMax",
                         "series": "minimax-m3",
-                        "model_name": f"MiniMax-M3 {tier_str}",
+                        "model_name": m_name,
                         "raw_model_id": "MiniMax-M3",
-                        "billing_mode": "Standard",
+                        "billing_mode": b_mode,
                         "tier_range": tier_str,
                         "currency": "CNY",
                         "input_price": in_p,
                         "output_price": out_p,
                         "cache_read_price": cr_p,
                         "cache_write_price": 0.0,
-                        "remarks": "官方永久五折特惠，支持超长上下文",
+                        "remarks": remarks,
                         "price_date": now_str,
                         "source_page_url": source_url,
                         "source_anchor": f"Table {idx} - M3",

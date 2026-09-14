@@ -476,14 +476,18 @@ function renderChart() {
   }
 
   chartInstance.setOption(option, true)
+  chartInstance.resize()
 }
 
 watch(
-  () => [store.historyDrawer.visible, store.historyDrawer.historyPoints, displayCurrency.value],
-  () => {
-    if (store.historyDrawer.visible && !store.historyDrawer.loading) {
+  () => [store.historyDrawer.visible, store.historyDrawer.loading, store.historyDrawer.historyPoints, displayCurrency.value],
+  ([vis, loading]) => {
+    if (vis && !loading) {
       nextTick(() => {
-        renderChart()
+        setTimeout(() => {
+          renderChart()
+          chartInstance?.resize()
+        }, 60)
       })
     }
   },

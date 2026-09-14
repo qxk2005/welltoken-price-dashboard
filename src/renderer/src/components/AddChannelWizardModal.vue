@@ -907,7 +907,7 @@
                     </td>
                     <td class="py-1.5 px-3 font-mono text-[#0071E3] font-semibold">{{ item.standard_model_id }}</td>
                     <td class="py-1 px-2 text-right font-mono font-bold text-[#137333]">
-                      {{ form.currency === 'USD' ? `$${item.input_price_usd.toFixed(3)}` : `¥${item.input_price_cny.toFixed(2)}` }} / 1M
+                      {{ getStep4DisplayPrice(item) }}
                     </td>
                   </tr>
                 </tbody>
@@ -1472,10 +1472,45 @@ function getMatchBadgeLabel(type: string) {
       return '未识别'
   }
 }
+function getStep4DisplayPrice(item: any): string {
+  // 优先级：若条目拥有原生独立倍率或用户手动设定了 custom 倍率，则采用该倍率；否则严格使用 form.default_ratio
+  const hasIndependentRatio = (item.public_ratio !== null && item.public_ratio !== undefined) ||
+                              (item.key_ratio !== null && item.key_ratio !== undefined) ||
+                              (item.applied_ratio_source === 'custom' && item.custom_ratio !== null)
+  const effRatio = (hasIndependentRatio && item.custom_ratio !== null && item.custom_ratio !== undefined)
+    ? item.custom_ratio
+    : (form.default_ratio ?? 0.65)
+  const recharge = form.recharge_rate || 1.0
+
+  if (form.currency === 'USD') {
+    const baseUsd = item.official_input_price || (item.input_price_usd / (item.custom_ratio || 1.0)) || 0.0
+    const finalUsd = baseUsd * effRatio * recharge
+    return `$${finalUsd.toFixed(3)} / 1M`
+  } else {
+    const baseCny = (item.official_input_cny && item.official_input_cny > 0)
+      ? item.official_input_cny
+      : (item.official_input_price ? item.official_input_price * (store.usdToCnyRate || 7.25) : item.input_price_cny)
+    const finalCny = baseCny * effRatio * recharge
+    return `¥${finalCny.toFixed(2)} / 1M`
+  }
+}
 
 async function submitWizard() {
   isSubmitting.value = true
   try {
+    // 构造对齐后的 mappings：确保未提供原生独立倍率的模型条目同步继承 form.default_ratio
+    const preparedMappings = mappingsList.value.map(m => {
+      const clone = { ...m }
+      const hasIndependentRatio = (m.public_ratio !== null && m.public_ratio !== undefined) ||
+                                  (m.key_ratio !== null && m.key_ratio !== undefined) ||
+                                  (m.applied_ratio_source === 'custom' && m.custom_ratio !== null)
+      if (!hasIndependentRatio) {
+        clone.custom_ratio = form.default_ratio ?? 0.65
+        clone.applied_ratio_source = 'default'
+      }
+      return clone
+    })
+
     const res = await axios.post(`${store.apiUrl}/api/v1/channels/wizard-create`, {
       site_id: props.initialChannel?.id || undefined,
       name: form.name,
@@ -1487,7 +1522,7 @@ async function submitWizard() {
       recharge_rate: form.recharge_rate,
       default_ratio: form.default_ratio,
       notes: form.notes,
-      mappings: mappingsList.value
+      mappings: preparedMappings
     })
     if (res.data.status === 'success') {
       await store.fetchRelaySites()

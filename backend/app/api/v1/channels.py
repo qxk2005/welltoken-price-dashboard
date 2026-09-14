@@ -263,18 +263,30 @@ async def wizard_create_channel(payload: ChannelWizardCreateRequest, db: AsyncSe
         )
         db.add(cm)
 
-        # C. 计算折算价格与官方真实折扣
-        ratio = item.custom_ratio if item.custom_ratio is not None else payload.default_ratio
-        if item.input_price_usd > 0:
-            calc_in = item.input_price_usd
-            calc_out = item.output_price_usd
-            calc_cache = item.cache_price_usd
-        else:
-            calc_in = round(std_meta.official_input_price * ratio * site.recharge_rate, 4)
-            calc_out = round(std_meta.official_output_price * ratio * site.recharge_rate, 4)
-            calc_cache = round(std_meta.official_cache_price * ratio * site.recharge_rate, 4)
+        # C. 确定该模型的最终生效倍率与折算单价
+        # 若用户在第 3 步设置了独立自定义倍率，则采用 custom_ratio；否则统一采用全局兜底倍率 default_ratio
+        ratio = item.custom_ratio if (item.custom_ratio is not None and item.applied_ratio_source == "custom") else payload.default_ratio
 
-        discount = round(((calc_in - std_meta.official_input_price) / std_meta.official_input_price * 100), 1) if std_meta.official_input_price > 0 else 0.0
+        # 基准价格优先取官方第一档基准价，未匹配时取标准模型参考价
+        base_in = item.official_input_price if (item.official_input_price and item.official_input_price > 0) else (std_meta.official_input_price or 0.0)
+        base_out = item.official_output_price if (item.official_output_price and item.official_output_price > 0) else (std_meta.official_output_price or 0.0)
+        base_cache = item.official_cache_price if (item.official_cache_price and item.official_cache_price > 0) else (std_meta.official_cache_price or 0.0)
+
+        if base_in > 0:
+            calc_in = round(base_in * ratio * site.recharge_rate, 4)
+            calc_out = round(base_out * ratio * site.recharge_rate, 4)
+            calc_cache = round(base_cache * ratio * site.recharge_rate, 4)
+        elif item.input_price_usd > 0:
+            # 无官方基准时的自定义模型，按传入价格乘以倍率与充值汇率
+            calc_in = round(item.input_price_usd * ratio * site.recharge_rate, 4)
+            calc_out = round(item.output_price_usd * ratio * site.recharge_rate, 4)
+            calc_cache = round(item.cache_price_usd * ratio * site.recharge_rate, 4)
+        else:
+            calc_in = 0.0
+            calc_out = 0.0
+            calc_cache = 0.0
+
+        discount = round(((calc_in - base_in) / base_in * 100), 1) if base_in > 0 else 0.0
 
         pricing = SiteModelPricing(
             site_id=site.id,
@@ -293,10 +305,10 @@ async def wizard_create_channel(payload: ChannelWizardCreateRequest, db: AsyncSe
             last_tested_tps=50.0
         )
 
-        if item.official_model_id and item.official_input_price > 0:
-            pricing.official_input_discount = round(calc_in / item.official_input_price, 3)
-            if item.official_output_price > 0:
-                pricing.official_output_discount = round(calc_out / item.official_output_price, 3)
+        if base_in > 0:
+            pricing.official_input_discount = round(calc_in / base_in, 3)
+            if base_out > 0:
+                pricing.official_output_discount = round(calc_out / base_out, 3)
                 pricing.official_composite_discount = round((pricing.official_input_discount * 2 + pricing.official_output_discount) / 3, 3)
 
         db.add(pricing)
