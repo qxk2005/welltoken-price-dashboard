@@ -2,6 +2,28 @@
 
 所有关于 **WellToken Price Dashboard** 的重要更新与重大改进说明都将记录在此文件中。
 
+## 🚀 [v1.5.5 Windows客户端安装常驻与快捷方式缺失彻底修复版] - 2026-09-15
+
+### 🛠️ 关键缺陷修复与打包策略重构
+- **根治 Windows 客户端打包后关闭找不到程序的问题 (`package.json`)**：
+  - **根因彻底消除**：消除此前 `build.win.target` 同时启用 `["nsis", "portable"]` 且同名输出导致的构建冲突覆盖。此前绿色便携版同名覆盖了 NSIS 安装包，并在关闭后自动销毁临时目录，且不注册任何快捷方式；
+  - **精炼打包目标**：移除 `portable` 便携版，仅保留标准的 Windows NSIS 安装程序，确保每次打包发布均是完备的安装包；
+  - **规范发布产物命名**：Windows 端安装包明确重命名为 `${productName}-${version}-win-${arch}-Setup.${ext}`（如 `WellToken Price Dashboard-1.5.5-win-x64-Setup.exe`），消除命名歧义；
+  - **向导式安装与快捷方式自动注册**：保持向导式安装体验 (`oneClick: false`)，允许用户自主选择安装路径 (`allowToChangeInstallationDirectory: true`)，安装后自动在 Windows 开始菜单与桌面生成快捷方式 (`createDesktopShortcut: true`, `createStartMenuShortcut: true`)；
+  - **卸载数据清理保护**：配置 `"deleteAppDataOnUninstall": true`，在用户卸载时友好提示是否清理本地数据库与配置缓存。
+
+### 🧪 自动化测试与工程化加固
+- **多平台自动化测试套件加固 (`test_fresh_and_upgrade_install.py`)**：
+  - 修复测试脚本中项目根目录相对路径索引逻辑，规范 `@pytest.mark.asyncio` 异步测试标记；
+  - 完善 SQLite 数据库连接句柄在 Windows 环境下的释放清理逻辑，消除文件锁导致的句柄占用与临时目录清理异常；
+  - 适配最新 30 款历史快照批次与模型种子数据的断言校验；
+- **前端与主进程构建流水线校验**：
+  - TypeScript 与 Vue 类型检查 (`npm run typecheck`) 0 报错；
+  - 前端与主进程打包编译 (`npm run build`) 100% 成功；
+  - Electron Builder 解包测试 (`electron-builder --win --dir`) 顺利通过。
+
+---
+
 ## 🚀 [v1.5.4 Sub2API兜底倍率逻辑修正、MiniMax双模式拆分、快照阶梯跳转修正与Tab交互水合] - 2026-09-14
 
 ### 🌟 全新功能与交互体验升级

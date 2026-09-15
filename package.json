@@ -1,6 +1,6 @@
 {
   "name": "welltoken-price-dashboard",
-  "version": "1.5.4",
+  "version": "1.5.5",
   "description": "Cross-platform Token & Crypto Price Dashboard built with Electron, Vue 3, SQLite and Python FastAPI",
   "main": "./out/main/index.js",
   "author": "qxk2005",
@@ -81,16 +81,16 @@
     },
     "win": {
       "target": [
-        "nsis",
-        "portable"
+        "nsis"
       ],
-      "artifactName": "${productName}-${version}-win-${arch}.${ext}"
+      "artifactName": "${productName}-${version}-win-${arch}-Setup.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "deleteAppDataOnUninstall": true
     }
   }
 }

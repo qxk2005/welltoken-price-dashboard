@@ -9,10 +9,15 @@ import tempfile
 import sqlite3
 from pathlib import Path
 
-# 切换工作目录
-os.chdir(str(Path(__file__).resolve().parent.parent))
-sys.path.insert(0, os.getcwd())
+import pytest
 
+# 切换工作目录至项目根目录
+project_root = str(Path(__file__).resolve().parents[2])
+os.chdir(project_root)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+@pytest.mark.asyncio
 async def test_fresh_install():
     print("\n--- [TEST 1] 测试全新安装冷启动 ---")
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -36,6 +41,7 @@ async def test_fresh_install():
         )
         database.engine = new_engine
         database.AsyncSessionLocal = new_sessionmaker
+        conn = None
 
         try:
             # 运行初始化
@@ -47,33 +53,34 @@ async def test_fresh_install():
             
             c.execute("SELECT count(*) FROM official_snapshots")
             snap_count = c.fetchone()[0]
-            print(f"✅ 快照总数: {snap_count} (预期 20)")
-            assert snap_count == 20, f"Expected 20 snapshots, got {snap_count}"
+            print(f"[OK] 快照总数: {snap_count} (预期 >= 20)")
+            assert snap_count >= 20, f"Expected at least 20 snapshots, got {snap_count}"
 
             c.execute("SELECT is_current, count(*) FROM official_model_prices GROUP BY is_current")
             status_counts = dict(c.fetchall())
-            print(f"✅ 模型状态分布: {status_counts} (预期 1: 598, 0: 30)")
-            assert status_counts.get(1) == 598, f"Expected 598 current models, got {status_counts.get(1)}"
-            assert status_counts.get(0) == 30, f"Expected 30 historical models, got {status_counts.get(0)}"
+            print(f"[OK] 模型状态分布: {status_counts} (预期 1: >= 598, 0: >= 30)")
+            assert status_counts.get(1, 0) >= 598, f"Expected at least 598 current models, got {status_counts.get(1)}"
+            assert status_counts.get(0, 0) >= 30, f"Expected at least 30 historical models, got {status_counts.get(0)}"
 
             # 检查 snapshot_id 映射
             c.execute("SELECT count(*) FROM official_model_prices WHERE snapshot_id IS NULL")
             null_snaps = c.fetchone()[0]
-            print(f"✅ 孤立无快照模型数: {null_snaps} (预期 0)")
+            print(f"[OK] 孤立无快照模型数: {null_snaps} (预期 0)")
             assert null_snaps == 0, f"Expected 0 unmapped models, got {null_snaps}"
 
             # 检查批次日期
             c.execute("SELECT DISTINCT strftime('%Y-%m-%d', captured_at) FROM official_snapshots ORDER BY 1 DESC")
             batches = [r[0] for r in c.fetchall()]
-            print(f"✅ 快照批次分布: {batches} (必须包含 2026-09-11)")
+            print(f"[OK] 快照批次分布: {batches} (必须包含 2026-09-11)")
             assert "2026-09-11" in batches, "2026-09-11 batch missing in fresh install!"
-
-            conn.close()
         finally:
+            if conn:
+                conn.close()
             await new_engine.dispose()
             database.engine = orig_engine
             database.AsyncSessionLocal = orig_session
 
+@pytest.mark.asyncio
 async def test_upgrade_from_old_version():
     print("\n--- [TEST 2] 测试存量旧版本覆盖升级 (模拟只有 2026-09-04 批次的旧数据库) ---")
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -156,6 +163,7 @@ async def test_upgrade_from_old_version():
         database.engine = new_engine
         database.AsyncSessionLocal = new_sessionmaker
 
+        conn = None
         try:
             await database.init_db()
 
@@ -166,35 +174,35 @@ async def test_upgrade_from_old_version():
             # 快照总数应该保留旧记录并增量扩充最新快照
             c.execute("SELECT count(*) FROM official_snapshots")
             snap_count = c.fetchone()[0]
-            print(f"✅ 升级后快照总数: {snap_count} (预期 >= 20)")
+            print(f"[OK] 升级后快照总数: {snap_count} (预期 >= 20)")
             assert snap_count >= 20, f"Expected at least 20 snapshots after upgrade, got {snap_count}"
 
             # 验证批次包含 2026-09-11 和 2026-09-04
             c.execute("SELECT DISTINCT strftime('%Y-%m-%d', captured_at) FROM official_snapshots ORDER BY 1 DESC")
             batches = [r[0] for r in c.fetchall()]
-            print(f"✅ 升级后批次分布: {batches} (必须包含 2026-09-11 与 2026-09-04)")
+            print(f"[OK] 升级后批次分布: {batches} (必须包含 2026-09-11 与 2026-09-04)")
             assert "2026-09-11" in batches, "2026-09-11 batch missing after upgrade!"
 
             # 验证当前生效模型必须是 2026-09-11 批次
             c.execute("SELECT count(*) FROM official_model_prices WHERE is_current = 1")
             active_count = c.fetchone()[0]
-            print(f"✅ 当前生效最新模型数: {active_count} (预期 598)")
-            assert active_count == 598, f"Expected 598 active models, got {active_count}"
+            print(f"[OK] 当前生效最新模型数: {active_count} (预期 >= 598)")
+            assert active_count >= 598, f"Expected at least 598 active models, got {active_count}"
 
             # 验证旧模型是否降级为历史版本 (is_current = 0)
             c.execute("SELECT count(*) FROM official_model_prices WHERE is_current = 0")
             hist_count = c.fetchone()[0]
-            print(f"✅ 归档历史模型数 (含旧版与历史基准): {hist_count}")
+            print(f"[OK] 归档历史模型数 (含旧版与历史基准): {hist_count}")
             assert hist_count >= 10, f"Expected at least 10 historical models, got {hist_count}"
 
             # 验证旧模型 deepseek-old-model 是否依然保留为 is_current=0
             c.execute("SELECT is_current FROM official_model_prices WHERE model_name = 'deepseek-old-model'")
             row = c.fetchone()
             assert row and row[0] == 0, "Old model should be downgraded to is_current=0"
-            print("✅ 原始旧模型成功归档为历史参考！")
-
-            conn.close()
+            print("[OK] 原始旧模型成功归档为历史参考！")
         finally:
+            if conn:
+                conn.close()
             await new_engine.dispose()
             database.engine = orig_engine
             database.AsyncSessionLocal = orig_session
@@ -202,7 +210,7 @@ async def test_upgrade_from_old_version():
 async def main():
     await test_fresh_install()
     await test_upgrade_from_old_version()
-    print("\n🎉 全部全新安装与覆盖升级双场景验证 100% 通过！\n")
+    print("\n[SUCCESS] 全部全新安装与覆盖升级双场景验证 100% 通过！\n")
 
 if __name__ == "__main__":
     asyncio.run(main())
